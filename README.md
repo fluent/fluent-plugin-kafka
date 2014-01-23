@@ -19,9 +19,8 @@ Or install it yourself as:
 
 ## Usage
 
-### in_kafka_poseidon
+### Input plugin
 
-fluentd.conf
     <source>
       type   kafka-poseidon
       host   <broker host>
@@ -29,18 +28,16 @@ fluentd.conf
       topics <listening topics(separate with comma',')>
     </source>
 
-### out_kafka_poseidon (non-buffered)
+### Output plugin (non-buffered)
 
-fluentd.conf
     <match *.**>
       type          kafka-poseidon
       brokers       <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic <output topic>
     </match>
 
-### out_kafka_poseidon_buffered
+### Buffered output plugin
 
-fluentd.conf
     <match *.**>
       type            kafka-poseidon-buffered
       brokers         <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
