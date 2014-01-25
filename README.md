@@ -31,19 +31,21 @@ Or install it yourself as:
 ### Output plugin (non-buffered)
 
     <match *.**>
-      type          kafka-poseidon
-      brokers       <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
-      default_topic <output topic>
+      type             kafka-poseidon
+      brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
+      default_topic    <output topic>
+      output_data_type (json|ltsv|attr:<record name>)
     </match>
 
 ### Buffered output plugin
 
     <match *.**>
-      type            kafka-poseidon-buffered
-      brokers         <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
-      default_topic   <output topic>
-      flush_interval  <flush interval (sec) :default => 60>
-      buffer_type     (file|memory)
+      type             kafka-poseidon-buffered
+      brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
+      default_topic    <output topic>
+      flush_interval   <flush interval (sec) :default => 60>
+      buffer_type      (file|memory)
+      output_data_type (json|ltsv|attr:<record name>)
     </match>
 
 ## Contributing
