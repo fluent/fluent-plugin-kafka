@@ -26,6 +26,9 @@ Or install it yourself as:
       host   <broker host>
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
+      format <input text type (text|json)>
+      add_prefix <tag prefix (Optional)>
+      add_suffix <tag suffix (Optional)>
     </source>
 
 ### Output plugin (non-buffered)
