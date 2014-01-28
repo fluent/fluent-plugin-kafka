@@ -1,5 +1,5 @@
 class Fluent::KafkaPoseidonOutput < Fluent::Output
-  Fluent::Plugin.register_output('kafka-poseidon', self)
+  Fluent::Plugin.register_output('kafka_poseidon', self)
 
   def initialize
     super

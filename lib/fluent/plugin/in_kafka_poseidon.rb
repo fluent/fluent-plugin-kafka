@@ -1,7 +1,7 @@
 module Fluent
 
 class KafkaPoseidonInput < Input
-  Plugin.register_input('kafka-poseidon', self)
+  Plugin.register_input('kafka_poseidon', self)
 
   config_param :format, :string, :default => 'json' # (json|text)
   config_param :host, :string, :default => 'localhost'

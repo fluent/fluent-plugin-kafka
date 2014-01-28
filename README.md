@@ -22,7 +22,7 @@ Or install it yourself as:
 ### Input plugin
 
     <source>
-      type   kafka-poseidon
+      type   kafka_poseidon
       host   <broker host>
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
@@ -34,7 +34,7 @@ Or install it yourself as:
 ### Output plugin (non-buffered)
 
     <match *.**>
-      type             kafka-poseidon
+      type             kafka_poseidon
       brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic    <output topic>
       output_data_type (json|ltsv|attr:<record name>)
@@ -43,7 +43,7 @@ Or install it yourself as:
 ### Buffered output plugin
 
     <match *.**>
-      type             kafka-poseidon-buffered
+      type             kafka_poseidon_buffered
       brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic    <output topic>
       flush_interval   <flush interval (sec) :default => 60>

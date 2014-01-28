@@ -1,5 +1,5 @@
 class Fluent::KafkaPoseidonOutputBuffered < Fluent::BufferedOutput
-  Fluent::Plugin.register_output('kafka-poseidon-buffered', self)
+  Fluent::Plugin.register_output('kafka_poseidon_buffered', self)
 
   def initialize
     super
