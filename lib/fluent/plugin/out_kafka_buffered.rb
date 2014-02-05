@@ -1,5 +1,5 @@
-class Fluent::KafkaPoseidonOutputBuffered < Fluent::BufferedOutput
-  Fluent::Plugin.register_output('kafka_poseidon_buffered', self)
+class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
+  Fluent::Plugin.register_output('kafka_buffered', self)
 
   def initialize
     super
@@ -9,7 +9,7 @@ class Fluent::KafkaPoseidonOutputBuffered < Fluent::BufferedOutput
   config_param :brokers, :string, :default => 'localhost:9092'
   config_param :default_topic, :string, :default => nil
   config_param :default_partition, :integer, :default => 0
-  config_param :client_id, :string, :default => 'kafka-poseidon'
+  config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json'
   attr_accessor :output_data_type
   attr_accessor :field_separator

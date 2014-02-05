@@ -1,4 +1,4 @@
-# Fluent::Plugin::Kafka-poseidon
+# Fluent::Plugin::Kafka
 
 TODO: Write a gem description
 TODO: Also, I need to write tests
@@ -7,7 +7,7 @@ TODO: Also, I need to write tests
 
 Add this line to your application's Gemfile:
 
-    gem 'fluent-plugin-kafka-poseidon'
+    gem 'fluent-plugin-kafka'
 
 And then execute:
 
@@ -15,14 +15,14 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install fluent-plugin-kafka-poseidon
+    $ gem install fluent-plugin-kafka
 
 ## Usage
 
 ### Input plugin
 
     <source>
-      type   kafka_poseidon
+      type   kafka
       host   <broker host>
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
@@ -34,7 +34,7 @@ Or install it yourself as:
 ### Output plugin (non-buffered)
 
     <match *.**>
-      type             kafka_poseidon
+      type             kafka
       brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic    <output topic>
       output_data_type (json|ltsv|attr:<record name>)
@@ -43,7 +43,7 @@ Or install it yourself as:
 ### Buffered output plugin
 
     <match *.**>
-      type             kafka_poseidon_buffered
+      type             kafka_buffered
       brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic    <output topic>
       flush_interval   <flush interval (sec) :default => 60>

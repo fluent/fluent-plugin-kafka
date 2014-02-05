@@ -1,6 +1,6 @@
 require 'helper'
 
-class KafkaPoseidonOutputTest < Test::Unit::TestCase
+class KafkaOutputTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
   end
@@ -11,7 +11,7 @@ class KafkaPoseidonOutputTest < Test::Unit::TestCase
   ]
 
   def create_driver(conf = CONFIG, tag='test')
-    Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaPoseidonOutput, tag).configure(conf)
+    Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaOutput, tag).configure(conf)
   end
 
   def test_configure

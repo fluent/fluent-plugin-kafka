@@ -21,7 +21,7 @@ unless ENV.has_key?('VERBOSE')
   $log = nulllogger
 end
 
-require 'fluent/plugin/out_kafka_poseidon'
+require 'fluent/plugin/out_kafka'
 
 class Test::Unit::TestCase
 end
