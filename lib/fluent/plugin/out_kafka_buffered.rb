@@ -20,7 +20,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     @producers = {} # keyed by topic:partition
     case @output_data_type
     when 'json'
-      require 'json'
+      require 'yajl'
     when 'ltsv'
       require 'ltsv'
     end
@@ -59,7 +59,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     if @custom_attributes.nil?
       case @output_data_type
       when 'json'
-        JSON.dump(record)
+        Yajl::Encoder.encode(record)
       when 'ltsv'
         LTSV.dump(record)
       else
