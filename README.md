@@ -38,6 +38,8 @@ Or install it yourself as:
       brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic    <output topic>
       output_data_type (json|ltsv|attr:<record name>)
+      output_include_tag  (true|false) :default => false
+      output_include_time (true|false) :default => false
     </match>
 
 ### Buffered output plugin
@@ -49,6 +51,8 @@ Or install it yourself as:
       flush_interval   <flush interval (sec) :default => 60>
       buffer_type      (file|memory)
       output_data_type (json|ltsv|attr:<record name>)
+      output_include_tag  (true|false) :default => false
+      output_include_time (true|false) :default => false
     </match>
 
 ## Contributing

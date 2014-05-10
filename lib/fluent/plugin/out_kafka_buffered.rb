@@ -1,3 +1,4 @@
+# encode: utf-8
 class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   Fluent::Plugin.register_output('kafka_buffered', self)
 
@@ -11,6 +12,8 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   config_param :default_partition, :integer, :default => 0
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json'
+  config_param :output_include_tag, :bool, :default => false
+  config_param :output_include_time, :bool, :default => false
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
@@ -66,6 +69,8 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         record.to_s
       end
     else
+      @custom_attributes.unshift('time') if @output_include_time
+      @custom_attributes.unshift('tag') if @output_include_tag
       @custom_attributes.map { |attr|
         record[attr].nil? ? '' : record[attr].to_s
       }.join(@f_separator)
@@ -75,6 +80,8 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   def write(chunk)
     records_by_topic = {}
     chunk.msgpack_each { |tag, time, record|
+      record['time'] = time if @output_include_time
+      record['tag'] = tag if @output_include_tag
       topic = record['topic'] || self.default_topic || tag
       partition = record['partition'] || self.default_partition
       message = Poseidon::MessageToSend.new(topic, parse_record(record))
