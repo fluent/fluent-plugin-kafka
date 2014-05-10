@@ -26,7 +26,7 @@ Or install it yourself as:
       host   <broker host>
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
-      format <input text type (text|json)>
+      format <input text type (text|json|ltsv)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
     </source>

@@ -28,7 +28,9 @@ class KafkaInput < Input
 
     case @format
     when 'json'
-      require 'json'
+      require 'yajl'
+    when 'ltsv'
+      require 'ltsv'
     end
   end
 
@@ -105,7 +107,9 @@ class KafkaInput < Input
       parsed_record = {}
       case @format
       when 'json'
-        parsed_record = JSON.parse(record)
+        parsed_record = Yajl::Parser.parse(record)
+      when 'ltsv'
+        parsed_record = LTSV.parse(record)
       when 'text'
         parsed_record = record
       end
