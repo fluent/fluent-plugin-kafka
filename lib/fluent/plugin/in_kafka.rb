@@ -108,8 +108,11 @@ class KafkaInput < Input
       case @format
       when 'json'
         parsed_record = Yajl::Parser.parse(record)
+<<<<<<< HEAD
       when 'ltsv'
         parsed_record = LTSV.parse(record)
+=======
+>>>>>>> f61404b33d275ee6fa95bea03e8a057f30ebd2d6
       when 'text'
         parsed_record = record
       end
