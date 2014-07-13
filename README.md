@@ -26,7 +26,7 @@ Or install it yourself as:
       host   <broker host>
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
-      format <input text type (text|json|ltsv)>
+      format <input text type (text|json|ltsv|msgpack)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
     </source>
@@ -37,7 +37,7 @@ Or install it yourself as:
       type             kafka
       brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
       default_topic    <output topic>
-      output_data_type (json|ltsv|attr:<record name>)
+      output_data_type (json|ltsv|msgpack|attr:<record name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
     </match>
@@ -50,7 +50,7 @@ Or install it yourself as:
       default_topic    <output topic>
       flush_interval   <flush interval (sec) :default => 60>
       buffer_type      (file|memory)
-      output_data_type (json|ltsv|attr:<record name>)
+      output_data_type (json|ltsv|msgpack|attr:<record name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
     </match>

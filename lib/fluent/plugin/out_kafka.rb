@@ -25,6 +25,8 @@ class Fluent::KafkaOutput < Fluent::Output
       require 'yajl'
     when 'ltsv'
       require 'ltsv'
+    when 'msgpack'
+      require 'msgpack'
     end
 
     @f_separator = case @field_separator
@@ -37,6 +39,8 @@ class Fluent::KafkaOutput < Fluent::Output
     @custom_attributes = if @output_data_type == 'json'
                            nil
                          elsif @output_data_type == 'ltsv'
+                           nil
+                         elsif @output_data_type == 'msgpack'
                            nil
                          elsif @output_data_type =~ /^attr:(.*)$/
                            $1.split(',').map(&:strip).reject(&:empty?)
@@ -61,6 +65,8 @@ class Fluent::KafkaOutput < Fluent::Output
         Yajl::Encoder.encode(record)
       when 'ltsv'
         LTSV.dump(record)
+      when 'msgpack'
+        record.to_msgpack
       else
         record.to_s
       end

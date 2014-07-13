@@ -31,6 +31,8 @@ class KafkaInput < Input
       require 'yajl'
     when 'ltsv'
       require 'ltsv'
+    when 'msgpack'
+      require 'msgpack'
     end
   end
 
@@ -110,6 +112,8 @@ class KafkaInput < Input
         parsed_record = Yajl::Parser.parse(record)
       when 'ltsv'
         parsed_record = LTSV.parse(record)
+      when 'msgpack'
+        parsed_record = MessagePack.unpack(record)
       when 'text'
         parsed_record = record
       end
