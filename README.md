@@ -34,26 +34,49 @@ Or install it yourself as:
 ### Output plugin (non-buffered)
 
     <match *.**>
-      type             kafka
-      brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
-      default_topic    <output topic>
-      output_data_type (json|ltsv|msgpack|attr:<record name>)
+      type                kafka
+      brokers             <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
+      default_topic       <output topic>
+      output_data_type    (json|ltsv|msgpack|attr:<record name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
+      max_send_retries    (integer)    :default => 3
+      required_acks       (integer)    :default => 0
+      ack_timeout_ms      (integer)    :default => 1500
     </match>
+
+Supports following Poseidon::Producer options.
+
+- max_send_retries — default: 3 — Number of times to retry sending of messages to a leader.
+- required_acks — default: 0 — The number of acks required per request.
+- ack_timeout_ms — default: 1500 — How long the producer waits for acks.
+
+See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
 
 ### Buffered output plugin
 
     <match *.**>
-      type             kafka_buffered
-      brokers          <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
-      default_topic    <output topic>
-      flush_interval   <flush interval (sec) :default => 60>
-      buffer_type      (file|memory)
-      output_data_type (json|ltsv|msgpack|attr:<record name>)
+      type                kafka_buffered
+      brokers             <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
+      default_topic       <output topic>
+      flush_interval      <flush interval (sec) :default => 60>
+      buffer_type         (file|memory)
+      output_data_type    (json|ltsv|msgpack|attr:<record name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
+      max_send_retries    (integer)    :default => 3
+      required_acks       (integer)    :default => 0
+      ack_timeout_ms      (integer)    :default => 1500
     </match>
+
+Supports following Poseidon::Producer options.
+
+- max_send_retries — default: 3 — Number of times to retry sending of messages to a leader.
+- required_acks — default: 0 — The number of acks required per request.
+- ack_timeout_ms — default: 1500 — How long the producer waits for acks.
+
+See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
+
 
 ## Contributing
 

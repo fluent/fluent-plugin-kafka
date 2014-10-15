@@ -13,6 +13,12 @@ class Fluent::KafkaOutput < Fluent::Output
   config_param :output_data_type, :string, :default => 'json'
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
+
+  # poseidon producer options
+  config_param :max_send_retries, :integer, :default => 3
+  config_param :required_acks, :integer, :default => 0
+  config_param :ack_timeout_ms, :integer, :default => 1500
+
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
@@ -87,7 +93,7 @@ class Fluent::KafkaOutput < Fluent::Output
       topic = record['topic'] || self.default_topic || tag
       partition = record['partition'] || self.default_partition
       message = Poseidon::MessageToSend.new(topic, parse_record(record))
-      @producers[topic] ||= Poseidon::Producer.new(@seed_brokers, self.client_id)
+      @producers[topic] ||= Poseidon::Producer.new(@seed_brokers, self.client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms)
       @producers[topic].send_messages([message])
     end
   end
