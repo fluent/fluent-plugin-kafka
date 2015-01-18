@@ -7,6 +7,7 @@ class Fluent::KafkaOutput < Fluent::Output
   end
 
   config_param :brokers, :string, :default => 'localhost:9092'
+  config_param :zookeeper, :string, :default => nil
   config_param :default_topic, :string, :default => nil
   config_param :default_partition, :integer, :default => 0
   config_param :client_id, :string, :default => 'kafka'
@@ -24,7 +25,20 @@ class Fluent::KafkaOutput < Fluent::Output
 
   def configure(conf)
     super
-    @seed_brokers = @brokers.match(",").nil? ? [@brokers] : @brokers.split(",")
+    if @zookeeper
+      require 'zookeeper'
+      require 'yajl'
+      @seed_brokers = []
+      z = Zookeeper.new(@zookeeper)
+      z.get_children(:path => '/brokers/ids')[:children].each do |id|
+        broker = Yajl.load(z.get(:path => "/brokers/ids/#{id}")[:data])
+        @seed_brokers.push("#{broker['host']}:#{broker['port']}")
+      end
+      log.info "brokers has been set via Zookeeper: #{@seed_brokers}"
+    else
+      @seed_brokers = @brokers.match(",").nil? ? [@brokers] : @brokers.split(",")
+      log.info "brokers has been set directly: #{@seed_brokers}"
+    end
     @producers = {} # keyed by topic:partition
     case @output_data_type
     when 'json'

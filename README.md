@@ -35,7 +35,11 @@ Or install it yourself as:
 
     <match *.**>
       type                kafka
-      brokers             <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
+
+      # Brokers: you can choose either brokers or zookeeper.
+      brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+      zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
+
       default_topic       <output topic>
       output_data_type    (json|ltsv|msgpack|attr:<record name>)
       output_include_tag  (true|false) :default => false
@@ -57,7 +61,11 @@ See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Posei
 
     <match *.**>
       type                kafka_buffered
-      brokers             <broker1_host>:<broker1_ip>,<broker2_host>:<broker2_ip>,..
+
+      # Brokers: you can choose either brokers or zookeeper.
+      brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+      zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
+
       default_topic       <output topic>
       flush_interval      <flush interval (sec) :default => 60>
       buffer_type         (file|memory)
