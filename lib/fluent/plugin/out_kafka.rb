@@ -23,23 +23,39 @@ class Fluent::KafkaOutput < Fluent::Output
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
-  def configure(conf)
-    super
+  @seed_brokers = []
+
+  def refresh_producer()
     if @zookeeper
-      require 'zookeeper'
-      require 'yajl'
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
       z.get_children(:path => '/brokers/ids')[:children].each do |id|
         broker = Yajl.load(z.get(:path => "/brokers/ids/#{id}")[:data])
         @seed_brokers.push("#{broker['host']}:#{broker['port']}")
       end
-      log.info "brokers has been set via Zookeeper: #{@seed_brokers}"
+      log.info "brokers has been refreshed via Zookeeper: #{@seed_brokers}"
+    end
+    begin
+      if @seed_brokers.length > 0
+        @producer = Poseidon::Producer.new(@seed_brokers, @client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms)
+        log.info "initialized producer #{@client_id}"
+      else
+        log.warn "No brokers found on Zookeeper"
+      end
+    rescue Exception => e
+      log.error e
+    end
+  end
+
+  def configure(conf)
+    super
+    if @zookeeper
+      require 'zookeeper'
+      require 'yajl'
     else
       @seed_brokers = @brokers.match(",").nil? ? [@brokers] : @brokers.split(",")
       log.info "brokers has been set directly: #{@seed_brokers}"
     end
-    @producers = {} # keyed by topic:partition
     case @output_data_type
     when 'json'
       require 'yajl'
@@ -72,6 +88,7 @@ class Fluent::KafkaOutput < Fluent::Output
 
   def start
     super
+    refresh_producer()
   end
 
   def shutdown
@@ -100,15 +117,20 @@ class Fluent::KafkaOutput < Fluent::Output
   end
 
   def emit(tag, es, chain)
-    chain.next
-    es.each do |time,record|
-      record['time'] = time if @output_include_time
-      record['tag'] = tag if @output_include_tag
-      topic = record['topic'] || self.default_topic || tag
-      partition = record['partition'] || self.default_partition
-      message = Poseidon::MessageToSend.new(topic, parse_record(record))
-      @producers[topic] ||= Poseidon::Producer.new(@seed_brokers, self.client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms)
-      @producers[topic].send_messages([message])
+    begin
+      chain.next
+      es.each do |time,record|
+        record['time'] = time if @output_include_time
+        record['tag'] = tag if @output_include_tag
+        topic = record['topic'] || self.default_topic || tag
+        partition = record['partition'] || self.default_partition
+        message = Poseidon::MessageToSend.new(topic, parse_record(record))
+        @producer.send_messages([message])
+      end
+    rescue Exception => e
+      log.warn("Send exception occurred: #{e}")
+      refresh_producer()
+      raise e
     end
   end
 

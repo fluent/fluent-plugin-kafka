@@ -29,18 +29,35 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     define_method("log") { $log }
   end
 
-  def configure(conf)
-    super
+  @seed_brokers = []
+
+  def refresh_producer()
     if @zookeeper
-      require 'zookeeper'
-      require 'yajl'
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
       z.get_children(:path => '/brokers/ids')[:children].each do |id|
         broker = Yajl.load(z.get(:path => "/brokers/ids/#{id}")[:data])
         @seed_brokers.push("#{broker['host']}:#{broker['port']}")
       end
-      log.info "brokers has been set via Zookeeper: #{@seed_brokers}"
+      log.info "brokers has been refreshed via Zookeeper: #{@seed_brokers}"
+    end
+    begin
+      if @seed_brokers.length > 0
+        @producer = Poseidon::Producer.new(@seed_brokers, @client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms)
+        log.info "initialized producer #{@client_id}"
+      else
+        log.warn "No brokers found on Zookeeper"
+      end
+    rescue Exception => e
+      log.error e
+    end
+  end
+
+  def configure(conf)
+    super
+    if @zookeeper
+      require 'zookeeper'
+      require 'yajl'
     else
       @seed_brokers = @brokers.match(",").nil? ? [@brokers] : @brokers.split(",")
       log.info "brokers has been set directly: #{@seed_brokers}"
@@ -77,8 +94,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
 
   def start
     super
-    @producer = Poseidon::Producer.new(@seed_brokers, @client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms)
-    log.info "initialized producer #{@client_id}"
+    refresh_producer()
   end
 
   def shutdown
@@ -115,31 +131,37 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     bytes_by_topic = {}
     messages = []
     messages_bytes = 0
-    chunk.msgpack_each { |tag, time, record|
-      record['time'] = time if @output_include_time
-      record['tag'] = tag if @output_include_tag
-      topic = record['topic'] || @default_topic || tag
+    begin
+      chunk.msgpack_each { |tag, time, record|
+        record['time'] = time if @output_include_time
+        record['tag'] = tag if @output_include_tag
+        topic = record['topic'] || @default_topic || tag
 
-      records_by_topic[topic] ||= 0
-      bytes_by_topic[topic] ||= 0
+        records_by_topic[topic] ||= 0
+        bytes_by_topic[topic] ||= 0
 
-      record_buf = parse_record(record)
-      record_buf_bytes = record_buf.bytesize
-      if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
+        record_buf = parse_record(record)
+        record_buf_bytes = record_buf.bytesize
+        if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
+          @producer.send_messages(messages)
+          messages = []
+          messages_bytes = 0
+        end
+        messages << Poseidon::MessageToSend.new(topic, record_buf)
+        messages_bytes += record_buf_bytes
+
+        records_by_topic[topic] += 1
+        bytes_by_topic[topic] += record_buf_bytes
+      }
+      if messages.length > 0
         @producer.send_messages(messages)
-        messages = []
-        messages_bytes = 0
       end
-      messages << Poseidon::MessageToSend.new(topic, record_buf)
-      messages_bytes += record_buf_bytes
-
-      records_by_topic[topic] += 1
-      bytes_by_topic[topic] += record_buf_bytes
-    }
-    if messages.length > 0
-      @producer.send_messages(messages)
+      log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
     end
-    log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
+  rescue Exception => e
+    log.warn "Send exception occurred: #{e}"
+    refresh_producer()
+    # Raise exception to retry sendind messages
+    raise e
   end
-
 end
