@@ -21,6 +21,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   config_param :max_send_retries, :integer, :default => 3
   config_param :required_acks, :integer, :default => 0
   config_param :ack_timeout_ms, :integer, :default => 1500
+  config_param :compression_codec, :string, :default => 'none'
 
   attr_accessor :output_data_type
   attr_accessor :field_separator
@@ -43,7 +44,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     end
     begin
       if @seed_brokers.length > 0
-        @producer = Poseidon::Producer.new(@seed_brokers, @client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms)
+        @producer = Poseidon::Producer.new(@seed_brokers, @client_id, :max_send_retries => @max_send_retries, :required_acks => @required_acks, :ack_timeout_ms => @ack_timeout_ms, :compression_codec => @compression_codec.to_sym)
         log.info "initialized producer #{@client_id}"
       else
         log.warn "No brokers found on Zookeeper"
@@ -62,7 +63,9 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
       @seed_brokers = @brokers.match(",").nil? ? [@brokers] : @brokers.split(",")
       log.info "brokers has been set directly: #{@seed_brokers}"
     end
-
+    if @compression_codec == 'snappy'
+      require 'snappy'
+    end
     case @output_data_type
     when 'json'
       require 'yajl'
