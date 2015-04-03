@@ -19,4 +19,5 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'yajl-ruby'
   gem.add_dependency 'msgpack'
   gem.add_dependency 'zookeeper'
+  gem.add_dependency 'snappy'
 end
