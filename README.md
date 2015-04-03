@@ -47,6 +47,7 @@ Or install it yourself as:
       max_send_retries    (integer)    :default => 3
       required_acks       (integer)    :default => 0
       ack_timeout_ms      (integer)    :default => 1500
+      compression_codec   (none|gzip|snappy) :default => none
     </match>
 
 Supports following Poseidon::Producer options.
@@ -54,6 +55,7 @@ Supports following Poseidon::Producer options.
 - max_send_retries — default: 3 — Number of times to retry sending of messages to a leader.
 - required_acks — default: 0 — The number of acks required per request.
 - ack_timeout_ms — default: 1500 — How long the producer waits for acks.
+- compression_codec - default: none - The codec the producer uses to compress messages.
 
 See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
 
@@ -75,6 +77,7 @@ See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Posei
       max_send_retries    (integer)    :default => 3
       required_acks       (integer)    :default => 0
       ack_timeout_ms      (integer)    :default => 1500
+      compression_codec   (none|gzip|snappy) :default => none
     </match>
 
 Supports following Poseidon::Producer options.
@@ -82,6 +85,7 @@ Supports following Poseidon::Producer options.
 - max_send_retries — default: 3 — Number of times to retry sending of messages to a leader.
 - required_acks — default: 0 — The number of acks required per request.
 - ack_timeout_ms — default: 1500 — How long the producer waits for acks.
+- compression_codec - default: none - The codec the producer uses to compress messages.
 
 See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
 
