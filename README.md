@@ -4,6 +4,10 @@ TODO: Write a gem description
 TODO: Also, I need to write tests
 
 ## Installation
+This plugin needs to install 'snappy' library:
+    $ sudo apt-get install snappy
+    or
+    $ sudo yum install snappy
 
 Add this line to your application's Gemfile:
 
