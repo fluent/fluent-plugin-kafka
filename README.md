@@ -4,10 +4,6 @@ TODO: Write a gem description
 TODO: Also, I need to write tests
 
 ## Installation
-This plugin needs to install 'snappy' library:
-    $ sudo apt-get install snappy
-    or
-    $ sudo yum install snappy
 
 Add this line to your application's Gemfile:
 
@@ -63,6 +59,12 @@ Supports following Poseidon::Producer options.
 
 See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
 
+This plugin supports compression codec "snappy" also.
+Install snappy module before you use snappy compression.
+
+    $ gem install snappy
+
+
 ### Buffered output plugin
 
     <match *.**>
@@ -92,6 +94,11 @@ Supports following Poseidon::Producer options.
 - compression_codec - default: none - The codec the producer uses to compress messages.
 
 See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
+
+This plugin supports compression codec "snappy" also.
+Install snappy module before you use snappy compression.
+
+    $ gem install snappy
 
 
 ## Contributing
