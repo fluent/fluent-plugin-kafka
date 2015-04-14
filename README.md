@@ -41,7 +41,7 @@ Or install it yourself as:
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
 
       default_topic       <output topic>
-      output_data_type    (json|ltsv|msgpack|attr:<record name>)
+      output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
       max_send_retries    (integer)    :default => 3
@@ -77,7 +77,7 @@ Install snappy module before you use snappy compression.
       default_topic       <output topic>
       flush_interval      <flush interval (sec) :default => 60>
       buffer_type         (file|memory)
-      output_data_type    (json|ltsv|msgpack|attr:<record name>)
+      output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
       max_send_retries    (integer)    :default => 3

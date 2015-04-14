@@ -91,6 +91,8 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
                          elsif @output_data_type =~ /^attr:(.*)$/
                            $1.split(',').map(&:strip).reject(&:empty?)
                          else
+                           @formatter = Fluent::Plugin.new_formatter(@output_data_type)
+                           @formatter.configure(conf)
                            nil
                          end
   end
@@ -143,7 +145,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         records_by_topic[topic] ||= 0
         bytes_by_topic[topic] ||= 0
 
-        record_buf = parse_record(record)
+        record_buf = @formatter.nil? ? parse_record(record) : @formatter.format(tag, time, record)
         record_buf_bytes = record_buf.bytesize
         if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
           @producer.send_messages(messages)

@@ -85,6 +85,8 @@ class Fluent::KafkaOutput < Fluent::Output
                          elsif @output_data_type =~ /^attr:(.*)$/
                            $1.split(',').map(&:strip).reject(&:empty?)
                          else
+                           @formatter = Fluent::Plugin.new_formatter(@output_data_type)
+                           @formatter.configure(conf)
                            nil
                          end
 
@@ -128,7 +130,8 @@ class Fluent::KafkaOutput < Fluent::Output
         record['tag'] = tag if @output_include_tag
         topic = record['topic'] || self.default_topic || tag
         partition = record['partition'] || self.default_partition
-        message = Poseidon::MessageToSend.new(topic, parse_record(record))
+        value = @formatter.nil? ? parse_record(record) : @formatter.format(tag, time, record)
+        message = Poseidon::MessageToSend.new(topic, value)
         @producer.send_messages([message])
       end
     rescue Exception => e
