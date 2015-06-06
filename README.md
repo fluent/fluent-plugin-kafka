@@ -41,6 +41,7 @@ Or install it yourself as:
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
 
       default_topic       <output topic>
+      default_partition_key (string)   :default => nil
       output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
@@ -64,6 +65,18 @@ Install snappy module before you use snappy compression.
 
     $ gem install snappy
 
+#### Load balancing
+
+Messages will be sent broker in a round-robin manner as default by Poseidon, but you can set `default_partition_key` in config file to route messages to a specific broker.
+If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
+
+|default_partition_key|partition_key| behavior |
+|-|-|
+|Not set|Not exists| All messages are sent in round-robin |
+|Set| Not exists| All messages are sent to specific broker |
+|Not set| Exists | Messages which have partition_key record are sent to specific broker, others are sent in round-robin|
+|Set| Exists | Messages which have partition_key record are sent to specific broker with parition_key, others are sent to specific broker with default_parition_key|
+
 
 ### Buffered output plugin
 
@@ -75,6 +88,7 @@ Install snappy module before you use snappy compression.
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
 
       default_topic       <output topic>
+      default_partition_key (string)   :default => nil
       flush_interval      <flush interval (sec) :default => 60>
       buffer_type         (file|memory)
       output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
@@ -100,6 +114,17 @@ Install snappy module before you use snappy compression.
 
     $ gem install snappy
 
+    #### Load balancing
+
+    Messages will be sent broker in a round-robin manner as default by Poseidon, but you can set `default_partition_key` in config file to route messages to a specific broker.
+    If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
+
+    |default_partition_key|partition_key| behavior |
+    |-|-|
+    |Not set|Not exists| All messages are sent in round-robin |
+    |Set| Not exists| All messages are sent to specific broker |
+    |Not set| Exists | Messages which have partition_key record are sent to specific broker, others are sent in round-robin|
+    |Set| Exists | Messages which have partition_key record are sent to specific broker with parition_key, others are sent to specific broker with default_parition_key|
 
 ## Contributing
 

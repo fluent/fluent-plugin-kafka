@@ -9,7 +9,7 @@ class Fluent::KafkaOutput < Fluent::Output
   config_param :brokers, :string, :default => 'localhost:9092'
   config_param :zookeeper, :string, :default => nil
   config_param :default_topic, :string, :default => nil
-  config_param :default_partition, :integer, :default => 0
+  config_param :default_partition_key, :string, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json'
   config_param :output_include_tag, :bool, :default => false
@@ -25,6 +25,10 @@ class Fluent::KafkaOutput < Fluent::Output
   attr_accessor :field_separator
 
   @seed_brokers = []
+
+  unless method_defined?(:log)
+    define_method("log") { $log }
+  end
 
   def refresh_producer()
     if @zookeeper
@@ -129,9 +133,10 @@ class Fluent::KafkaOutput < Fluent::Output
         record['time'] = time if @output_include_time
         record['tag'] = tag if @output_include_tag
         topic = record['topic'] || self.default_topic || tag
-        partition = record['partition'] || self.default_partition
+        partition_key = record['partition_key'] || @default_partition_key
         value = @formatter.nil? ? parse_record(record) : @formatter.format(tag, time, record)
-        message = Poseidon::MessageToSend.new(topic, value)
+        log.trace("message send to #{topic} with key: #{partition_key} and value: #{value}.")
+        message = Poseidon::MessageToSend.new(topic, value, partition_key)
         @producer.send_messages([message])
       end
     rescue Exception => e

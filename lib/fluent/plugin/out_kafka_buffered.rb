@@ -10,7 +10,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   config_param :brokers, :string, :default => 'localhost:9092'
   config_param :zookeeper, :string, :default => nil
   config_param :default_topic, :string, :default => nil
-  config_param :default_partition, :integer, :default => 0
+  config_param :default_partition_key, :string, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json'
   config_param :output_include_tag, :bool, :default => false
@@ -141,6 +141,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         record['time'] = time if @output_include_time
         record['tag'] = tag if @output_include_tag
         topic = record['topic'] || @default_topic || tag
+        partition_key = record['partition_key'] || @default_partition_key
 
         records_by_topic[topic] ||= 0
         bytes_by_topic[topic] ||= 0
@@ -148,17 +149,20 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         record_buf = @formatter.nil? ? parse_record(record) : @formatter.format(tag, time, record)
         record_buf_bytes = record_buf.bytesize
         if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
+          log.trace("#{messages.length} messages send.")
           @producer.send_messages(messages)
           messages = []
           messages_bytes = 0
         end
-        messages << Poseidon::MessageToSend.new(topic, record_buf)
+        log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.")
+        messages << Poseidon::MessageToSend.new(topic, record_buf, partition_key)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
         bytes_by_topic[topic] += record_buf_bytes
       }
       if messages.length > 0
+        log.trace("#{messages.length} messages send.")
         @producer.send_messages(messages)
       end
       log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
