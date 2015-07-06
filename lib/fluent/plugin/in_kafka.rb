@@ -5,7 +5,7 @@ class KafkaInput < Input
 
   config_param :format, :string, :default => 'json' # (json|text|ltsv)
   config_param :host, :string, :default => 'localhost'
-  config_param :port, :integer, :default => 2181
+  config_param :port, :integer, :default => 9092
   config_param :interval, :integer, :default => 1 # seconds
   config_param :topics, :string
   config_param :client_id, :string, :default => 'kafka'
