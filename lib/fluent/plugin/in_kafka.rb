@@ -14,6 +14,12 @@ class KafkaInput < Input
   config_param :add_prefix, :string, :default => nil
   config_param :add_suffix, :string, :default => nil
 
+  # poseidon PartitionConsumer options
+  config_param :max_bytes, :integer, :default => nil
+  config_param :max_wait_ms, :integer, :default => nil
+  config_param :min_bytes, :integer, :default => nil
+  config_param :socket_timeout_ms, :integer, :default => nil
+
   def initialize
     super
     require 'poseidon'
@@ -38,8 +44,14 @@ class KafkaInput < Input
 
   def start
     @loop = Coolio::Loop.new
+    opt = {}
+    opt[:max_bytes] = @max_bytes if @max_bytes
+    opt[:max_wait_ms] = @max_wait_ms if @max_wait_ms
+    opt[:min_bytes] = @min_bytes if @min_bytes
+    opt[:socket_timeout_ms] = @socket_timeout_ms if @socket_timeout_ms
+
     @topic_watchers = @topic_list.map {|topic|
-      TopicWatcher.new(topic, @host, @port, @client_id, @partition, @offset, interval, @format, @add_prefix, @add_suffix)
+      TopicWatcher.new(topic, @host, @port, @client_id, @partition, @offset, interval, @format, @add_prefix, @add_suffix, opt)
     }
     @topic_watchers.each {|tw|
       tw.attach(@loop)
@@ -59,7 +71,7 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic, host, port, client_id, partition, offset, interval, format, add_prefix, add_suffix)
+    def initialize(topic, host, port, client_id, partition, offset, interval, format, add_prefix, add_suffix, options={})
       @topic = topic
       @callback = method(:consume)
       @format = format
@@ -71,7 +83,8 @@ class KafkaInput < Input
         port,                 # port
         topic,                # topic
         partition,            # partition
-        offset                # offset
+        offset,               # offset
+        options               # options
       )
         
       super(interval, true)

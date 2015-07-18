@@ -29,7 +29,20 @@ Or install it yourself as:
       format <input text type (text|json|ltsv|msgpack)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
+      max_bytes           (integer)    :default => nil (Use default of Poseidon)
+      max_wait_ms         (integer)    :default => nil (Use default of Poseidon)
+      min_bytes           (integer)    :default => nil (Use default of Poseidon)
+      socket_timeout_ms   (integer)    :default => nil (Use default of Poseidon)
     </source>
+
+Supports following Poseidon::PartitionConsumer options.
+
+- max_bytes — default: 1048576 (1MB) — Maximum number of bytes to fetch
+- max_wait_ms — default: 100 (100ms) — How long to block until the server sends us data.
+- min_bytes — default: 1 (Send us data as soon as it is ready) — Smallest amount of data the server should send us.
+- socket_timeout_ms - default: 10000 (10s) - How long to wait for reply from server. Should be higher than max_wait_ms.
+
+See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/PartitionConsumer) for more detailed documentation about Poseidon.
 
 ### Output plugin (non-buffered)
 
