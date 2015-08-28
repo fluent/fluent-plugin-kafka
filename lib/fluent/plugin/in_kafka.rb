@@ -4,6 +4,7 @@ class KafkaInput < Input
   Plugin.register_input('kafka', self)
 
   config_param :format, :string, :default => 'json' # (json|text|ltsv)
+  config_param :message_key, :string, :default => 'message' # for 'text' format only
   config_param :host, :string, :default => 'localhost'
   config_param :port, :integer, :default => 9092
   config_param :interval, :integer, :default => 1 # seconds
@@ -51,7 +52,7 @@ class KafkaInput < Input
     opt[:socket_timeout_ms] = @socket_timeout_ms if @socket_timeout_ms
 
     @topic_watchers = @topic_list.map {|topic|
-      TopicWatcher.new(topic, @host, @port, @client_id, @partition, @offset, interval, @format, @add_prefix, @add_suffix, opt)
+      TopicWatcher.new(topic, @host, @port, @client_id, @partition, @offset, interval, @format, @message_key, @add_prefix, @add_suffix, opt)
     }
     @topic_watchers.each {|tw|
       tw.attach(@loop)
@@ -71,10 +72,11 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic, host, port, client_id, partition, offset, interval, format, add_prefix, add_suffix, options={})
+    def initialize(topic, host, port, client_id, partition, offset, interval, format, message_key, add_prefix, add_suffix, options={})
       @topic = topic
       @callback = method(:consume)
       @format = format
+      @message_key = message_key
       @add_prefix = add_prefix
       @add_suffix = add_suffix
       @consumer = Poseidon::PartitionConsumer.new(
@@ -128,7 +130,7 @@ class KafkaInput < Input
       when 'msgpack'
         parsed_record = MessagePack.unpack(record)
       when 'text'
-        parsed_record = record
+        parsed_record[@message_key] = record
       end
       parsed_record
     end
