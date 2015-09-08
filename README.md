@@ -27,6 +27,7 @@ Or install it yourself as:
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
       format <input text type (text|json|ltsv|msgpack)>
+      message_key <key (Optional, for text format only, default is message)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
       max_bytes           (integer)    :default => nil (Use default of Poseidon)
