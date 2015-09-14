@@ -14,6 +14,7 @@ class KafkaInput < Input
   config_param :offset, :integer, :default => -1
   config_param :add_prefix, :string, :default => nil
   config_param :add_suffix, :string, :default => nil
+  config_param :add_offset_in_record, :bool, :default => false
 
   # poseidon PartitionConsumer options
   config_param :max_bytes, :integer, :default => nil
@@ -76,6 +77,7 @@ class KafkaInput < Input
         interval,
         @format,
         @message_key,
+        @add_offset_in_record,
         @add_prefix,
         @add_suffix,
         opt)
@@ -98,8 +100,9 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_prefix, add_suffix, options={})
+    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, options={})
       @topic_entry = topic_entry
+      @add_offset_in_record = add_offset_in_record
       @callback = method(:consume)
       @format = format
       @message_key = message_key
@@ -134,6 +137,7 @@ class KafkaInput < Input
       @consumer.fetch.each { |msg|
         begin
           msg_record = parse_line(msg.value)
+          msg_record = decorate_offset(msg_record, msg.offset) if @add_offset_in_record
           es.add(Time.now.to_i, msg_record)
         rescue
           $log.warn msg_record.to_s, :error=>$!.to_s
@@ -159,6 +163,28 @@ class KafkaInput < Input
         parsed_record[@message_key] = record
       end
       parsed_record
+    end
+
+    def decorate_offset(record, offset)
+      case @format
+      when 'json'
+        add_offset_in_hash(record, @topic_entry.topic, @topic_entry.partition, offset)
+      when 'ltsv'
+        record.each { |line|
+          add_offset_in_hash(line, @topic_entry.topic, @topic_entry.partition, offset)
+        }
+      when 'msgpack'
+        add_offset_in_hash(record, @topic_entry.topic, @topic_entry.partition, offset)
+      when 'text'
+        add_offset_in_hash(record, @topic_entry.topic, @topic_entry.partition, offset)
+      end
+      record
+    end
+
+    def add_offset_in_hash(hash, topic, partition, offset)
+      hash['kafka_topic'] = topic
+      hash['kafka_partition'] = partition
+      hash['kafka_offset'] = offset
     end
   end
 
