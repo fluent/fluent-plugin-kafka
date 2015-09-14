@@ -43,6 +43,25 @@ Supports following Poseidon::PartitionConsumer options.
 - min_bytes — default: 1 (Send us data as soon as it is ready) — Smallest amount of data the server should send us.
 - socket_timeout_ms - default: 10000 (10s) - How long to wait for reply from server. Should be higher than max_wait_ms.
 
+Supports a start of processing from the assigned offset for specific topics.
+
+    <source>
+      type   kafka
+      host   <broker host>
+      port   <broker port: default=9092>
+      format <input text type (text|json|ltsv|msgpack)>
+      <topic>
+        topic       <listening topic>
+        partition   <listening partition: default=0>
+        offset      <listening start offset: default=-1>
+      </topic>
+      <topic>
+        topic       <listening topic>
+        partition   <listening partition: default=0>
+        offset      <listening start offset: default=-1>
+      </topic>
+    </source>
+
 See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/PartitionConsumer) for more detailed documentation about Poseidon.
 
 ### Output plugin (non-buffered)
