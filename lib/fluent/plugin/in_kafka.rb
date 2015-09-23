@@ -16,6 +16,9 @@ class KafkaInput < Input
   config_param :add_suffix, :string, :default => nil
   config_param :add_offset_in_record, :bool, :default => false
 
+  config_param :offset_zookeeper, :string, :default => nil
+  config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
+
   # poseidon PartitionConsumer options
   config_param :max_bytes, :integer, :default => nil
   config_param :max_wait_ms, :integer, :default => nil
@@ -25,6 +28,7 @@ class KafkaInput < Input
   def initialize
     super
     require 'poseidon'
+    require 'zookeeper'
   end
 
   def configure(conf)
@@ -68,7 +72,10 @@ class KafkaInput < Input
     opt[:min_bytes] = @min_bytes if @min_bytes
     opt[:socket_timeout_ms] = @socket_timeout_ms if @socket_timeout_ms
 
+    @zookeeper = Zookeeper.new(@offset_zookeeper) if @offset_zookeeper
+
     @topic_watchers = @topic_list.map {|topic_entry|
+      offset_manager = OffsetManager.new(topic_entry, @zookeeper, @offset_zk_root_node) if @offset_zookeeper
       TopicWatcher.new(
         topic_entry,
         @host,
@@ -80,6 +87,7 @@ class KafkaInput < Input
         @add_offset_in_record,
         @add_prefix,
         @add_suffix,
+        offset_manager,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -90,6 +98,7 @@ class KafkaInput < Input
 
   def shutdown
     @loop.stop
+    @zookeeper.close! if @zookeeper
   end
 
   def run
@@ -100,24 +109,26 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, options={})
+    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, offset_manager, options={})
       @topic_entry = topic_entry
-      @add_offset_in_record = add_offset_in_record
+      @host = host
+      @port = port
+      @client_id = client_id
       @callback = method(:consume)
       @format = format
       @message_key = message_key
+      @add_offset_in_record = add_offset_in_record
       @add_prefix = add_prefix
       @add_suffix = add_suffix
-      @consumer = Poseidon::PartitionConsumer.new(
-        client_id,              # client_id
-        host,                   # host
-        port,                   # port
-        topic_entry.topic,      # topic
-        topic_entry.partition,  # partition
-        topic_entry.offset,     # offset
-        options                 # options
-      )
-        
+      @options = options
+      @offset_manager = offset_manager
+
+      @next_offset = @topic_entry.offset
+      if @topic_entry.offset == -1 && offset_manager
+        @next_offset = offset_manager.next_offset
+      end
+      @consumer = create_consumer(@next_offset)      
+
       super(interval, true)
     end
 
@@ -134,6 +145,11 @@ class KafkaInput < Input
       tag = @topic_entry.topic
       tag = @add_prefix + "." + tag if @add_prefix
       tag = tag + "." + @add_suffix if @add_suffix
+
+      if @offset_manager && @consumer.next_offset != @next_offset
+        @consumer = create_consumer(@next_offset)
+      end
+
       @consumer.fetch.each { |msg|
         begin
           msg_record = parse_line(msg.value)
@@ -147,7 +163,26 @@ class KafkaInput < Input
 
       unless es.empty?
         Engine.emit_stream(tag, es)
+
+        if @offset_manager
+          next_offset = @consumer.next_offset
+          @offset_manager.save_offset(next_offset)
+          @next_offset = next_offset
+        end
       end
+    end
+
+    def create_consumer(offset)
+      @consumer.close if @consumer
+      Poseidon::PartitionConsumer.new(
+        @client_id,             # client_id
+        @host,                  # host
+        @port,                  # port
+        @topic_entry.topic,     # topic
+        @topic_entry.partition, # partition
+        offset,                 # offset
+        @options                # options
+      )
     end
 
     def parse_line(record)
@@ -197,6 +232,31 @@ class KafkaInput < Input
     attr_reader :topic, :partition, :offset
   end
 
+  class OffsetManager
+    def initialize(topic_entry, zookeeper, zk_root_node)
+      @zookeeper = zookeeper
+      @zk_path = "#{zk_root_node}/#{topic_entry.topic}/#{topic_entry.partition}/next_offset"
+      create_node(@zk_path, topic_entry.topic, topic_entry.partition)
+    end
+
+    def create_node(zk_path, topic, partition)
+      path = ""
+      zk_path.split(/(\/[^\/]+)/).reject(&:empty?).each { |dir|
+        path = path + dir
+        @zookeeper.create(:path => "#{path}")
+      }
+      $log.trace "use zk offset node : #{path}"
+    end
+
+    def next_offset
+      @zookeeper.get(:path => @zk_path)[:data].to_i
+    end
+
+    def save_offset(offset)
+      @zookeeper.set(:path => @zk_path, :data => offset.to_s)
+      $log.trace "update zk offset node : #{offset.to_s}"
+    end
+  end
 end
 
 end
