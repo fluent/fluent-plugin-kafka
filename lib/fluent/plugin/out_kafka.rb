@@ -13,7 +13,8 @@ class Fluent::KafkaOutput < Fluent::Output
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json'
   config_param :output_include_tag, :bool, :default => false
-  config_param :output_include_time, :bool, :default => false
+  #config_param :output_include_time, :bool, :default => false
+  config_param :logstash_format, :bool, :default => false
 
   # poseidon producer options
   config_param :max_send_retries, :integer, :default => 3
@@ -130,7 +131,17 @@ class Fluent::KafkaOutput < Fluent::Output
     begin
       chain.next
       es.each do |time,record|
-        record['time'] = time if @output_include_time
+        if @logstash_format
+          if record.has_key?("@timestamp")
+            time = Time.parse record["@timestamp"]
+          elsif record.has_key?(@time_key)
+            time = Time.parse record[@time_key]
+            record['@timestamp'] = record[@time_key]
+          else
+            record.merge!({"@timestamp" => Time.at(time).to_datetime.to_s})
+          end
+        end
+        #record['time'] = time if @output_include_time
         record['tag'] = tag if @output_include_tag
         topic = record['topic'] || self.default_topic || tag
         partition_key = record['partition_key'] || @default_partition_key
