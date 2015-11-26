@@ -146,18 +146,16 @@ class KafkaGroupInput < Input
     end
 
     def parse_line(record)
-      parsed_record = {}
       case @format
       when 'json'
-        parsed_record = Yajl::Parser.parse(record)
+        Yajl::Parser.parse(record)
       when 'ltsv'
-        parsed_record = LTSV.parse(record)
+        LTSV.parse(record)
       when 'msgpack'
-        parsed_record = MessagePack.unpack(record)
+        MessagePack.unpack(record)
       when 'text'
-        parsed_record[@message_key] = record
+        {@message_key => record}
       end
-      parsed_record
     end
   end
 end
