@@ -1,6 +1,6 @@
 module Fluent
 
-class KafkaInput < Input
+class KafkaGroupInput < Input
   Plugin.register_input('kafka_group', self)
 
   config_param :brokers, :string
