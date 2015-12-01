@@ -1,6 +1,6 @@
 module Fluent
 
-class KafkaInput < Input
+class KafkaGroupInput < Input
   Plugin.register_input('kafka_group', self)
 
   config_param :brokers, :string
@@ -18,6 +18,10 @@ class KafkaInput < Input
   config_param :max_wait_ms, :integer, :default => nil
   config_param :min_bytes, :integer, :default => nil
   config_param :socket_timeout_ms, :integer, :default => nil
+
+  unless method_defined?(:router)
+    define_method("router") { Fluent::Engine }
+  end
 
   def initialize
     super
@@ -68,7 +72,7 @@ class KafkaInput < Input
     @topic_watchers = @topic_list.map {|topic|
       TopicWatcher.new(topic, @broker_list, @zookeeper_list, @consumer_group,
                        interval, @format, @message_key, @add_prefix,
-                       @add_suffix, opt)
+                       @add_suffix, router, opt)
     }
     @topic_watchers.each {|tw|
       tw.attach(@loop)
@@ -90,13 +94,14 @@ class KafkaInput < Input
   class TopicWatcher < Coolio::TimerWatcher
     def initialize(topic, broker_list, zookeeper_list, consumer_group,
                    interval, format, message_key, add_prefix, add_suffix,
-                   options)
+                   router, options)
       @topic = topic
       @callback = method(:consume)
       @format = format
       @message_key = message_key
       @add_prefix = add_prefix
       @add_suffix = add_suffix
+      @router = router
 
       @consumer = Poseidon::ConsumerGroup.new(
         consumer_group,
@@ -127,7 +132,7 @@ class KafkaInput < Input
         bulk.each do |msg|
           begin
             msg_record = parse_line(msg.value)
-            es.add(Time.now.to_i, msg_record)
+            es.add(Engine.now, msg_record)
           rescue
             $log.warn msg_record.to_s, :error=>$!.to_s
             $log.debug_backtrace
@@ -136,23 +141,21 @@ class KafkaInput < Input
       end
 
       unless es.empty?
-        Engine.emit_stream(tag, es)
+        @router.emit_stream(tag, es)
       end
     end
 
     def parse_line(record)
-      parsed_record = {}
       case @format
       when 'json'
-        parsed_record = Yajl::Parser.parse(record)
+        Yajl::Parser.parse(record)
       when 'ltsv'
-        parsed_record = LTSV.parse(record)
+        LTSV.parse(record)
       when 'msgpack'
-        parsed_record = MessagePack.unpack(record)
+        MessagePack.unpack(record)
       when 'text'
-        parsed_record[@message_key] = record
+        {@message_key => record}
       end
-      parsed_record
     end
   end
 end

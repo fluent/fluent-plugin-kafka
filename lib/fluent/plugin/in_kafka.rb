@@ -25,6 +25,10 @@ class KafkaInput < Input
   config_param :min_bytes, :integer, :default => nil
   config_param :socket_timeout_ms, :integer, :default => nil
 
+  unless method_defined?(:router)
+    define_method("router") { Fluent::Engine }
+  end
+
   def initialize
     super
     require 'poseidon'
@@ -88,6 +92,7 @@ class KafkaInput < Input
         @add_prefix,
         @add_suffix,
         offset_manager,
+        router,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -109,7 +114,7 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, offset_manager, options={})
+    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, offset_manager, router, options={})
       @topic_entry = topic_entry
       @host = host
       @port = port
@@ -122,6 +127,7 @@ class KafkaInput < Input
       @add_suffix = add_suffix
       @options = options
       @offset_manager = offset_manager
+      @router = router
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
@@ -154,7 +160,7 @@ class KafkaInput < Input
         begin
           msg_record = parse_line(msg.value)
           msg_record = decorate_offset(msg_record, msg.offset) if @add_offset_in_record
-          es.add(Time.now.to_i, msg_record)
+          es.add(Engine.now, msg_record)
         rescue
           $log.warn msg_record.to_s, :error=>$!.to_s
           $log.debug_backtrace
@@ -162,7 +168,7 @@ class KafkaInput < Input
       }
 
       unless es.empty?
-        Engine.emit_stream(tag, es)
+        @router.emit_stream(tag, es)
 
         if @offset_manager
           next_offset = @consumer.next_offset
@@ -186,18 +192,16 @@ class KafkaInput < Input
     end
 
     def parse_line(record)
-      parsed_record = {}
       case @format
       when 'json'
-        parsed_record = Yajl::Parser.parse(record)
+        Yajl::Parser.parse(record)
       when 'ltsv'
-        parsed_record = LTSV.parse(record)
+        LTSV.parse(record)
       when 'msgpack'
-        parsed_record = MessagePack.unpack(record)
+        MessagePack.unpack(record)
       when 'text'
-        parsed_record[@message_key] = record
+        {@message_key => record}
       end
-      parsed_record
     end
 
     def decorate_offset(record, offset)
