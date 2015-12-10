@@ -136,12 +136,12 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         record_buf = @formatter_proc.call(tag, time, record)
         record_buf_bytes = record_buf.bytesize
         if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
-          log.trace("#{messages.length} messages send.")
+          log.on_trace { log.trace("#{messages.length} messages send.") }
           @producer.send_messages(messages)
           messages = []
           messages_bytes = 0
         end
-        log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.")
+        log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages << Poseidon::MessageToSend.new(topic, record_buf, partition_key)
         messages_bytes += record_buf_bytes
 
