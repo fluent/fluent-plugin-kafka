@@ -66,14 +66,6 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     if @compression_codec == 'snappy'
       require 'snappy'
     end
-    case @output_data_type
-    when 'json'
-      require 'yajl'
-    when 'ltsv'
-      require 'ltsv'
-    when 'msgpack'
-      require 'msgpack'
-    end
 
     @f_separator = case @field_separator
                    when /SPACE/i then ' '
@@ -82,19 +74,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
                    else "\t"
                    end
 
-    @custom_attributes = if @output_data_type == 'json'
-                           nil
-                         elsif @output_data_type == 'ltsv'
-                           nil
-                         elsif @output_data_type == 'msgpack'
-                           nil
-                         elsif @output_data_type =~ /^attr:(.*)$/
-                           $1.split(',').map(&:strip).reject(&:empty?)
-                         else
-                           @formatter = Fluent::Plugin.new_formatter(@output_data_type)
-                           @formatter.configure(conf)
-                           nil
-                         end
+    @formatter_proc = setup_formatter(conf)
   end
 
   def start
@@ -110,24 +90,31 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     [tag, time, record].to_msgpack
   end
 
-  def parse_record(record)
-    if @custom_attributes.nil?
-      case @output_data_type
-      when 'json'
-        Yajl::Encoder.encode(record)
-      when 'ltsv'
-        LTSV.dump(record)
-      when 'msgpack'
-        record.to_msgpack
-      else
-        record.to_s
-      end
-    else
+  def setup_formatter(conf)
+    if @output_data_type == 'json'
+      require 'yajl'
+      Proc.new { |tag, time, record| Yajl::Encoder.encode(record) }
+    elsif @output_data_type == 'ltsv'
+      require 'ltsv'
+      Proc.new { |tag, time, record| LTSV.dump(record) }
+    elsif @output_data_type == 'msgpack'
+      require 'msgpack'
+      Proc.new { |tag, time, record| record.to_msgpack }
+    elsif @output_data_type =~ /^attr:(.*)$/
+      @custom_attributes = $1.split(',').map(&:strip).reject(&:empty?)
       @custom_attributes.unshift('time') if @output_include_time
       @custom_attributes.unshift('tag') if @output_include_tag
-      @custom_attributes.map { |attr|
-        record[attr].nil? ? '' : record[attr].to_s
-      }.join(@f_separator)
+      Proc.new { |tag, time, record|
+        @custom_attributes.map { |attr|
+          record[attr].nil? ? '' : record[attr].to_s
+        }.join(@f_separator)
+      }
+    else
+      @formatter = Fluent::Plugin.new_formatter(@output_data_type)
+      @formatter.configure(conf)
+      Proc.new { |tag, time, record|
+        @formatter.format(tag, time, record)
+      }
     end
   end
 
@@ -146,15 +133,15 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         records_by_topic[topic] ||= 0
         bytes_by_topic[topic] ||= 0
 
-        record_buf = @formatter.nil? ? parse_record(record) : @formatter.format(tag, time, record)
+        record_buf = @formatter_proc.call(tag, time, record)
         record_buf_bytes = record_buf.bytesize
         if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
-          log.trace("#{messages.length} messages send.")
+          log.on_trace { log.trace("#{messages.length} messages send.") }
           @producer.send_messages(messages)
           messages = []
           messages_bytes = 0
         end
-        log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.")
+        log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages << Poseidon::MessageToSend.new(topic, record_buf, partition_key)
         messages_bytes += record_buf_bytes
 
