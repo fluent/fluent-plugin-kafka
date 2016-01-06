@@ -3,27 +3,41 @@ module Fluent
 class KafkaInput < Input
   Plugin.register_input('kafka', self)
 
-  config_param :format, :string, :default => 'json' # (json|text|ltsv)
-  config_param :message_key, :string, :default => 'message' # for 'text' format only
-  config_param :host, :string, :default => 'localhost'
-  config_param :port, :integer, :default => 9092
-  config_param :interval, :integer, :default => 1 # seconds
-  config_param :topics, :string, :default => nil
+  config_param :format, :string, :default => 'json',
+               :desc => "Supported format: (json|text|ltsv|msgpack)"
+  config_param :message_key, :string, :default => 'message',
+               :desc => "For 'text' format only."
+  config_param :host, :string, :default => 'localhost',
+               :desc => "Broker host"
+  config_param :port, :integer, :default => 9092,
+               :desc => "Broker port"
+  config_param :interval, :integer, :default => 1, # seconds
+               :desc => "Interval (Unit: seconds)"
+  config_param :topics, :string, :default => nil,
+               :desc => "Listening topics(separate with comma',')"
   config_param :client_id, :string, :default => 'kafka'
-  config_param :partition, :integer, :default => 0
-  config_param :offset, :integer, :default => -1
-  config_param :add_prefix, :string, :default => nil
-  config_param :add_suffix, :string, :default => nil
+  config_param :partition, :integer, :default => 0,
+               :desc => "Listening partition"
+  config_param :offset, :integer, :default => -1,
+               :desc => "Listening start offset"
+  config_param :add_prefix, :string, :default => nil,
+               :desc => "Tag prefix"
+  config_param :add_suffix, :string, :default => nil,
+               :desc => "tag suffix"
   config_param :add_offset_in_record, :bool, :default => false
 
   config_param :offset_zookeeper, :string, :default => nil
   config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
 
   # poseidon PartitionConsumer options
-  config_param :max_bytes, :integer, :default => nil
-  config_param :max_wait_ms, :integer, :default => nil
-  config_param :min_bytes, :integer, :default => nil
-  config_param :socket_timeout_ms, :integer, :default => nil
+  config_param :max_bytes, :integer, :default => nil,
+               :desc => "Maximum number of bytes to fetch."
+  config_param :max_wait_ms, :integer, :default => nil,
+               :desc => "How long to block until the server sends us data."
+  config_param :min_bytes, :integer, :default => nil,
+               :desc => "Smallest amount of data the server should send us."
+  config_param :socket_timeout_ms, :integer, :default => nil,
+               :desc => "How long to wait for reply from server. Should be higher than max_wait_ms."
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
