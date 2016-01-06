@@ -3,21 +3,34 @@ module Fluent
 class KafkaGroupInput < Input
   Plugin.register_input('kafka_group', self)
 
-  config_param :brokers, :string
-  config_param :zookeepers, :string
-  config_param :consumer_group, :string, :default => nil
-  config_param :topics, :string
-  config_param :interval, :integer, :default => 1 # seconds
-  config_param :format, :string, :default => 'json' # (json|text|ltsv)
-  config_param :message_key, :string, :default => 'message' # for 'text' format only
-  config_param :add_prefix, :string, :default => nil
-  config_param :add_suffix, :string, :default => nil
+  config_param :brokers, :string,
+               :desc => "List of broker-host:port, separate with comma, must set."
+  config_param :zookeepers, :string,
+               :desc => "List of broker-host:port, separate with comma, must set."
+  config_param :consumer_group, :string, :default => nil,
+               :desc => "Consumer group name, must set."
+  config_param :topics, :string,
+               :desc => "Listening topics(separate with comma',')."
+  config_param :interval, :integer, :default => 1, # seconds
+               :desc => "Interval (Unit: seconds)"
+  config_param :format, :string, :default => 'json',
+               :desc => "Supported format: (json|text|ltsv|msgpack)"
+  config_param :message_key, :string, :default => 'message',
+               :desc => "For 'text' format only."
+  config_param :add_prefix, :string, :default => nil,
+               :desc => "Tag prefix (Optional)"
+  config_param :add_suffix, :string, :default => nil,
+               :desc => "Tag suffix (Optional)"
 
   # poseidon PartitionConsumer options
-  config_param :max_bytes, :integer, :default => nil
-  config_param :max_wait_ms, :integer, :default => nil
-  config_param :min_bytes, :integer, :default => nil
-  config_param :socket_timeout_ms, :integer, :default => nil
+  config_param :max_bytes, :integer, :default => nil,
+               :desc => "Maximum number of bytes to fetch."
+  config_param :max_wait_ms, :integer, :default => nil,
+               :desc => "How long to block until the server sends us data."
+  config_param :min_bytes, :integer, :default => nil,
+               :desc => "Smallest amount of data the server should send us."
+  config_param :socket_timeout_ms, :integer, :default => nil,
+               :desc => "How long to wait for reply from server. Should be higher than max_wait_ms."
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
