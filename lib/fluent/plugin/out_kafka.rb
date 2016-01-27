@@ -6,20 +6,32 @@ class Fluent::KafkaOutput < Fluent::Output
     require 'poseidon'
   end
 
-  config_param :brokers, :string, :default => 'localhost:9092'
-  config_param :zookeeper, :string, :default => nil
-  config_param :default_topic, :string, :default => nil
+  config_param :brokers, :string, :default => 'localhost:9092',
+               :desc => <<-DESC
+Set brokers directly
+<broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
+Note that you can choose to use either brokers or zookeeper.
+DESC
+  config_param :zookeeper, :string, :default => nil,
+               :desc => "Set brokers via Zookeeper: <zookeeper_host>:<zookeeper_port>"
+  config_param :default_topic, :string, :default => nil,
+               :desc => "Output topic."
   config_param :default_partition_key, :string, :default => nil
   config_param :client_id, :string, :default => 'kafka'
-  config_param :output_data_type, :string, :default => 'json'
+  config_param :output_data_type, :string, :default => 'json',
+               :desc => "Supported format: (json|ltsv|msgpack|attr:<record name>|<formatter name>)"
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
 
   # poseidon producer options
-  config_param :max_send_retries, :integer, :default => 3
-  config_param :required_acks, :integer, :default => 0
-  config_param :ack_timeout_ms, :integer, :default => 1500
-  config_param :compression_codec, :string, :default => 'none'
+  config_param :max_send_retries, :integer, :default => 3,
+               :desc => "Number of times to retry sending of messages to a leader."
+  config_param :required_acks, :integer, :default => 0,
+               :desc => "The number of acks required per request."
+  config_param :ack_timeout_ms, :integer, :default => 1500,
+               :desc => "How long the producer waits for acks."
+  config_param :compression_codec, :string, :default => 'none',
+               :desc => "The codec the producer uses to compress messages."
 
   attr_accessor :output_data_type
   attr_accessor :field_separator
