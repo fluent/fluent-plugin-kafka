@@ -19,10 +19,10 @@ Or install it yourself as:
 
 ## Usage
 
-### Input plugin (type 'kafka')
+### Input plugin (@type 'kafka')
 
     <source>
-      type   kafka
+      @type  kafka
       host   <broker host>
       port   <broker port: default=9092>
       topics <listening topics(separate with comma',')>
@@ -46,7 +46,7 @@ Supports following Poseidon::PartitionConsumer options.
 Supports a start of processing from the assigned offset for specific topics.
 
     <source>
-      type   kafka
+      @type  kafka
       host   <broker host>
       port   <broker port: default=9092>
       format <input text type (text|json|ltsv|msgpack)>
@@ -64,10 +64,10 @@ Supports a start of processing from the assigned offset for specific topics.
 
 See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/PartitionConsumer) for more detailed documentation about Poseidon.
 
-### Input plugin (type 'kafka_group', supports kafka group)
+### Input plugin (@type 'kafka_group', supports kafka group)
 
     <source>
-      type   kafka_group
+      @type   kafka_group
       brokers <list of broker-host:port, separate with comma, must set>
       zookeepers <list of broker-host:port, separate with comma, must set>
       consumer_group <consumer group name, must set>
@@ -94,7 +94,7 @@ See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/posei
 ### Output plugin (non-buffered)
 
     <match *.**>
-      type                kafka
+      @type               kafka
 
       # Brokers: you can choose either brokers or zookeeper.
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
@@ -141,7 +141,7 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
 ### Buffered output plugin
 
     <match *.**>
-      type                kafka_buffered
+      @type               kafka_buffered
 
       # Brokers: you can choose either brokers or zookeeper.
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
@@ -174,17 +174,17 @@ Install snappy module before you use snappy compression.
 
     $ gem install snappy
 
-    #### Load balancing
+#### Load balancing
 
-    Messages will be sent broker in a round-robin manner as default by Poseidon, but you can set `default_partition_key` in config file to route messages to a specific broker.
-    If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
+Messages will be sent broker in a round-robin manner as default by Poseidon, but you can set `default_partition_key` in config file to route messages to a specific broker.
+If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
 
-    |default_partition_key|partition_key| behavior |
-    |-|-|
-    |Not set|Not exists| All messages are sent in round-robin |
-    |Set| Not exists| All messages are sent to specific broker |
-    |Not set| Exists | Messages which have partition_key record are sent to specific broker, others are sent in round-robin|
-    |Set| Exists | Messages which have partition_key record are sent to specific broker with parition_key, others are sent to specific broker with default_parition_key|
+|default_partition_key|partition_key| behavior |
+|-|-|
+|Not set|Not exists| All messages are sent in round-robin |
+|Set| Not exists| All messages are sent to specific broker |
+|Not set| Exists | Messages which have partition_key record are sent to specific broker, others are sent in round-robin|
+|Set| Exists | Messages which have partition_key record are sent to specific broker with parition_key, others are sent to specific broker with default_parition_key|
 
 ## Contributing
 
