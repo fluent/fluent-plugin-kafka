@@ -60,6 +60,7 @@ DESC
         broker = Yajl.load(z.get(:path => "/brokers/ids/#{id}")[:data])
         @seed_brokers.push("#{broker['host']}:#{broker['port']}")
       end
+      z.close
       log.info "brokers has been refreshed via Zookeeper: #{@seed_brokers}"
     end
     begin
@@ -176,6 +177,7 @@ DESC
     end
   rescue Exception => e
     log.warn "Send exception occurred: #{e}"
+    @producer.close if @producer
     refresh_producer()
     # Raise exception to retry sendind messages
     raise e
