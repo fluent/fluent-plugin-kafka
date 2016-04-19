@@ -131,7 +131,7 @@ Messages will be sent broker in a round-robin manner as default by Poseidon, but
 If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
 
 |default_partition_key|partition_key| behavior |
-|-|-|
+| --- | --- | --- |
 |Not set|Not exists| All messages are sent in round-robin |
 |Set| Not exists| All messages are sent to specific broker |
 |Not set| Exists | Messages which have partition_key record are sent to specific broker, others are sent in round-robin|
