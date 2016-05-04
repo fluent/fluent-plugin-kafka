@@ -18,6 +18,8 @@ DESC
 Set brokers via Zookeeper:
 <zookeeper_host>:<zookeeper_port>
 DESC
+  config_param :zookeeper_path, :string, :default => '/brokers/ids',
+               :desc => "Path in path for Broker id. Default to /brokers/ids"
   config_param :default_topic, :string, :default => nil,
                :desc => "Output topic"
   config_param :default_partition_key, :string, :default => nil
@@ -56,8 +58,8 @@ DESC
     if @zookeeper
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
-      z.get_children(:path => '/brokers/ids')[:children].each do |id|
-        broker = Yajl.load(z.get(:path => "/brokers/ids/#{id}")[:data])
+      z.get_children(:path => @zookeeper_path)[:children].each do |id|
+        broker = Yajl.load(z.get(:path => @zookeeper_path + "/#{id}")[:data])
         @seed_brokers.push("#{broker['host']}:#{broker['port']}")
       end
       z.close
