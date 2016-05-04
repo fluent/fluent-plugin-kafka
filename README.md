@@ -70,6 +70,7 @@ See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/posei
       @type   kafka_group
       brokers <list of broker-host:port, separate with comma, must set>
       zookeepers <list of broker-host:port, separate with comma, must set>
+      zookeeper_path <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for brokers
       consumer_group <consumer group name, must set>
       topics <listening topics(separate with comma',')>
       format <input text type (text|json|ltsv|msgpack)>
