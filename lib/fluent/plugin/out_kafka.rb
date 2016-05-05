@@ -33,6 +33,8 @@ DESC
   config_param :compression_codec, :string, :default => 'none',
                :desc => "The codec the producer uses to compress messages."
 
+  config_param :time_format, :string, :default => nil
+
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
@@ -143,7 +145,13 @@ DESC
     begin
       chain.next
       es.each do |time,record|
-        record['time'] = time if @output_include_time
+        if @output_include_time
+          if @time_format
+            record['time'] = Time.at(time).strftime(@time_format)
+          else
+            record['time'] = time
+          end
+        end
         record['tag'] = tag if @output_include_tag
         topic = record['topic'] || self.default_topic || tag
         partition_key = record['partition_key'] || @default_partition_key
