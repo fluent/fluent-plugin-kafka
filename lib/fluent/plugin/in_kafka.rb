@@ -1,3 +1,4 @@
+require 'fluent/input'
 module Fluent
 
 class KafkaInput < Input
