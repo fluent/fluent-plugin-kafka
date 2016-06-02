@@ -1,3 +1,4 @@
+require 'fluent/input'
 module Fluent
 
 class KafkaInput < Input
@@ -83,6 +84,7 @@ class KafkaInput < Input
   end
 
   def start
+    super
     @loop = Coolio::Loop.new
     opt = {}
     opt[:max_bytes] = @max_bytes if @max_bytes
@@ -118,6 +120,7 @@ class KafkaInput < Input
   def shutdown
     @loop.stop
     @zookeeper.close! if @zookeeper
+    super
   end
 
   def run

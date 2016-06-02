@@ -13,6 +13,7 @@ Gem::Specification.new do |gem|
   gem.name          = "fluent-plugin-kafka"
   gem.require_paths = ["lib"]
   gem.version = '0.1.4'
+  gem.add_development_dependency 'test-unit'
   gem.add_dependency 'fluentd'
   gem.add_dependency 'poseidon_cluster'
   gem.add_dependency 'ltsv'
