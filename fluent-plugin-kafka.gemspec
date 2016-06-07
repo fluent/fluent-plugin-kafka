@@ -20,4 +20,5 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'yajl-ruby'
   gem.add_dependency 'msgpack'
   gem.add_dependency 'zookeeper'
+  gem.add_dependency 'ruby-kafka', '~> 0.3.2'
 end
