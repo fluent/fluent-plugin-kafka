@@ -203,7 +203,7 @@ DESC
 
         record_buf = @formatter_proc.call(tag, time, record)
         record_buf_bytes = record_buf.bytesize
-        if messages > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
+        if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes)
           log.on_trace { log.trace("#{messages} messages send.") }
           producer.deliver_messages
           messages = 0
