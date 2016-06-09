@@ -1,4 +1,5 @@
 # encode: utf-8
+require 'thread'
 
 class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   Fluent::Plugin.register_output('kafka_buffered', self)
@@ -9,7 +10,8 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     require 'kafka'
 
     @kafka = nil
-    @producer = nil
+    @producers = {}
+    @producers_mutex = Mutex.new
   end
 
   config_param :brokers, :string, :default => 'localhost:9092',
@@ -35,7 +37,7 @@ Supported format: (json|ltsv|msgpack|attr:<record name>|<formatter name>)
 DESC
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
-  config_param :kafka_agg_max_bytes, :size, :default => 4*1024*1024  #4k
+  config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
 
   # poseidon producer options
   config_param :max_send_retries, :integer, :default => 1,
@@ -59,7 +61,7 @@ DESC
     define_method("log") { $log }
   end
 
-  def refresh_producer()
+  def refresh_client
     if @zookeeper
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
@@ -73,11 +75,6 @@ DESC
     begin
       if @seed_brokers.length > 0
         @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id)
-        producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks,
-                         max_buffer_size: @buffer.buffer_chunk_limit / 10, max_buffer_bytesize: @buffer.buffer_chunk_limit * 2}
-        producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
-        producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
-        @producer = @kafka.producer(producer_opts)
         log.info "initialized producer #{@client_id}"
       else
         log.warn "No brokers found on Zookeeper"
@@ -110,27 +107,46 @@ DESC
                    end
 
     @formatter_proc = setup_formatter(conf)
+
+    @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks,
+                      max_buffer_size: @buffer.buffer_chunk_limit / 10, max_buffer_bytesize: @buffer.buffer_chunk_limit * 2}
+    @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
+    @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
   end
 
   def start
     super
-    refresh_producer()
+    refresh_client
   end
 
   def shutdown
     super
-    shutdown_producer
+    shutdown_producers
+    @kafka = nil
   end
 
   def format(tag, time, record)
     [tag, time, record].to_msgpack
   end
 
-  def shutdown_producer
-    if @producer
-      @producer.shutdown
-      @producer = nil
-    end
+  def shutdown_producers
+    @producers_mutex.synchronize {
+      @producers.each { |key, producer|
+        producer.shutdown
+      }
+      @producers = {}
+    }
+  end
+
+  def get_producer
+    @producers_mutex.synchronize {
+      producer = @producers[Thread.current.object_id]
+      unless producer
+        producer = @kafka.producer(@producer_opts)
+        @producers[Thread.current.object_id] = producer
+      end
+      producer
+    }
   end
 
   def setup_formatter(conf)
@@ -162,6 +178,8 @@ DESC
   end
 
   def write(chunk)
+    producer = get_producer
+
     records_by_topic = {}
     bytes_by_topic = {}
     messages = 0
@@ -187,13 +205,13 @@ DESC
         record_buf_bytes = record_buf.bytesize
         if messages > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
           log.on_trace { log.trace("#{messages} messages send.") }
-          @producer.deliver_messages
+          producer.deliver_messages
           messages = 0
           messages_bytes = 0
         end
         log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages += 1
-        @producer.produce(record_buf, topic: topic, partition_key: partition_key)
+        producer.produce(record_buf, topic: topic, partition_key: partition_key)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
@@ -201,14 +219,15 @@ DESC
       }
       if messages > 0
         log.trace("#{messages} messages send.")
-        @producer.deliver_messages
+        producer.deliver_messages
       end
       log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
     end
   rescue Exception => e
     log.warn "Send exception occurred: #{e}"
-    shutdown_producer
-    refresh_producer()
+    # For safety, refresh client and its producers
+    shutdown_producers
+    refresh_client
     # Raise exception to retry sendind messages
     raise e
   end
