@@ -69,7 +69,7 @@ DESC
     define_method("log") { $log }
   end
 
-  def refresh_client
+  def refresh_client(raise_error = true)
     if @zookeeper
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
@@ -84,12 +84,16 @@ DESC
       if @seed_brokers.length > 0
         @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                            ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
-        log.info "initialized producer #{@client_id}"
+        log.info "initialized kafka producer: #{@client_id}"
       else
         log.warn "No brokers found on Zookeeper"
       end
     rescue Exception => e
-      log.error e
+      if raise_error # During startup, error should be reported to engine and stop its phase for safety.
+        raise e
+      else
+        log.error e
+      end
     end
   end
 
@@ -241,7 +245,7 @@ DESC
     log.warn "Send exception occurred: #{e}"
     # For safety, refresh client and its producers
     shutdown_producers
-    refresh_client
+    refresh_client(false)
     # Raise exception to retry sendind messages
     raise e
   end
