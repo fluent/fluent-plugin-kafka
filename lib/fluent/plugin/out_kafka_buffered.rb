@@ -43,7 +43,7 @@ DESC
   config_param :ssl_ca_cert, :string, :default => nil,
                :desc => "a PEM encoded CA cert to use with and SSL connection."
   config_param :ssl_client_cert, :string, :default => nil,
-               :desc => " PEM encoded client cert to use with and SSL connection. Must be used in combination with ssl_client_cert_key."
+               :desc => "a PEM encoded client cert to use with and SSL connection. Must be used in combination with ssl_client_cert_key."
   config_param :ssl_client_cert_key, :string, :default => nil,
                :desc => "a PEM encoded client cert key to use with and SSL connection. Must be used in combination with ssl_client_cert."
 
@@ -113,7 +113,7 @@ DESC
     end
 
     if conf['ack_timeout_ms']
-      log.warn "'ack_timeout_ms' parameter is removed. Use second unit 'ack_timeout' instead"
+      log.warn "'ack_timeout_ms' parameter is deprecated. Use second unit 'ack_timeout' instead"
       @ack_timeout = conf['ack_timeout_ms'].to_i / 1000
     end
 
