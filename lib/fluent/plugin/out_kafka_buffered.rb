@@ -52,7 +52,7 @@ DESC
                :desc => "Number of times to retry sending of messages to a leader."
   config_param :required_acks, :integer, :default => 0,
                :desc => "The number of acks required per request."
-  config_param :ack_timeout, :integer, :default => nil,
+  config_param :ack_timeout, :time, :default => nil,
                :desc => "How long the producer waits for acks."
   config_param :compression_codec, :string, :default => nil,
                :desc => <<-DESC
