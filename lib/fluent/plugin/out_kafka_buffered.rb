@@ -189,9 +189,7 @@ DESC
     else
       @formatter = Fluent::Plugin.new_formatter(@output_data_type)
       @formatter.configure(conf)
-      Proc.new { |tag, time, record|
-        @formatter.format(tag, time, record)
-      }
+      @formatter.method(:format)
     end
   end
 
