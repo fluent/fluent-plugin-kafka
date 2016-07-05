@@ -94,6 +94,8 @@ See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/posei
 
 ### Output plugin (non-buffered)
 
+This plugin uses Poseidon producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead.
+
     <match *.**>
       @type               kafka
 
@@ -141,6 +143,8 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
 
 ### Buffered output plugin
 
+This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions.
+
     <match *.**>
       @type               kafka_buffered
 
@@ -161,14 +165,14 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
       compression_codec   (none|gzip|snappy) :default => none
     </match>
 
-Supports following Poseidon::Producer options.
+Supports following ruby-kafka's producer options.
 
-- max_send_retries — default: 3 — Number of times to retry sending of messages to a leader.
+- max_send_retries — default: 1 — Number of times to retry sending of messages to a leader.
 - required_acks — default: 0 — The number of acks required per request.
-- ack_timeout_ms — default: 1500 — How long the producer waits for acks.
-- compression_codec - default: none - The codec the producer uses to compress messages.
+- ack_timeout — default: 5 — How long the producer waits for acks. The unit is seconds.
+- compression_codec - default: nil - The codec the producer uses to compress messages.
 
-See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
+See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about Poseidon.
 
 This plugin supports compression codec "snappy" also.
 Install snappy module before you use snappy compression.
