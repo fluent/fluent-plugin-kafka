@@ -159,10 +159,10 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
       output_include_tag  (true|false) :default => false
       output_include_time (true|false) :default => false
-      max_send_retries    (integer)    :default => 3
+      max_send_retries    (integer)    :default => 1
       required_acks       (integer)    :default => 0
-      ack_timeout_ms      (integer)    :default => 1500
-      compression_codec   (none|gzip|snappy) :default => none
+      ack_timeout         (integer)    :default => 5
+      compression_codec   (gzip|snappy) :default => none
     </match>
 
 Supports following ruby-kafka's producer options.
