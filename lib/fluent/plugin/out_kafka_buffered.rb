@@ -8,6 +8,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     super
 
     require 'kafka'
+    require 'fluent/plugin/kafka_ext'
 
     @kafka = nil
     @producers = {}
@@ -143,8 +144,21 @@ DESC
     @kafka = nil
   end
 
-  def format(tag, time, record)
-    [tag, time, record].to_msgpack
+  def emit(tag, es, chain)
+    @emit_count += 1
+    events = {}
+    def_topic = @default_topic || tag
+    es.each { |time, record|
+      topic = record['topic'] || def_topic
+      events[topic] ||= ''.force_encoding('ASCII-8BIT')
+      events[topic] << [tag, time, record].to_msgpack
+    }
+    events.each { |topic, data|
+      # TODO: How to handle BufferQueueLimitError after stored several events?
+      if @buffer.emit(topic, data, chain)
+        submit_flush
+      end
+    }
   end
 
   def shutdown_producers
@@ -156,11 +170,11 @@ DESC
     }
   end
 
-  def get_producer
+  def get_producer(topic)
     @producers_mutex.synchronize {
       producer = @producers[Thread.current.object_id]
       unless producer
-        producer = @kafka.producer(@producer_opts)
+        producer = @kafka.topic_producer(topic, @producer_opts)
         @producers[Thread.current.object_id] = producer
       end
       producer
@@ -194,10 +208,11 @@ DESC
   end
 
   def write(chunk)
-    producer = get_producer
+    topic = chunk.key
+    producer = get_producer(topic)
 
-    records_by_topic = {}
-    bytes_by_topic = {}
+    records = 0
+    bytes = 0
     messages = 0
     messages_bytes = 0
     begin
@@ -211,11 +226,7 @@ DESC
         end
 
         record['tag'] = tag if @output_include_tag
-        topic = record['topic'] || @default_topic || tag
         partition_key = record['partition_key'] || @default_partition_key
-
-        records_by_topic[topic] ||= 0
-        bytes_by_topic[topic] ||= 0
 
         record_buf = @formatter_proc.call(tag, time, record)
         record_buf_bytes = record_buf.bytesize
@@ -227,17 +238,17 @@ DESC
         end
         log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages += 1
-        producer.produce(record_buf, topic: topic, partition_key: partition_key)
+        producer.produce(record_buf, partition_key: partition_key)
         messages_bytes += record_buf_bytes
 
-        records_by_topic[topic] += 1
-        bytes_by_topic[topic] += record_buf_bytes
+        records += 1
+        bytes += record_buf_bytes
       }
       if messages > 0
         log.trace("#{messages} messages send.")
         producer.deliver_messages
       end
-      log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
+      log.debug "(records|bytes) (#{records}|#{bytes})"
     end
   rescue Exception => e
     log.warn "Send exception occurred: #{e}"
