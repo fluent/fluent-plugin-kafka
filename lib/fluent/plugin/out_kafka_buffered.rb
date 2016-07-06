@@ -147,8 +147,8 @@ DESC
     super(tag, es, chain, tag)
   end
 
-  def format(tag, time, record)
-    [time, record].to_msgpack
+  def format_stream(tag, es)
+    es.to_msgpack_stream
   end
 
   def shutdown_producers
