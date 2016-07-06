@@ -143,8 +143,12 @@ DESC
     @kafka = nil
   end
 
+  def emit(tag, es, chain)
+    super(tag, es, chain, tag)
+  end
+
   def format(tag, time, record)
-    [tag, time, record].to_msgpack
+    [time, record].to_msgpack
   end
 
   def shutdown_producers
@@ -189,13 +193,13 @@ DESC
     else
       @formatter = Fluent::Plugin.new_formatter(@output_data_type)
       @formatter.configure(conf)
-      Proc.new { |tag, time, record|
-        @formatter.format(tag, time, record)
-      }
+      @formatter.method(:format)
     end
   end
 
   def write(chunk)
+    tag = chunk.key
+    def_topic = @default_topic || tag
     producer = get_producer
 
     records_by_topic = {}
@@ -203,7 +207,7 @@ DESC
     messages = 0
     messages_bytes = 0
     begin
-      chunk.msgpack_each { |tag, time, record|
+      chunk.msgpack_each { |time, record|
         if @output_include_time
           if @time_format
             record['time'] = Time.at(time).strftime(@time_format)
@@ -213,7 +217,7 @@ DESC
         end
 
         record['tag'] = tag if @output_include_tag
-        topic = record['topic'] || @default_topic || tag
+        topic = record['topic'] || def_topic
         partition_key = record['partition_key'] || @default_partition_key
 
         records_by_topic[topic] ||= 0
