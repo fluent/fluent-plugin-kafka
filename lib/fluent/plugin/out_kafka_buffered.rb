@@ -1,5 +1,6 @@
 # encode: utf-8
 require 'thread'
+require 'fluent/plugin/kafka_producer_ext'
 
 class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   Fluent::Plugin.register_output('kafka_buffered', self)
@@ -127,7 +128,7 @@ DESC
     @formatter_proc = setup_formatter(conf)
 
     @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks,
-                      max_buffer_size: @buffer.buffer_chunk_limit / 10, max_buffer_bytesize: @buffer.buffer_chunk_limit * 2}
+                      max_buffer_size: 10, max_buffer_bytesize: 10}
     @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
     @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
   end
@@ -201,6 +202,8 @@ DESC
     tag = chunk.key
     def_topic = @default_topic || tag
     producer = get_producer
+    topics = Set.new
+    msgs = []
 
     records_by_topic = {}
     bytes_by_topic = {}
@@ -220,6 +223,7 @@ DESC
         topic = record['topic'] || def_topic
         partition_key = record['partition_key'] || @default_partition_key
 
+        topics.add(topic)
         records_by_topic[topic] ||= 0
         bytes_by_topic[topic] ||= 0
 
@@ -227,13 +231,25 @@ DESC
         record_buf_bytes = record_buf.bytesize
         if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes)
           log.on_trace { log.trace("#{messages} messages send.") }
-          producer.deliver_messages
+          producer.deliver_messages_ext(topics, msgs)
+          msgs = []
           messages = 0
           messages_bytes = 0
         end
         log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages += 1
-        producer.produce(record_buf, topic: topic, partition_key: partition_key)
+
+        msgs << Kafka::PendingMessage.new(
+          record_buf,
+          nil,
+          topic,
+          nil,
+          partition_key,
+          Time.now,
+          record_buf_bytes
+        )
+
+        #producer.produce(record_buf, topic: topic, partition_key: partition_key)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
@@ -241,7 +257,7 @@ DESC
       }
       if messages > 0
         log.trace("#{messages} messages send.")
-        producer.deliver_messages
+        producer.deliver_messages_ext(topics, msgs)
       end
       log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
     end
