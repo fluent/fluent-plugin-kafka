@@ -1,5 +1,7 @@
 # Fluent::Plugin::Kafka
 
+[![Build Status](https://travis-ci.org/pavgup/fluent-plugin-kafka.svg?branch=master)](https://travis-ci.org/pavgup/fluent-plugin-kafka)
+
 TODO: Write a gem description
 TODO: Also, I need to write tests
 
