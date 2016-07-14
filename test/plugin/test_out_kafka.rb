@@ -1,11 +1,16 @@
 require 'helper'
+require 'fluent/output'
 
 class KafkaOutputTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
   end
 
-  CONFIG = %[
+  BASE_CONFIG = %[
+    type kafka_buffered
+  ]
+
+  CONFIG = BASE_CONFIG + %[
     default_topic kitagawakeiko
     brokers localhost:9092
   ]
@@ -15,6 +20,20 @@ class KafkaOutputTest < Test::Unit::TestCase
   end
 
   def test_configure
+    assert_nothing_raised(Fluent::ConfigError) {
+      create_driver(BASE_CONFIG)
+    }
+    
+    assert_nothing_raised(Fluent::ConfigError) {
+      create_driver(CONFIG)
+    }
+
+    assert_nothing_raised(Fluent::ConfigError) {
+      create_driver(CONFIG + %[
+        buffer_type memory
+      ])
+    }
+
     d = create_driver
     assert_equal 'kitagawakeiko', d.instance.default_topic
     assert_equal 'localhost:9092', d.instance.brokers
