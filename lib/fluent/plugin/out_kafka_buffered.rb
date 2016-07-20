@@ -8,6 +8,7 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     super
 
     require 'kafka'
+    require 'fluent/plugin/kafka_producer_ext'
 
     @kafka = nil
     @producers = {}
@@ -126,8 +127,7 @@ DESC
 
     @formatter_proc = setup_formatter(conf)
 
-    @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks,
-                      max_buffer_size: @buffer.buffer_chunk_limit / 10, max_buffer_bytesize: @buffer.buffer_chunk_limit * 2}
+    @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks}
     @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
     @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
   end
@@ -233,7 +233,7 @@ DESC
         end
         log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages += 1
-        producer.produce(record_buf, topic: topic, partition_key: partition_key)
+        producer.produce2(record_buf, topic: topic, partition_key: partition_key)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
