@@ -1,6 +1,9 @@
-# Fluent::Plugin::Kafka
+# fluent-plugin-kafka, a plugin for [Fluentd](http://fluentd.org)
 
-TODO: Write a gem description
+[![Build Status](https://travis-ci.org/htgc/fluent-plugin-kafka.svg?branch=master)](https://travis-ci.org/htgc/fluent-plugin-kafka)
+
+A fluentd plugin to both consume and produce data for Apache Kafka.
+
 TODO: Also, I need to write tests
 
 ## Installation
