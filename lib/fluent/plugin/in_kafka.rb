@@ -8,10 +8,12 @@ class KafkaInput < Input
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
                :desc => "For 'text' format only."
-  config_param :host, :string, :default => 'localhost',
+  config_param :host, :string, :default => nil,
                :desc => "Broker host"
-  config_param :port, :integer, :default => 9092,
+  config_param :port, :integer, :default => nil,
                :desc => "Broker port"
+  config_param :brokers, :string, :default => 'localhost:9092',
+               :desc => "List of broker-host:port, separate with comma, must set."
   config_param :interval, :integer, :default => 1, # seconds
                :desc => "Interval (Unit: seconds)"
   config_param :topics, :string, :default => nil,
@@ -30,11 +32,13 @@ class KafkaInput < Input
   config_param :offset_zookeeper, :string, :default => nil
   config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
 
-  # poseidon PartitionConsumer options
+  # Kafka#fetch_messages options
   config_param :max_bytes, :integer, :default => nil,
                :desc => "Maximum number of bytes to fetch."
-  config_param :max_wait_ms, :integer, :default => nil,
+  config_param :max_wait_time, :integer, :default => nil,
                :desc => "How long to block until the server sends us data."
+  config_param :max_wait_ms, :integer, :default => nil,
+               :desc => "Deprecated. How long to block until the server sends us data."
   config_param :min_bytes, :integer, :default => nil,
                :desc => "Smallest amount of data the server should send us."
   config_param :socket_timeout_ms, :integer, :default => nil,
@@ -46,7 +50,7 @@ class KafkaInput < Input
 
   def initialize
     super
-    require 'poseidon'
+    require 'kafka'
     require 'zookeeper'
   end
 
@@ -73,6 +77,27 @@ class KafkaInput < Input
       raise ConfigError, "kafka: 'topics' or 'topic element' is a require parameter"
     end
 
+    # For backward compatibility
+    @brokers = case
+               when @host && @port
+                 ["#{@host}:#{@port}"]
+               when @host
+                 ["#{@host}:9092"]
+               when @port
+                 ["localhost:#{@port}"]
+               else
+                 @brokers
+               end
+
+    if conf['max_wait_ms']
+      log.warn "'max_wait_ms' parameter is deprecated. Use second unit 'max_wait_time' instead"
+      @max_wait_time = conf['max_wait_ms'].to_i / 1000
+    end
+
+    @max_wait_time = @interval if @max_wait_time.nil?
+
+    require 'zookeeper' if @offset_zookeeper
+
     case @format
     when 'json'
       require 'yajl'
@@ -88,19 +113,17 @@ class KafkaInput < Input
     @loop = Coolio::Loop.new
     opt = {}
     opt[:max_bytes] = @max_bytes if @max_bytes
-    opt[:max_wait_ms] = @max_wait_ms if @max_wait_ms
+    opt[:max_wait_time] = @max_wait_time if @max_wait_time
     opt[:min_bytes] = @min_bytes if @min_bytes
-    opt[:socket_timeout_ms] = @socket_timeout_ms if @socket_timeout_ms
 
+    @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id)
     @zookeeper = Zookeeper.new(@offset_zookeeper) if @offset_zookeeper
 
     @topic_watchers = @topic_list.map {|topic_entry|
       offset_manager = OffsetManager.new(topic_entry, @zookeeper, @offset_zk_root_node) if @offset_zookeeper
       TopicWatcher.new(
         topic_entry,
-        @host,
-        @port,
-        @client_id,
+        @kafka,
         interval,
         @format,
         @message_key,
@@ -131,11 +154,9 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, host, port, client_id, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, offset_manager, router, options={})
+    def initialize(topic_entry, kafka, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, offset_manager, router, options={})
       @topic_entry = topic_entry
-      @host = host
-      @port = port
-      @client_id = client_id
+      @kafka = kafka
       @callback = method(:consume)
       @format = format
       @message_key = message_key
@@ -150,7 +171,10 @@ class KafkaInput < Input
       if @topic_entry.offset == -1 && offset_manager
         @next_offset = offset_manager.next_offset
       end
-      @consumer = create_consumer(@next_offset)      
+      @fetch_args = {
+        topic: @topic_entry.topic,
+        partition: @topic_entry.partition,
+      }.merge(@options)
 
       super(interval, true)
     end
@@ -164,16 +188,18 @@ class KafkaInput < Input
     end
 
     def consume
+      offset = @next_offset
+      @fetch_args[:offset] = offset
+      messages = @kafka.fetch_messages(@fetch_args)
+
+      return if messages.size.zero?
+
       es = MultiEventStream.new
       tag = @topic_entry.topic
       tag = @add_prefix + "." + tag if @add_prefix
       tag = tag + "." + @add_suffix if @add_suffix
 
-      if @offset_manager && @consumer.next_offset != @next_offset
-        @consumer = create_consumer(@next_offset)
-      end
-
-      @consumer.fetch.each { |msg|
+      messages.each { |msg|
         begin
           msg_record = parse_line(msg.value)
           msg_record = decorate_offset(msg_record, msg.offset) if @add_offset_in_record
@@ -183,29 +209,16 @@ class KafkaInput < Input
           $log.debug_backtrace
         end
       }
+      offset = messages.last.offset + 1
 
       unless es.empty?
         @router.emit_stream(tag, es)
 
         if @offset_manager
-          next_offset = @consumer.next_offset
-          @offset_manager.save_offset(next_offset)
-          @next_offset = next_offset
+          @offset_manager.save_offset(offset)
         end
+        @next_offset = offset
       end
-    end
-
-    def create_consumer(offset)
-      @consumer.close if @consumer
-      Poseidon::PartitionConsumer.new(
-        @client_id,             # client_id
-        @host,                  # host
-        @port,                  # port
-        @topic_entry.topic,     # topic
-        @topic_entry.partition, # partition
-        offset,                 # offset
-        @options                # options
-      )
     end
 
     def parse_line(record)
