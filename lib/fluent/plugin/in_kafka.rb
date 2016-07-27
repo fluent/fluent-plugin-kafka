@@ -1,4 +1,6 @@
 require 'fluent/input'
+require 'fluent/plugin/kafka_plugin_util'
+
 module Fluent
 
 class KafkaInput < Input
@@ -43,6 +45,8 @@ class KafkaInput < Input
                :desc => "Smallest amount of data the server should send us."
   config_param :socket_timeout_ms, :integer, :default => nil,
                :desc => "How long to wait for reply from server. Should be higher than max_wait_ms."
+
+  include KafkaPluginUtil::SSLSettings
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
@@ -148,7 +152,10 @@ class KafkaInput < Input
     opt[:max_wait_time] = @max_wait_time if @max_wait_time
     opt[:min_bytes] = @min_bytes if @min_bytes
 
-    @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id)
+    @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id,
+                       ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+                       ssl_client_cert: read_ssl_file(@ssl_client_cert),
+                       ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
     @zookeeper = Zookeeper.new(@offset_zookeeper) if @offset_zookeeper
 
     @topic_watchers = @topic_list.map {|topic_entry|

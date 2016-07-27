@@ -1,4 +1,5 @@
 require 'fluent/input'
+require 'fluent/plugin/kafka_plugin_util'
 
 module Fluent
 
@@ -35,6 +36,8 @@ class KafkaGroupInput < Input
                :desc => "The number of messages that can be processed before their offsets are committed"
   config_param :start_from_beginning, :bool, :default => true,
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
+
+  include KafkaPluginUtil::SSLSettings
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
@@ -99,7 +102,10 @@ class KafkaGroupInput < Input
     @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
     @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
 
-    @kafka = Kafka.new(seed_brokers: @brokers)
+    @kafka = Kafka.new(seed_brokers: @brokers,
+                       ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+                       ssl_client_cert: read_ssl_file(@ssl_client_cert),
+                       ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
     @consumer = @kafka.consumer(consumer_opts)
     @topics.each { |topic|
       @consumer.subscribe(topic, start_from_beginning: @start_from_beginning)
