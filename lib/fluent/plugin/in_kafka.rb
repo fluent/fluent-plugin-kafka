@@ -39,8 +39,6 @@ class KafkaInput < Input
                :desc => "Maximum number of bytes to fetch."
   config_param :max_wait_time, :integer, :default => nil,
                :desc => "How long to block until the server sends us data."
-  config_param :max_wait_ms, :integer, :default => nil,
-               :desc => "Deprecated. How long to block until the server sends us data."
   config_param :min_bytes, :integer, :default => nil,
                :desc => "Smallest amount of data the server should send us."
   config_param :socket_timeout_ms, :integer, :default => nil,

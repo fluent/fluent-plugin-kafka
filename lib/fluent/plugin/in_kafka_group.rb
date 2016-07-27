@@ -24,8 +24,6 @@ class KafkaGroupInput < Input
   # Kafka consumer options
   config_param :max_wait_time, :integer, :default => nil,
                :desc => "How long to block until the server sends us data."
-  config_param :max_wait_ms, :integer, :default => nil,
-               :desc => "Deprecated. How long to block until the server sends us data."
   config_param :min_bytes, :integer, :default => nil,
                :desc => "Smallest amount of data the server should send us."
   config_param :session_timeout, :integer, :default => nil,
