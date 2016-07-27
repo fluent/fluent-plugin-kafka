@@ -98,18 +98,50 @@ class KafkaInput < Input
 
     require 'zookeeper' if @offset_zookeeper
 
+    @parser_proc = setup_parser
+  end
+
+  def setup_parser
     case @format
     when 'json'
       require 'yajl'
+      Proc.new { |msg, te|
+        r = Yajl::Parser.parse(msg.value)
+        add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
+        r
+      }
     when 'ltsv'
       require 'ltsv'
+      Proc.new { |msg, te|
+        r = LTSV.parse(msg.value).first
+        add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
+        r
+      }
     when 'msgpack'
       require 'msgpack'
+      Proc.new { |msg, te|
+        r = MessagePack.unpack(msg.value)
+        add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
+        r
+      }
+    when 'text'
+      Proc.new { |msg, te|
+        r = {@message_key => msg.value}
+        add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
+        r
+      }
     end
+  end
+
+  def add_offset_in_hash(hash, te, offset)
+    hash['kafka_topic'.freeze] = te.topic
+    hash['kafka_partition'.freeze] = te.partition
+    hash['kafka_offset'.freeze] = offset
   end
 
   def start
     super
+
     @loop = Coolio::Loop.new
     opt = {}
     opt[:max_bytes] = @max_bytes if @max_bytes
@@ -125,9 +157,7 @@ class KafkaInput < Input
         topic_entry,
         @kafka,
         interval,
-        @format,
-        @message_key,
-        @add_offset_in_record,
+        @parser_proc,
         @add_prefix,
         @add_suffix,
         offset_manager,
@@ -154,13 +184,11 @@ class KafkaInput < Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, format, message_key, add_offset_in_record, add_prefix, add_suffix, offset_manager, router, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
-      @format = format
-      @message_key = message_key
-      @add_offset_in_record = add_offset_in_record
+      @parser = parser
       @add_prefix = add_prefix
       @add_suffix = add_suffix
       @options = options
@@ -182,9 +210,9 @@ class KafkaInput < Input
     def on_timer
       @callback.call
     rescue
-        # TODO log?
-        $log.error $!.to_s
-        $log.error_backtrace
+      # TODO log?
+      $log.error $!.to_s
+      $log.error_backtrace
     end
 
     def consume
@@ -201,11 +229,9 @@ class KafkaInput < Input
 
       messages.each { |msg|
         begin
-          msg_record = parse_line(msg.value)
-          msg_record = decorate_offset(msg_record, msg.offset) if @add_offset_in_record
-          es.add(Engine.now, msg_record)
-        rescue
-          $log.warn msg_record.to_s, :error=>$!.to_s
+          es.add(Engine.now, @parser.call(msg, @topic_entry))
+        rescue => e
+          $log.warn "parser error in #{@topic_entry.topic}/#{@topic_entry.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
           $log.debug_backtrace
         end
       }
@@ -219,41 +245,6 @@ class KafkaInput < Input
         end
         @next_offset = offset
       end
-    end
-
-    def parse_line(record)
-      case @format
-      when 'json'
-        Yajl::Parser.parse(record)
-      when 'ltsv'
-        LTSV.parse(record)
-      when 'msgpack'
-        MessagePack.unpack(record)
-      when 'text'
-        {@message_key => record}
-      end
-    end
-
-    def decorate_offset(record, offset)
-      case @format
-      when 'json'
-        add_offset_in_hash(record, @topic_entry.topic, @topic_entry.partition, offset)
-      when 'ltsv'
-        record.each { |line|
-          add_offset_in_hash(line, @topic_entry.topic, @topic_entry.partition, offset)
-        }
-      when 'msgpack'
-        add_offset_in_hash(record, @topic_entry.topic, @topic_entry.partition, offset)
-      when 'text'
-        add_offset_in_hash(record, @topic_entry.topic, @topic_entry.partition, offset)
-      end
-      record
-    end
-
-    def add_offset_in_hash(hash, topic, partition, offset)
-      hash['kafka_topic'] = topic
-      hash['kafka_partition'] = partition
-      hash['kafka_offset'] = offset
     end
   end
 
