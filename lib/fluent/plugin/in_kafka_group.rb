@@ -140,8 +140,8 @@ class KafkaGroupInput < Input
         router.emit_stream(tag, es)
       end
     }
-  rescue
-    $log.error "unexpected error", :error=>$!.to_s
+  rescue => e
+    $log.error "unexpected error", :error => e.to_s
     $log.error_backtrace
   end
 end

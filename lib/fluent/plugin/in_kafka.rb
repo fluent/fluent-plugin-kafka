@@ -55,7 +55,6 @@ class KafkaInput < Input
   def initialize
     super
     require 'kafka'
-    require 'zookeeper'
   end
 
   def configure(conf)
@@ -185,8 +184,8 @@ class KafkaInput < Input
 
   def run
     @loop.run
-  rescue
-    $log.error "unexpected error", :error=>$!.to_s
+  rescue => e
+    $log.error "unexpected error", :error => e.to_s
     $log.error_backtrace
   end
 
@@ -216,9 +215,9 @@ class KafkaInput < Input
 
     def on_timer
       @callback.call
-    rescue
+    rescue => e
       # TODO log?
-      $log.error $!.to_s
+      $log.error e.to_s
       $log.error_backtrace
     end
 
