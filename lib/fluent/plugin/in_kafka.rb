@@ -177,6 +177,8 @@ class KafkaInput < Input
   def shutdown
     @loop.stop
     @zookeeper.close! if @zookeeper
+    @thread.join
+    @kafka.close
     super
   end
 
