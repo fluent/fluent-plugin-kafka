@@ -20,22 +20,30 @@ Or install it yourself as:
 
     $ gem install fluent-plugin-kafka
 
+## Requirements
+
+- Ruby 2.1 or later
+- Input plugins work with kafka v0.9 or later
+- Output plugins work with kafka v0.8 or later
+
 ## Usage
 
 ### Input plugin (@type 'kafka')
+
+Consume events by single consumer.
 
     <source>
       @type kafka
 
       brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
       topics <listening topics(separate with comma',')>
-      format <input text type (text|json|ltsv|msgpack)>
+      format <input text type (text|json|ltsv|msgpack)> :default => json
       message_key <key (Optional, for text format only, default is message)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
 
       # Optionally, you can manage topic offset by using zookeeper
-      offset_zookeeper <zookeer node list (<zookeeper1_host>:<zookeeper1_port>,<zookeeper2_host>:<zookeeper2_port>,..)>
+      offset_zookeeper    <zookeer node list (<zookeeper1_host>:<zookeeper1_port>,<zookeeper2_host>:<zookeeper2_port>,..)>
       offset_zk_root_node <offset path in zookeeper> default => '/fluent-plugin-kafka'
 
       # ruby-kafka consumer options
@@ -67,13 +75,15 @@ See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-mes
 
 ### Input plugin (@type 'kafka_group', supports kafka group)
 
+Consume events by kafka consumer group features..
+
     <source>
       @type kafka_group
 
       brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
       consumer_group <consumer group name, must set>
       topics <listening topics(separate with comma',')>
-      format <input text type (text|json|ltsv|msgpack)>
+      format <input text type (text|json|ltsv|msgpack)> :default => json
       message_key <key (Optional, for text format only, default is message)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
