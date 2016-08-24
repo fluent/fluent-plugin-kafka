@@ -39,8 +39,6 @@ class Fluent::KafkaInput < Fluent::Input
                :desc => "How long to block until the server sends us data."
   config_param :min_bytes, :integer, :default => nil,
                :desc => "Smallest amount of data the server should send us."
-  config_param :socket_timeout_ms, :integer, :default => nil,
-               :desc => "How long to wait for reply from server. Should be higher than max_wait_ms."
 
   include Fluent::KafkaPluginUtil::SSLSettings
 
