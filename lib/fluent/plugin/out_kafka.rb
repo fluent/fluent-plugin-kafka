@@ -1,13 +1,8 @@
+require 'fluent/output'
+require 'fluent/plugin/kafka_plugin_util'
+
 class Fluent::KafkaOutput < Fluent::Output
   Fluent::Plugin.register_output('kafka', self)
-
-  def initialize
-    super
-
-    require 'kafka'
-
-    @kafka = nil
-  end
 
   config_param :brokers, :string, :default => 'localhost:9092',
                :desc => <<-DESC
@@ -28,15 +23,7 @@ DESC
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
 
-  # https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl
-  config_param :ssl_ca_cert, :string, :default => nil,
-               :desc => "a PEM encoded CA cert to use with and SSL connection."
-  config_param :ssl_client_cert, :string, :default => nil,
-               :desc => "a PEM encoded client cert to use with and SSL connection. Must be used in combination with ssl_client_cert_key."
-  config_param :ssl_client_cert_key, :string, :default => nil,
-               :desc => "a PEM encoded client cert key to use with and SSL connection. Must be used in combination with ssl_client_cert."
-
-  # poseidon producer options
+  # ruby-kafka producer options
   config_param :max_send_retries, :integer, :default => 1,
                :desc => "Number of times to retry sending of messages to a leader."
   config_param :required_acks, :integer, :default => 0,
@@ -48,11 +35,21 @@ DESC
 
   config_param :time_format, :string, :default => nil
 
+  include Fluent::KafkaPluginUtil::SSLSettings
+
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
   unless method_defined?(:log)
     define_method("log") { $log }
+  end
+
+  def initialize
+    super
+
+    require 'kafka'
+
+    @kafka = nil
   end
 
   def refresh_client
@@ -77,11 +74,6 @@ DESC
     rescue Exception => e
       log.error e
     end
-  end
-
-  def read_ssl_file(path)
-    return nil if path.nil?
-    File.read(path)
   end
 
   def configure(conf)

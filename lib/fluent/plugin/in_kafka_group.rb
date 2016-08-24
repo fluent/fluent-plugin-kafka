@@ -1,10 +1,8 @@
 require 'fluent/input'
 require 'fluent/plugin/kafka_plugin_util'
 
-module Fluent
-
-class KafkaGroupInput < Input
-  Plugin.register_input('kafka_group', self)
+class Fluent::KafkaGroupInput < Fluent::Input
+  Fluent::Plugin.register_input('kafka_group', self)
 
   config_param :brokers, :string, :default => 'localhost:9092',
                :desc => "List of broker-host:port, separate with comma, must set."
@@ -35,7 +33,7 @@ class KafkaGroupInput < Input
   config_param :start_from_beginning, :bool, :default => true,
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
 
-  include KafkaPluginUtil::SSLSettings
+  include Fluent::KafkaPluginUtil::SSLSettings
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
@@ -49,7 +47,7 @@ class KafkaGroupInput < Input
   def _config_to_array(config)
     config_array = config.split(',').map {|k| k.strip }
     if config_array.empty?
-      raise ConfigError, "kafka_group: '#{config}' is a required parameter"
+      raise Fluent::ConfigError, "kafka_group: '#{config}' is a required parameter"
     end
     config_array
   end
@@ -120,14 +118,14 @@ class KafkaGroupInput < Input
 
   def run
     @consumer.each_batch(@fetch_opts) { |batch|
-      es = MultiEventStream.new
+      es = Fluent::MultiEventStream.new
       tag = batch.topic
       tag = @add_prefix + "." + tag if @add_prefix
       tag = tag + "." + @add_suffix if @add_suffix
 
       batch.messages.each { |msg|
         begin
-          es.add(Engine.now, @parser_proc.call(msg))
+          es.add(Fluent::Engine.now, @parser_proc.call(msg))
         rescue => e
           $log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
           $log.debug_backtrace
@@ -142,6 +140,4 @@ class KafkaGroupInput < Input
     $log.error "unexpected error", :error => e.to_s
     $log.error_backtrace
   end
-end
-
 end

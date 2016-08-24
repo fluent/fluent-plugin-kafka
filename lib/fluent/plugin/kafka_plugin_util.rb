@@ -3,6 +3,7 @@ module Fluent
     module SSLSettings
       def self.included(klass)
         klass.instance_eval {
+          # https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl
           config_param :ssl_ca_cert, :string, :default => nil,
                        :desc => "a PEM encoded CA cert to use with and SSL connection."
           config_param :ssl_client_cert, :string, :default => nil,

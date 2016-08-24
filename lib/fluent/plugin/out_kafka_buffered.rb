@@ -1,19 +1,9 @@
-# encode: utf-8
 require 'thread'
+require 'fluent/output'
+require 'fluent/plugin/kafka_plugin_util'
 
 class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   Fluent::Plugin.register_output('kafka_buffered', self)
-
-  def initialize
-    super
-
-    require 'kafka'
-    require 'fluent/plugin/kafka_producer_ext'
-
-    @kafka = nil
-    @producers = {}
-    @producers_mutex = Mutex.new
-  end
 
   config_param :brokers, :string, :default => 'localhost:9092',
                :desc => <<-DESC
@@ -40,15 +30,7 @@ DESC
   config_param :output_include_time, :bool, :default => false
   config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
 
-  # https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl
-  config_param :ssl_ca_cert, :string, :default => nil,
-               :desc => "a PEM encoded CA cert to use with and SSL connection."
-  config_param :ssl_client_cert, :string, :default => nil,
-               :desc => "a PEM encoded client cert to use with and SSL connection. Must be used in combination with ssl_client_cert_key."
-  config_param :ssl_client_cert_key, :string, :default => nil,
-               :desc => "a PEM encoded client cert key to use with and SSL connection. Must be used in combination with ssl_client_cert."
-
-  # poseidon producer options
+  # ruby-kafka producer options
   config_param :max_send_retries, :integer, :default => 1,
                :desc => "Number of times to retry sending of messages to a leader."
   config_param :required_acks, :integer, :default => 0,
@@ -63,11 +45,24 @@ DESC
 
   config_param :time_format, :string, :default => nil
 
+  include Fluent::KafkaPluginUtil::SSLSettings
+
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
   unless method_defined?(:log)
     define_method("log") { $log }
+  end
+
+  def initialize
+    super
+
+    require 'kafka'
+    require 'fluent/plugin/kafka_producer_ext'
+
+    @kafka = nil
+    @producers = {}
+    @producers_mutex = Mutex.new
   end
 
   def refresh_client(raise_error = true)
@@ -96,11 +91,6 @@ DESC
         log.error e
       end
     end
-  end
-
-  def read_ssl_file(path)
-    return nil if path.nil?
-    File.read(path)
   end
 
   def configure(conf)
@@ -210,15 +200,15 @@ DESC
       chunk.msgpack_each { |time, record|
         if @output_include_time
           if @time_format
-            record['time'] = Time.at(time).strftime(@time_format)
+            record['time'.freeze] = Time.at(time).strftime(@time_format)
           else
-            record['time'] = time
+            record['time'.freeze] = time
           end
         end
 
         record['tag'] = tag if @output_include_tag
-        topic = record['topic'] || def_topic
-        partition_key = record['partition_key'] || @default_partition_key
+        topic = record['topic'.freeze] || def_topic
+        partition_key = record['partition_key'.freeze] || @default_partition_key
 
         records_by_topic[topic] ||= 0
         bytes_by_topic[topic] ||= 0
@@ -240,10 +230,10 @@ DESC
         bytes_by_topic[topic] += record_buf_bytes
       }
       if messages > 0
-        log.trace("#{messages} messages send.")
+        log.trace { "#{messages} messages send." }
         producer.deliver_messages
       end
-      log.debug "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})"
+      log.debug { "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})" }
     end
   rescue Exception => e
     log.warn "Send exception occurred: #{e}"
