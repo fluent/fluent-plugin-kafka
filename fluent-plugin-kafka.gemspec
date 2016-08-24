@@ -1,11 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |gem|
-  gem.authors       = ["Hidemasa Togashi"]
-  gem.email         = ["togachiro@gmail.com"]
+  gem.authors       = ["Hidemasa Togashi", "Masahiro Nakagawa"]
+  gem.email         = ["togachiro@gmail.com", "repeatedly@gmail.com"]
   gem.description   = %q{Fluentd plugin for Apache Kafka > 0.8}
   gem.summary       = %q{Fluentd plugin for Apache Kafka > 0.8}
-  gem.homepage      = "https://github.com/htgc/fluent-plugin-kafka"
+  gem.homepage      = "https://github.com/fluent/fluent-plugin-kafka"
 
   gem.files         = `git ls-files`.split($\)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
