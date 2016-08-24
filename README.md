@@ -25,105 +25,103 @@ Or install it yourself as:
 ### Input plugin (@type 'kafka')
 
     <source>
-      @type  kafka
-      host   <broker host>
-      port   <broker port: default=9092>
+      @type kafka
+
+      brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
       topics <listening topics(separate with comma',')>
       format <input text type (text|json|ltsv|msgpack)>
       message_key <key (Optional, for text format only, default is message)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
-      max_bytes           (integer)    :default => nil (Use default of Poseidon)
-      max_wait_ms         (integer)    :default => nil (Use default of Poseidon)
-      min_bytes           (integer)    :default => nil (Use default of Poseidon)
-      socket_timeout_ms   (integer)    :default => nil (Use default of Poseidon)
+
+      # Optionally, you can manage topic offset by using zookeeper
+      offset_zookeeper <zookeer node list (<zookeeper1_host>:<zookeeper1_port>,<zookeeper2_host>:<zookeeper2_port>,..)>
+      offset_zk_root_node <offset path in zookeeper> default => '/fluent-plugin-kafka'
+
+      # ruby-kafka consumer options
+      max_bytes     (integer) :default => nil (Use default of ruby-kafka)
+      max_wait_time (integer) :default => nil (Use default of ruby-kafka)
+      min_bytes     (integer) :default => nil (Use default of ruby-kafka)
     </source>
-
-Supports following Poseidon::PartitionConsumer options.
-
-- max_bytes — default: 1048576 (1MB) — Maximum number of bytes to fetch
-- max_wait_ms — default: 100 (100ms) — How long to block until the server sends us data.
-- min_bytes — default: 1 (Send us data as soon as it is ready) — Smallest amount of data the server should send us.
-- socket_timeout_ms - default: 10000 (10s) - How long to wait for reply from server. Should be higher than max_wait_ms.
 
 Supports a start of processing from the assigned offset for specific topics.
 
     <source>
-      @type  kafka
-      host   <broker host>
-      port   <broker port: default=9092>
+      @type kafka
+
+      brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
       format <input text type (text|json|ltsv|msgpack)>
       <topic>
-        topic       <listening topic>
-        partition   <listening partition: default=0>
-        offset      <listening start offset: default=-1>
+        topic     <listening topic>
+        partition <listening partition: default=0>
+        offset    <listening start offset: default=-1>
       </topic>
       <topic>
-        topic       <listening topic>
-        partition   <listening partition: default=0>
-        offset      <listening start offset: default=-1>
+        topic     <listening topic>
+        partition <listening partition: default=0>
+        offset    <listening start offset: default=-1>
       </topic>
     </source>
 
-See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/PartitionConsumer) for more detailed documentation about Poseidon.
+See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka.
 
 ### Input plugin (@type 'kafka_group', supports kafka group)
 
     <source>
-      @type   kafka_group
-      brokers <list of broker-host:port, separate with comma, must set>
-      zookeepers <list of broker-host:port, separate with comma, must set>
+      @type kafka_group
+
+      brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
       consumer_group <consumer group name, must set>
       topics <listening topics(separate with comma',')>
       format <input text type (text|json|ltsv|msgpack)>
       message_key <key (Optional, for text format only, default is message)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
-      max_bytes           (integer)    :default => nil (Use default of Poseidon)
-      max_wait_ms         (integer)    :default => nil (Use default of Poseidon)
-      min_bytes           (integer)    :default => nil (Use default of Poseidon)
-      socket_timeout_ms   (integer)    :default => nil (Use default of Poseidon)
+
+      # ruby-kafka consumer options
+      max_bytes               (integer) :default => nil (Use default of ruby-kafka)
+      max_wait_time           (integer) :default => nil (Use default of ruby-kafka)
+      min_bytes               (integer) :default => nil (Use default of ruby-kafka)
+      offset_commit_interval  (integer) :default => nil (Use default of ruby-kafka)
+      offset_commit_threshold (integer) :default => nil (Use default of ruby-kafka)
+      start_from_beginning    (bool)    :default => true
     </source>
 
-Supports following Poseidon::PartitionConsumer options.
-
-- max_bytes — default: 1048576 (1MB) — Maximum number of bytes to fetch
-- max_wait_ms — default: 100 (100ms) — How long to block until the server sends us data.
-- min_bytes — default: 1 (Send us data as soon as it is ready) — Smallest amount of data the server should send us.
-- socket_timeout_ms - default: 10000 (10s) - How long to wait for reply from server. Should be higher than max_wait_ms.
-
-See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/PartitionConsumer) for more detailed documentation about Poseidon.
+See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka options.
 
 ### Output plugin (non-buffered)
 
-This plugin uses Poseidon producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead.
+This plugin uses ruby-kafka producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead.
 
     <match *.**>
-      @type               kafka
+      @type kafka
 
       # Brokers: you can choose either brokers or zookeeper.
-      brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
-      zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
-      zookeeper_path      <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
-      default_topic       <output topic>
-      default_partition_key (string)   :default => nil
-      output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
-      output_include_tag  (true|false) :default => false
-      output_include_time (true|false) :default => false
-      max_send_retries    (integer)    :default => 3
-      required_acks       (integer)    :default => 0
-      ack_timeout_ms      (integer)    :default => 1500
-      compression_codec   (none|gzip|snappy) :default => none
+      brokers        <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+      zookeeper      <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
+      zookeeper_path <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
+
+      default_topic         (string) :default => nil
+      default_partition_key (string) :default => nil
+      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      output_include_tag    (bool) :default => false
+      output_include_time   (bool) :default => false
+
+      # ruby-kafka producer options
+      max_send_retries  (integer)     :default => 1
+      required_acks     (integer)     :default => 0
+      ack_timeout       (integer)     :default => nil (Use default of ruby-kafka)
+      compression_codec (gzip|snappy) :default => nil
     </match>
 
-Supports following Poseidon::Producer options.
+Supports following ruby-kafka::Producer options.
 
-- max_send_retries — default: 3 — Number of times to retry sending of messages to a leader.
-- required_acks — default: 0 — The number of acks required per request.
-- ack_timeout_ms — default: 1500 — How long the producer waits for acks.
-- compression_codec - default: none - The codec the producer uses to compress messages.
+- max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
+- required_acks - default: 0 - The number of acks required per request.
+- ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
+- compression_codec - default: nil - The codec the producer uses to compress messages.
 
-See also [Poseidon::Producer](http://www.rubydoc.info/github/bpot/poseidon/Poseidon/Producer) for more detailed documentation about Poseidon.
+See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
 
 This plugin supports compression codec "snappy" also.
 Install snappy module before you use snappy compression.
@@ -148,33 +146,37 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
 This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions.
 
     <match *.**>
-      @type               kafka_buffered
+      @type kafka_buffered
 
       # Brokers: you can choose either brokers or zookeeper.
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
       zookeeper_path      <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
-      default_topic       <output topic>
-      default_partition_key (string)   :default => nil
-      flush_interval      <flush interval (sec) :default => 60>
-      buffer_type         (file|memory)
-      output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
-      output_include_tag  (true|false) :default => false
-      output_include_time (true|false) :default => false
-      max_send_retries    (integer)    :default => 1
-      required_acks       (integer)    :default => 0
-      ack_timeout         (integer)    :default => 5
-      compression_codec   (gzip|snappy) :default => none
+
+      default_topic         (string) :default => nil
+      default_partition_key (string) :default => nil
+      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      output_include_tag    (bool) :default => false
+      output_include_time   (bool) :default => false
+
+      # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
+
+      # ruby-kafka producer options
+      max_send_retries    (integer)     :default => 1
+      required_acks       (integer)     :default => 0
+      ack_timeout         (integer)     :default => nil (Use default of ruby-kafka)
+      compression_codec   (gzip|snappy) :default => nil (No compression)
     </match>
 
 Supports following ruby-kafka's producer options.
 
-- max_send_retries — default: 1 — Number of times to retry sending of messages to a leader.
-- required_acks — default: 0 — The number of acks required per request.
-- ack_timeout — default: 5 — How long the producer waits for acks. The unit is seconds.
+- max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
+- required_acks - default: 0 - The number of acks required per request.
+- ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 
-See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about Poseidon.
+See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
+
 
 This plugin supports compression codec "snappy" also.
 Install snappy module before you use snappy compression.
