@@ -1,10 +1,8 @@
 require 'fluent/input'
 require 'fluent/plugin/kafka_plugin_util'
 
-module Fluent
-
-class KafkaInput < Input
-  Plugin.register_input('kafka', self)
+class Fluent::KafkaInput < Fluent::Input
+  Fluent::Plugin.register_input('kafka', self)
 
   config_param :format, :string, :default => 'json',
                :desc => "Supported format: (json|text|ltsv|msgpack)"
@@ -44,7 +42,7 @@ class KafkaInput < Input
   config_param :socket_timeout_ms, :integer, :default => nil,
                :desc => "How long to wait for reply from server. Should be higher than max_wait_ms."
 
-  include KafkaPluginUtil::SSLSettings
+  include Fluent::KafkaPluginUtil::SSLSettings
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
@@ -66,7 +64,7 @@ class KafkaInput < Input
     else
       conf.elements.select { |element| element.name == 'topic' }.each do |element|
         unless element.has_key?('topic')
-          raise ConfigError, "kafka: 'topic' is a require parameter in 'topic element'."
+          raise Fluent::ConfigError, "kafka: 'topic' is a require parameter in 'topic element'."
         end
         partition = element.has_key?('partition') ? element['partition'].to_i : 0
         offset = element.has_key?('offset') ? element['offset'].to_i : -1
@@ -75,7 +73,7 @@ class KafkaInput < Input
     end
 
     if @topic_list.empty?
-      raise ConfigError, "kafka: 'topics' or 'topic element' is a require parameter"
+      raise Fluent::ConfigError, "kafka: 'topics' or 'topic element' is a require parameter"
     end
 
     # For backward compatibility
@@ -228,14 +226,14 @@ class KafkaInput < Input
 
       return if messages.size.zero?
 
-      es = MultiEventStream.new
+      es = Fluent::MultiEventStream.new
       tag = @topic_entry.topic
       tag = @add_prefix + "." + tag if @add_prefix
       tag = tag + "." + @add_suffix if @add_suffix
 
       messages.each { |msg|
         begin
-          es.add(Engine.now, @parser.call(msg, @topic_entry))
+          es.add(Fluent::Engine.now, @parser.call(msg, @topic_entry))
         rescue => e
           $log.warn "parser error in #{@topic_entry.topic}/#{@topic_entry.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
           $log.debug_backtrace
@@ -288,6 +286,4 @@ class KafkaInput < Input
       $log.trace "update zk offset node : #{offset.to_s}"
     end
   end
-end
-
 end
