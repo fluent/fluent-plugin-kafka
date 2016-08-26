@@ -119,7 +119,7 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
 
       # ruby-kafka producer options
       max_send_retries  (integer)     :default => 1
-      required_acks     (integer)     :default => 0
+      required_acks     (integer)     :default => -1
       ack_timeout       (integer)     :default => nil (Use default of ruby-kafka)
       compression_codec (gzip|snappy) :default => nil
     </match>
@@ -127,7 +127,7 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
 Supports following ruby-kafka::Producer options.
 
 - max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
-- required_acks - default: 0 - The number of acks required per request.
+- required_acks - default: -1 - The number of acks required per request.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 
@@ -173,7 +173,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
 
       # ruby-kafka producer options
       max_send_retries    (integer)     :default => 1
-      required_acks       (integer)     :default => 0
+      required_acks       (integer)     :default => -1
       ack_timeout         (integer)     :default => nil (Use default of ruby-kafka)
       compression_codec   (gzip|snappy) :default => nil (No compression)
     </match>
@@ -181,7 +181,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
 Supports following ruby-kafka's producer options.
 
 - max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
-- required_acks - default: 0 - The number of acks required per request.
+- required_acks - default: -1 - The number of acks required per request.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 

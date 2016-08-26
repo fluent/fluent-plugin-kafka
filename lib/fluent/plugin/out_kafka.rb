@@ -26,7 +26,7 @@ DESC
   # ruby-kafka producer options
   config_param :max_send_retries, :integer, :default => 1,
                :desc => "Number of times to retry sending of messages to a leader."
-  config_param :required_acks, :integer, :default => 0,
+  config_param :required_acks, :integer, :default => -1,
                :desc => "The number of acks required per request."
   config_param :ack_timeout, :integer, :default => nil,
                :desc => "How long the producer waits for acks."
