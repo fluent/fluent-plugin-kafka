@@ -138,6 +138,11 @@ Install snappy module before you use snappy compression.
 
     $ gem install snappy
 
+snappy gem uses native extension, so you need to install several packages before.
+On Ubuntu, need development packages and snappy library.
+
+    $ sudo apt-get install build-essential autoconf automake libtool libsnappy-dev
+
 #### Load balancing
 
 Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
