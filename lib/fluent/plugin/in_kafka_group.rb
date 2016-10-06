@@ -107,6 +107,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def shutdown
+    # This nil assignment should be guarded by mutex in multithread programming manner.
+    # But the situation is very low contention, so we don't use mutex for now.
+    # If the problem happens, we will add a guard for consumer.
     consumer = @consumer
     @consumer = nil
     consumer.stop
