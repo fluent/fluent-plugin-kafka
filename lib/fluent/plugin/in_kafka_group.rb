@@ -137,8 +137,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
             begin
               es.add(Fluent::Engine.now, @parser_proc.call(msg))
             rescue => e
-              $log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
-              $log.debug_backtrace
+              log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+              log.debug_backtrace
             end
           }
 
@@ -147,12 +147,12 @@ class Fluent::KafkaGroupInput < Fluent::Input
           end
         }
       rescue => e
-        $log.error "unexpected error during consuming events from kafka. Re-fetch events.", :error => e.to_s
-        $log.error_backtrace
+        log.error "unexpected error during consuming events from kafka. Re-fetch events.", :error => e.to_s
+        log.error_backtrace
       end
     end
   rescue => e
-    $log.error "unexpected error during consumer object access", :error => e.to_s
-    $log.error_backtrace
+    log.error "unexpected error during consumer object access", :error => e.to_s
+    log.error_backtrace
   end
 end
