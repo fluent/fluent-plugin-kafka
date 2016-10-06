@@ -68,6 +68,15 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
 
     @parser_proc = setup_parser
+
+    @consumer_opts = {:group_id => @consumer_group}
+    @consumer_opts[:session_timeout] = @session_timeout if @session_timeout
+    @consumer_opts[:offset_commit_interval] = @offset_commit_interval if @offset_commit_interval
+    @consumer_opts[:offset_commit_threshold] = @offset_commit_threshold if @offset_commit_threshold
+
+    @fetch_opts = {}
+    @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
+    @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
   end
 
   def setup_parser
@@ -89,55 +98,64 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def start
     super
 
-    consumer_opts = {:group_id => @consumer_group}
-    consumer_opts[:session_timeout] = @session_timeout if @session_timeout
-    consumer_opts[:offset_commit_interval] = @offset_commit_interval if @offset_commit_interval
-    consumer_opts[:offset_commit_threshold] = @offset_commit_threshold if @offset_commit_threshold
-
-    @fetch_opts = {}
-    @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
-    @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
-
     @kafka = Kafka.new(seed_brokers: @brokers,
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),
                        ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
-    @consumer = @kafka.consumer(consumer_opts)
-    @topics.each { |topic|
-      @consumer.subscribe(topic, start_from_beginning: @start_from_beginning)
-    }
+    @consumer = setup_consumer
     @thread = Thread.new(&method(:run))
   end
 
   def shutdown
-    @consumer.stop
+    # This nil assignment should be guarded by mutex in multithread programming manner.
+    # But the situation is very low contention, so we don't use mutex for now.
+    # If the problem happens, we will add a guard for consumer.
+    consumer = @consumer
+    @consumer = nil
+    consumer.stop
+
     @thread.join
     @kafka.close
     super
   end
 
-  def run
-    @consumer.each_batch(@fetch_opts) { |batch|
-      es = Fluent::MultiEventStream.new
-      tag = batch.topic
-      tag = @add_prefix + "." + tag if @add_prefix
-      tag = tag + "." + @add_suffix if @add_suffix
-
-      batch.messages.each { |msg|
-        begin
-          es.add(Fluent::Engine.now, @parser_proc.call(msg))
-        rescue => e
-          $log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
-          $log.debug_backtrace
-        end
-      }
-
-      unless es.empty?
-        router.emit_stream(tag, es)
-      end
+  def setup_consumer
+    consumer = @kafka.consumer(@consumer_opts)
+    @topics.each { |topic|
+      consumer.subscribe(topic, start_from_beginning: @start_from_beginning)
     }
+    consumer
+  end
+
+  def run
+    while @consumer
+      begin
+        @consumer.each_batch(@fetch_opts) { |batch|
+          es = Fluent::MultiEventStream.new
+          tag = batch.topic
+          tag = @add_prefix + "." + tag if @add_prefix
+          tag = tag + "." + @add_suffix if @add_suffix
+
+          batch.messages.each { |msg|
+            begin
+              es.add(Fluent::Engine.now, @parser_proc.call(msg))
+            rescue => e
+              log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+              log.debug_backtrace
+            end
+          }
+
+          unless es.empty?
+            router.emit_stream(tag, es)
+          end
+        }
+      rescue => e
+        log.error "unexpected error during consuming events from kafka. Re-fetch events.", :error => e.to_s
+        log.error_backtrace
+      end
+    end
   rescue => e
-    $log.error "unexpected error", :error => e.to_s
-    $log.error_backtrace
+    log.error "unexpected error during consumer object access", :error => e.to_s
+    log.error_backtrace
   end
 end
