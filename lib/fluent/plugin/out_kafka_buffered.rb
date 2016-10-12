@@ -237,6 +237,7 @@ DESC
     end
   rescue Exception => e
     log.warn "Send exception occurred: #{e}"
+    log.warn "Exception Backtrace : #{e.backtrace.join("\n")}"
     # For safety, refresh client and its producers
     shutdown_producers
     refresh_client(false)
