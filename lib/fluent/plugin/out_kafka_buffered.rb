@@ -29,6 +29,7 @@ DESC
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
   config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
+  config_param :get_kafka_client_log, :bool, :default => false
 
   # ruby-kafka producer options
   config_param :max_send_retries, :integer, :default => 1,
@@ -78,7 +79,8 @@ DESC
     end
     begin
       if @seed_brokers.length > 0
-        @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+        logger = @get_kafka_client_log ? log : nil
+        @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                            ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
         log.info "initialized kafka producer: #{@client_id}"
       else

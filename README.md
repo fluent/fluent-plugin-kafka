@@ -173,6 +173,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
+      get_kafka_client_log  (bool) :default => false
 
       # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
 
@@ -182,6 +183,10 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       ack_timeout         (integer)     :default => nil (Use default of ruby-kafka)
       compression_codec   (gzip|snappy) :default => nil (No compression)
     </match>
+
+ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
+In this case, `get_kafka_client_log` is useful for identifying the error cause.    
+ruby-kafka's log is routed to fluentd log so you can see ruby-kafka's log in fluentd logs.
 
 Supports following ruby-kafka's producer options.
 
