@@ -184,6 +184,8 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       compression_codec   (gzip|snappy) :default => nil (No compression)
     </match>
 
+`<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](http://docs.fluentd.org/articles/formatter-plugin-overview).
+
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
 In this case, `get_kafka_client_log` is useful for identifying the error cause.    
 ruby-kafka's log is routed to fluentd log so you can see ruby-kafka's log in fluentd logs.
