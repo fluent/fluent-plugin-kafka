@@ -198,25 +198,34 @@ DESC
     bytes_by_topic = {}
     messages = 0
     messages_bytes = 0
+    record_buf = nil
+    record_buf_bytes = nil
+
     begin
       chunk.msgpack_each { |time, record|
-        if @output_include_time
-          if @time_format
-            record['time'.freeze] = Time.at(time).strftime(@time_format)
-          else
-            record['time'.freeze] = time
+        begin
+          if @output_include_time
+            if @time_format
+              record['time'.freeze] = Time.at(time).strftime(@time_format)
+            else
+              record['time'.freeze] = time
+            end
           end
+
+          record['tag'] = tag if @output_include_tag
+          topic = record['topic'.freeze] || def_topic
+          partition_key = record['partition_key'.freeze] || @default_partition_key
+
+          records_by_topic[topic] ||= 0
+          bytes_by_topic[topic] ||= 0
+
+          record_buf = @formatter_proc.call(tag, time, record)
+          record_buf_bytes = record_buf.bytesize
+        rescue StandardError => e
+          log.warn "unexpected error during format record. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :time => time, :record => record
+          next
         end
 
-        record['tag'] = tag if @output_include_tag
-        topic = record['topic'.freeze] || def_topic
-        partition_key = record['partition_key'.freeze] || @default_partition_key
-
-        records_by_topic[topic] ||= 0
-        bytes_by_topic[topic] ||= 0
-
-        record_buf = @formatter_proc.call(tag, time, record)
-        record_buf_bytes = record_buf.bytesize
         if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes)
           log.on_trace { log.trace("#{messages} messages send.") }
           producer.deliver_messages
