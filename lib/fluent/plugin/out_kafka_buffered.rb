@@ -222,7 +222,7 @@ DESC
           record_buf = @formatter_proc.call(tag, time, record)
           record_buf_bytes = record_buf.bytesize
         rescue StandardError => e
-          log.error "unexpected error during format record. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :time => time, :record => record
+          log.warn "unexpected error during format record. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :time => time, :record => record
           next
         end
 
