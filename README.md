@@ -170,8 +170,8 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
 
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
-      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
-      output_include_tag    (bool) :default => false
+      output_data_type      (json|ltsv|msgpack|single value|attr:<record name>|<formatter name>) :default => json
+      output_include_tag    (bool) :default => false # set to false explicitly if using 'single value'
       output_include_time   (bool) :default => false
       get_kafka_client_log  (bool) :default => false
 
