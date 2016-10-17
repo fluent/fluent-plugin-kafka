@@ -18,6 +18,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Tag prefix (Optional)"
   config_param :add_suffix, :string, :default => nil,
                :desc => "Tag suffix (Optional)"
+  config_param :retry_emit_limit, :integer, :default => nil,
+               :desc => "How long to stop event consuming when BufferQueueLimitError happens. Wait retry_emit_limit x 1s. The default is waiting until BufferQueueLimitError is resolved"
 
   # Kafka consumer options
   config_param :max_wait_time, :integer, :default => nil,
@@ -34,6 +36,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
 
   include Fluent::KafkaPluginUtil::SSLSettings
+
+  class ForShutdown < StandardError
+  end
 
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
@@ -146,9 +151,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
           }
 
           unless es.empty?
-            router.emit_stream(tag, es)
+            emit_events(tag, es)
           end
         }
+      rescue ForShutdown
       rescue => e
         log.error "unexpected error during consuming events from kafka. Re-fetch events.", :error => e.to_s
         log.error_backtrace
@@ -157,5 +163,27 @@ class Fluent::KafkaGroupInput < Fluent::Input
   rescue => e
     log.error "unexpected error during consumer object access", :error => e.to_s
     log.error_backtrace
+  end
+
+  def emit_events(tag, es)
+    retries = 0
+    begin
+      router.emit_stream(tag, es)
+    rescue Fluent::BufferQueueLimitError
+      raise ForShutdown if @consumer.nil?
+
+      if @retry_emit_limit.nil?
+        sleep 1
+        retry
+      end
+
+      if retries < @retry_emit_limit
+        retries += 1
+        sleep 1
+        retry
+      else
+        raise RuntimeError, "Exceeds retry_emit_limit"
+      end
+    end
   end
 end
