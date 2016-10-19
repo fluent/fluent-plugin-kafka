@@ -28,6 +28,15 @@ Supported format: (json|ltsv|msgpack|attr:<record name>|<formatter name>)
 DESC
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
+  config_param :output_exclude_partition_key, :bool, :default => false,
+               :desc => <<-DESC
+Set true to remove partition key from data
+DESC
+   config_param :output_exclude_topic_key, :bool, :default => false,
+                :desc => <<-DESC
+Set true to remove topic name key from data
+DESC
+
   config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
   config_param :get_kafka_client_log, :bool, :default => false
 
@@ -215,6 +224,14 @@ DESC
           record['tag'] = tag if @output_include_tag
           topic = record['topic'.freeze] || def_topic
           partition_key = record['partition_key'.freeze] || @default_partition_key
+
+          if ( @output_exclude_partition_key && record.has_key?('partition_key') )
+            record.delete('partition_key')
+          end
+
+          if ( @output_exclude_topic_key && record.has_key?('topic') )
+            record.delete('topic')
+          end
 
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0
