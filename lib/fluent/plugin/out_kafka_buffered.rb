@@ -234,7 +234,7 @@ DESC
         end
         log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
         messages += 1
-        producer.produce2(record_buf, topic: topic, partition_key: partition_key)
+        producer.produce2(record_buf, topic: topic, key: partition_key)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
