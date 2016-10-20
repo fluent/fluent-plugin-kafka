@@ -22,6 +22,14 @@ DESC
                :desc => "Supported format: (json|ltsv|msgpack|attr:<record name>|<formatter name>)"
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
+  config_param :exclude_partition_key, :bool, :default => false,
+                       :desc => <<-DESC
+Set true to remove partition key from data
+DESC
+  config_param :exclude_topic_key, :bool, :default => false,
+                         :desc => <<-DESC
+Set true to remove topic name key from data
+DESC
 
   # ruby-kafka producer options
   config_param :max_send_retries, :integer, :default => 1,
@@ -157,8 +165,9 @@ DESC
           end
         end
         record['tag'] = tag if @output_include_tag
-        topic = record['topic'] || @default_topic || tag
-        partition_key = record['partition_key'] || @default_partition_key
+        topic = (@exclude_topic_key ? record.delete('topic') : record['topic']) || @default_topic || tag
+        partition_key = (@exclude_partition_key ? record.delete('partition_key') : record['partition_key']) || @default_partition_key
+
         value = @formatter_proc.call(tag, time, record)
 
         log.on_trace { log.trace("message send to #{topic} with key: #{partition_key} and value: #{value}.") }

@@ -116,6 +116,8 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
       output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
+      exclude_topic_key     (bool) :default => false
+      exclude_partition_key (bool) :default => false
 
       # ruby-kafka producer options
       max_send_retries  (integer)     :default => 1
@@ -173,6 +175,8 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
+      exclude_topic_key     (bool) :default => false
+      exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
 
       # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
