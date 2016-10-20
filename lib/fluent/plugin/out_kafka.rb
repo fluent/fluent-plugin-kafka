@@ -32,7 +32,7 @@ Set true to remove topic name key from data
 DESC
 
   # ruby-kafka producer options
-  config_param :max_send_retries, :integer, :default => 1,
+  config_param :max_send_retries, :integer, :default => 2,
                :desc => "Number of times to retry sending of messages to a leader."
   config_param :required_acks, :integer, :default => -1,
                :desc => "The number of acks required per request."
