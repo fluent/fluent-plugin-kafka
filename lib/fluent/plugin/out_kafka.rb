@@ -162,7 +162,7 @@ DESC
         value = @formatter_proc.call(tag, time, record)
 
         log.on_trace { log.trace("message send to #{topic} with key: #{partition_key} and value: #{value}.") }
-        producer.produce(value, topic: topic, key: partition_key)
+        producer.produce(value, topic: topic, partition_key: partition_key)
       end
 
       producer.deliver_messages
