@@ -28,11 +28,20 @@ Supported format: (json|ltsv|msgpack|attr:<record name>|<formatter name>)
 DESC
   config_param :output_include_tag, :bool, :default => false
   config_param :output_include_time, :bool, :default => false
+  config_param :exclude_partition_key, :bool, :default => false,
+               :desc => <<-DESC
+Set true to remove partition key from data
+DESC
+   config_param :exclude_topic_key, :bool, :default => false,
+                :desc => <<-DESC
+Set true to remove topic name key from data
+DESC
+
   config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
   config_param :get_kafka_client_log, :bool, :default => false
 
   # ruby-kafka producer options
-  config_param :max_send_retries, :integer, :default => 1,
+  config_param :max_send_retries, :integer, :default => 2,
                :desc => "Number of times to retry sending of messages to a leader."
   config_param :required_acks, :integer, :default => -1,
                :desc => "The number of acks required per request."
@@ -213,8 +222,8 @@ DESC
           end
 
           record['tag'] = tag if @output_include_tag
-          topic = record['topic'.freeze] || def_topic
-          partition_key = record['partition_key'.freeze] || @default_partition_key
+          topic = (@exclude_topic_key ? record.delete('topic'.freeze) : record['topic'.freeze]) || def_topic
+          partition_key = (@exclude_partition_key ? record.delete('partition_key'.freeze) : record['partition_key'.freeze]) || @default_partition_key
 
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0
