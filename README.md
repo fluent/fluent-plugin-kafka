@@ -113,6 +113,7 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
 
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
+      default_message_key   (string) :default => nil
       output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
@@ -158,6 +159,9 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
 |Set| Exists | Messages which have partition_key record are assigned to the specific partition with parition_key, others are assigned to the specific partition with default_parition_key |
 
 
+If key name `message_key` exists in a message, this plugin publishes the value of message_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key exists and if partition_key is not set explicitly, messsage_key will be used for partitioning.
+
+
 ### Buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions.
@@ -172,6 +176,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
 
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
+      default_message_key   (string) :default => nil
       output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
