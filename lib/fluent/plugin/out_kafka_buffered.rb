@@ -20,6 +20,7 @@ DESC
                :desc => "Path in path for Broker id. Default to /brokers/ids"
   config_param :default_topic, :string, :default => nil,
                :desc => "Output topic"
+  config_param :default_message_key, :string, :default => nil
   config_param :default_partition_key, :string, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json',
@@ -224,6 +225,7 @@ DESC
           record['tag'] = tag if @output_include_tag
           topic = (@exclude_topic_key ? record.delete('topic'.freeze) : record['topic'.freeze]) || def_topic
           partition_key = (@exclude_partition_key ? record.delete('partition_key'.freeze) : record['partition_key'.freeze]) || @default_partition_key
+          message_key = record['message_key'.freeze] || @default_message_key
 
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0
@@ -241,9 +243,9 @@ DESC
           messages = 0
           messages_bytes = 0
         end
-        log.on_trace { log.trace("message will send to #{topic} with key: #{partition_key} and value: #{record_buf}.") }
+        log.on_trace { log.trace("message will send to #{topic} with partition_key: #{partition_key}, message_key: #{message_key} and value: #{record_buf}.") }
         messages += 1
-        producer.produce2(record_buf, topic: topic, partition_key: partition_key)
+        producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1

@@ -16,6 +16,7 @@ DESC
                :desc => "Path in path for Broker id. Default to /brokers/ids"
   config_param :default_topic, :string, :default => nil,
                :desc => "Output topic."
+  config_param :default_message_key, :string, :default => nil
   config_param :default_partition_key, :string, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json',
@@ -167,11 +168,12 @@ DESC
         record['tag'] = tag if @output_include_tag
         topic = (@exclude_topic_key ? record.delete('topic') : record['topic']) || @default_topic || tag
         partition_key = (@exclude_partition_key ? record.delete('partition_key') : record['partition_key']) || @default_partition_key
+        message_key = record['message_key'] || @default_message_key
 
         value = @formatter_proc.call(tag, time, record)
 
-        log.on_trace { log.trace("message send to #{topic} with key: #{partition_key} and value: #{value}.") }
-        producer.produce(value, topic: topic, partition_key: partition_key)
+        log.on_trace { log.trace("message send to #{topic} with partition_key: #{partition_key}, message_key: #{message_key} and value: #{value}.") }
+        producer.produce(value, topic: topic, key: message_key, partition_key: partition_key)
       end
 
       producer.deliver_messages
