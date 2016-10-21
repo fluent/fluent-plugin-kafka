@@ -33,6 +33,10 @@ DESC
                :desc => <<-DESC
 Set true to remove partition key from data
 DESC
+   config_param :exclude_message_key, :bool, :default => false,
+               :desc => <<-DESC
+Set true to remove partition key from data
+DESC
    config_param :exclude_topic_key, :bool, :default => false,
                 :desc => <<-DESC
 Set true to remove topic name key from data
@@ -225,7 +229,7 @@ DESC
           record['tag'] = tag if @output_include_tag
           topic = (@exclude_topic_key ? record.delete('topic'.freeze) : record['topic'.freeze]) || def_topic
           partition_key = (@exclude_partition_key ? record.delete('partition_key'.freeze) : record['partition_key'.freeze]) || @default_partition_key
-          message_key = record['message_key'.freeze] || @default_message_key
+          message_key = (@exclude_message_key ? record.delete('message_key'.freeze) : record['message_key'.freeze]) || @default_message_key
 
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0
