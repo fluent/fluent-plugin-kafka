@@ -17,7 +17,6 @@ Gem::Specification.new do |gem|
 
   gem.add_dependency "fluentd", [">= 0.10.58", "< 2"]
   gem.add_dependency 'ltsv'
-  gem.add_dependency 'zookeeper'
   gem.add_dependency 'ruby-kafka', '~> 0.3.11'
   gem.add_development_dependency "rake", ">= 0.9.2"
   gem.add_development_dependency "test-unit", ">= 3.0.8"
