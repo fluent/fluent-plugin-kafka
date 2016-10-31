@@ -130,7 +130,7 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
 Supports following ruby-kafka::Producer options.
 
 - max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
-- required_acks - default: -1 - The number of acks required per request.
+- required_acks - default: -1 - The number of acks required per request. Default is waiting all acks for safety. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 
