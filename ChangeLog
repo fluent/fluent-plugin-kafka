@@ -1,0 +1,28 @@
+Release 0.3.5 - 2016/10/21
+
+	* output: Support message key and related parameters. #91
+
+Release 0.3.4 - 2016/10/20
+
+	* output: Add exclude_topic_key and exclude_partition_key. #89
+
+Release 0.3.3 - 2016/10/17
+
+	* out_kafka_buffered: Add get_kafka_client_log parameter. #83
+	* out_kafka_buffered: Skip and log invalid record to avoid buffer stuck. #86
+	* in_kafka_group: Add retry_emit_limit to handle BufferQueueLimitError. #87
+
+Release 0.3.2 - 2016/10/06
+
+	* in_kafka_group: Re-fetch events after consumer error. #79
+
+Release 0.3.1 - 2016/08/28
+
+	* output: Change default required_acks to -1. #70
+	* Support ruby version changed to 2.1.0 or later
+
+Release 0.3.0 - 2016/08/24
+
+	* Fully replace poseidon ruby library with ruby-kafka to support latest kafka versions
+
+See git commits for older changes
