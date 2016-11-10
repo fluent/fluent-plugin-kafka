@@ -22,6 +22,7 @@ DESC
                :desc => "Output topic"
   config_param :default_message_key, :string, :default => nil
   config_param :default_partition_key, :string, :default => nil
+  config_param :default_partition, :integer, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json',
                :desc => <<-DESC
@@ -32,6 +33,10 @@ DESC
   config_param :exclude_partition_key, :bool, :default => false,
                :desc => <<-DESC
 Set true to remove partition key from data
+DESC
+  config_param :exclude_partition, :bool, :default => false,
+               :desc => <<-DESC
+Set true to remove partition from data
 DESC
    config_param :exclude_message_key, :bool, :default => false,
                :desc => <<-DESC
@@ -229,6 +234,7 @@ DESC
           record['tag'] = tag if @output_include_tag
           topic = (@exclude_topic_key ? record.delete('topic'.freeze) : record['topic'.freeze]) || def_topic
           partition_key = (@exclude_partition_key ? record.delete('partition_key'.freeze) : record['partition_key'.freeze]) || @default_partition_key
+          partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
           message_key = (@exclude_message_key ? record.delete('message_key'.freeze) : record['message_key'.freeze]) || @default_message_key
 
           records_by_topic[topic] ||= 0
@@ -247,9 +253,9 @@ DESC
           messages = 0
           messages_bytes = 0
         end
-        log.on_trace { log.trace("message will send to #{topic} with partition_key: #{partition_key}, message_key: #{message_key} and value: #{record_buf}.") }
+        log.on_trace { log.trace("message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}.") }
         messages += 1
-        producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key)
+        producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1

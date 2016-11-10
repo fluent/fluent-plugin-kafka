@@ -18,6 +18,7 @@ DESC
                :desc => "Output topic."
   config_param :default_message_key, :string, :default => nil
   config_param :default_partition_key, :string, :default => nil
+  config_param :default_partition, :integer, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json',
                :desc => "Supported format: (json|ltsv|msgpack|attr:<record name>|<formatter name>)"
@@ -27,6 +28,11 @@ DESC
                        :desc => <<-DESC
 Set true to remove partition key from data
 DESC
+  config_param :exclude_partition, :bool, :default => false,
+               :desc => <<-DESC
+Set true to remove partition from data
+DESC
+
   config_param :exclude_message_key, :bool, :default => false,
                          :desc => <<-DESC
 Set true to remove message key from data
@@ -172,12 +178,13 @@ DESC
         record['tag'] = tag if @output_include_tag
         topic = (@exclude_topic_key ? record.delete('topic') : record['topic']) || @default_topic || tag
         partition_key = (@exclude_partition_key ? record.delete('partition_key') : record['partition_key']) || @default_partition_key
+        partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
         message_key = (@exclude_message_key ? record.delete('message_key') : record['message_key']) || @default_message_key
 
         value = @formatter_proc.call(tag, time, record)
 
-        log.on_trace { log.trace("message send to #{topic} with partition_key: #{partition_key}, message_key: #{message_key} and value: #{value}.") }
-        producer.produce(value, topic: topic, key: message_key, partition_key: partition_key)
+        log.on_trace { log.trace("message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}.") }
+        producer.produce(value, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
       end
 
       producer.deliver_messages
