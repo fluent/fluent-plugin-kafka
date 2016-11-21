@@ -20,6 +20,8 @@ Or install it yourself as:
 
     $ gem install fluent-plugin-kafka
 
+If you want to use zookeeper related parameters, you also need to install zookeeper gem. zookeeper gem includes native extension, so development tools are needed, e.g. gcc, make and etc.
+
 ## Requirements
 
 - Ruby 2.1 or later
