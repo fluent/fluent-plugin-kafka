@@ -1,3 +1,11 @@
+Release 0.4.1 - 2016/12/01
+
+	* output: Support specifying partition
+
+Release 0.4.0 - 2016/11/08
+
+	* Remove zookeeper dependency
+
 Release 0.3.5 - 2016/10/21
 
 	* output: Support message key and related parameters. #91
