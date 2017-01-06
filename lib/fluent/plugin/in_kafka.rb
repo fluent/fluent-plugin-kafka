@@ -31,6 +31,10 @@ class Fluent::KafkaInput < Fluent::Input
 
   config_param :offset_zookeeper, :string, :default => nil
   config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
+  config_param :input_replace_time, :bool, :default => false,
+               :desc => "Replace message timestamp with contents of 'time' field."
+  config_param :time_format, :string, :default => nil,
+               :desc => "Time format to be used to parse 'time' filed."
 
   # Kafka#fetch_messages options
   config_param :max_bytes, :integer, :default => nil,
@@ -231,7 +235,16 @@ class Fluent::KafkaInput < Fluent::Input
 
       messages.each { |msg|
         begin
-          es.add(Fluent::Engine.now, @parser.call(msg, @topic_entry))
+          record = @parser.call(msg, @topic_entry)
+          record_time = Fluent::Engine.now
+          if @input_replace_time
+            if @time_format
+              record_time = Time.strptime(record['time'], @time_format)
+            else
+              record_time = record['time']
+            end
+          end
+          es.add(record_time, record)
         rescue => e
           $log.warn "parser error in #{@topic_entry.topic}/#{@topic_entry.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
           $log.debug_backtrace

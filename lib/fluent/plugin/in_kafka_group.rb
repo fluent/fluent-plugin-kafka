@@ -20,6 +20,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Tag suffix (Optional)"
   config_param :retry_emit_limit, :integer, :default => nil,
                :desc => "How long to stop event consuming when BufferQueueLimitError happens. Wait retry_emit_limit x 1s. The default is waiting until BufferQueueLimitError is resolved"
+  config_param :input_replace_time, :bool, :default => false,
+               :desc => "Replace message timestamp with contents of 'time' field."
+  config_param :time_format, :string, :default => nil,
+               :desc => "Time format to be used to parse 'time' filed."
 
   # Kafka consumer options
   config_param :max_wait_time, :integer, :default => nil,
@@ -143,7 +147,16 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
           batch.messages.each { |msg|
             begin
-              es.add(Fluent::Engine.now, @parser_proc.call(msg))
+              record = @parser_proc.call(msg)
+              record_time = Fluent::Engine.now
+              if @input_replace_time
+                if @time_format
+                  record_time = Time.strptime(record['time'], @time_format)
+                else
+                  record_time = record['time']
+                end
+              end
+              es.add(record_time, record)
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
               log.debug_backtrace
