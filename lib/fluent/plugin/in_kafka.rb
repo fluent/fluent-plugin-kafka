@@ -1,4 +1,5 @@
 require 'fluent/input'
+require 'fluent/time'
 require 'fluent/plugin/kafka_plugin_util'
 
 class Fluent::KafkaInput < Fluent::Input
@@ -31,7 +32,7 @@ class Fluent::KafkaInput < Fluent::Input
 
   config_param :offset_zookeeper, :string, :default => nil
   config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
-  config_param :input_replace_time, :bool, :default => false,
+  config_param :use_record_time, :bool, :default => false,
                :desc => "Replace message timestamp with contents of 'time' field."
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' filed."
@@ -236,13 +237,15 @@ class Fluent::KafkaInput < Fluent::Input
       messages.each { |msg|
         begin
           record = @parser.call(msg, @topic_entry)
-          record_time = Fluent::Engine.now
-          if @input_replace_time
+          if @use_record_time
             if @time_format
-              record_time = Time.strptime(record['time'], @time_format)
+              time_parser = Fluent::TextParser::TimeParser.new(@time_format)
+              record_time = time_parser.parse(record['time'])
             else
               record_time = record['time']
             end
+          else
+            record_time = Fluent::Engine.now
           end
           es.add(record_time, record)
         rescue => e

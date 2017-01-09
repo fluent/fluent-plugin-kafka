@@ -1,4 +1,5 @@
 require 'fluent/input'
+require 'fluent/time'
 require 'fluent/plugin/kafka_plugin_util'
 
 class Fluent::KafkaGroupInput < Fluent::Input
@@ -20,7 +21,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Tag suffix (Optional)"
   config_param :retry_emit_limit, :integer, :default => nil,
                :desc => "How long to stop event consuming when BufferQueueLimitError happens. Wait retry_emit_limit x 1s. The default is waiting until BufferQueueLimitError is resolved"
-  config_param :input_replace_time, :bool, :default => false,
+  config_param :use_record_time, :bool, :default => false,
                :desc => "Replace message timestamp with contents of 'time' field."
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' filed."
@@ -148,13 +149,15 @@ class Fluent::KafkaGroupInput < Fluent::Input
           batch.messages.each { |msg|
             begin
               record = @parser_proc.call(msg)
-              record_time = Fluent::Engine.now
-              if @input_replace_time
+              if @use_record_time
                 if @time_format
-                  record_time = Time.strptime(record['time'], @time_format)
+                  time_parser = Fluent::TextParser::TimeParser.new(@time_format)
+                  record_time = time_parser.parse(record['time'])
                 else
                   record_time = record['time']
                 end
+              else
+                record_time = Fluent::Engine.now
               end
               es.add(record_time, record)
             rescue => e
