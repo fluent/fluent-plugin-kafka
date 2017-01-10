@@ -52,6 +52,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def initialize
     super
     require 'kafka'
+
+    @time_parser = nil
   end
 
   def _config_to_array(config)
@@ -87,6 +89,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @fetch_opts = {}
     @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
     @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
+
+    if @use_record_time and @time_format
+      @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
+    end
   end
 
   def setup_parser
@@ -151,8 +157,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
               record = @parser_proc.call(msg)
               if @use_record_time
                 if @time_format
-                  time_parser = Fluent::TextParser::TimeParser.new(@time_format)
-                  record_time = time_parser.parse(record['time'])
+                  record_time = @time_parser.parse(record['time'])
                 else
                   record_time = record['time']
                 end
