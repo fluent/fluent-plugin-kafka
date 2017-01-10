@@ -1,4 +1,5 @@
 require 'fluent/input'
+require 'fluent/time'
 require 'fluent/plugin/kafka_plugin_util'
 
 class Fluent::KafkaGroupInput < Fluent::Input
@@ -20,6 +21,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Tag suffix (Optional)"
   config_param :retry_emit_limit, :integer, :default => nil,
                :desc => "How long to stop event consuming when BufferQueueLimitError happens. Wait retry_emit_limit x 1s. The default is waiting until BufferQueueLimitError is resolved"
+  config_param :use_record_time, :bool, :default => false,
+               :desc => "Replace message timestamp with contents of 'time' field."
+  config_param :time_format, :string, :default => nil,
+               :desc => "Time format to be used to parse 'time' filed."
 
   # Kafka consumer options
   config_param :max_wait_time, :integer, :default => nil,
@@ -47,6 +52,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def initialize
     super
     require 'kafka'
+
+    @time_parser = nil
   end
 
   def _config_to_array(config)
@@ -82,6 +89,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @fetch_opts = {}
     @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
     @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
+
+    if @use_record_time and @time_format
+      @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
+    end
   end
 
   def setup_parser
@@ -143,7 +154,17 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
           batch.messages.each { |msg|
             begin
-              es.add(Fluent::Engine.now, @parser_proc.call(msg))
+              record = @parser_proc.call(msg)
+              if @use_record_time
+                if @time_format
+                  record_time = @time_parser.parse(record['time'])
+                else
+                  record_time = record['time']
+                end
+              else
+                record_time = Fluent::Engine.now
+              end
+              es.add(record_time, record)
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
               log.debug_backtrace
