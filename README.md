@@ -109,69 +109,6 @@ Consume events by kafka consumer group features..
 
 See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka options.
 
-### Output plugin (non-buffered)
-
-This plugin uses ruby-kafka producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead.
-
-    <match *.**>
-      @type kafka
-
-      # Brokers: you can choose either brokers or zookeeper.
-      brokers        <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
-      zookeeper      <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
-      zookeeper_path <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
-
-      default_topic         (string) :default => nil
-      default_partition_key (string) :default => nil
-      default_message_key   (string) :default => nil
-      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
-      output_include_tag    (bool) :default => false
-      output_include_time   (bool) :default => false
-      exclude_topic_key     (bool) :default => false
-      exclude_partition_key (bool) :default => false
-
-      # ruby-kafka producer options
-      max_send_retries  (integer)     :default => 1
-      required_acks     (integer)     :default => -1
-      ack_timeout       (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec (gzip|snappy) :default => nil
-    </match>
-
-Supports following ruby-kafka::Producer options.
-
-- max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
-- required_acks - default: -1 - The number of acks required per request. Default is waiting all acks for safety. If you need flush performance, set lower value, e.g. 1, 2.
-- ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
-- compression_codec - default: nil - The codec the producer uses to compress messages.
-
-See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
-
-This plugin supports compression codec "snappy" also.
-Install snappy module before you use snappy compression.
-
-    $ gem install snappy
-
-snappy gem uses native extension, so you need to install several packages before.
-On Ubuntu, need development packages and snappy library.
-
-    $ sudo apt-get install build-essential autoconf automake libtool libsnappy-dev
-
-#### Load balancing
-
-Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
-If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
-
-|default_partition_key|partition_key| behavior |
-| --- | --- | --- |
-|Not set|Not exists| All messages are assigned a partition at random |
-|Set| Not exists| All messages are assigned to the specific partition |
-|Not set| Exists | Messages which have partition_key record are assigned to the specific partition, others are assigned a partition at random |
-|Set| Exists | Messages which have partition_key record are assigned to the specific partition with parition_key, others are assigned to the specific partition with default_parition_key |
-
-
-If key name `message_key` exists in a message, this plugin publishes the value of message_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key exists and if partition_key is not set explicitly, messsage_key will be used for partitioning.
-
-
 ### Buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions.
@@ -179,7 +116,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
     <match *.**>
       @type kafka_buffered
 
-      # Brokers: you can choose either brokers or zookeeper.
+      # Brokers: you can choose either brokers or zookeeper. If you are not familiar with zookeeper, use brokers parameters.
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
       zookeeper_path      <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
@@ -212,17 +149,65 @@ ruby-kafka's log is routed to fluentd log so you can see ruby-kafka's log in flu
 Supports following ruby-kafka's producer options.
 
 - max_send_retries - default: 1 - Number of times to retry sending of messages to a leader.
-- required_acks - default: -1 - The number of acks required per request.
+- required_acks - default: -1 - The number of acks required per request. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 
 See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
 
-
 This plugin supports compression codec "snappy" also.
 Install snappy module before you use snappy compression.
 
     $ gem install snappy
+
+snappy gem uses native extension, so you need to install several packages before.
+On Ubuntu, need development packages and snappy library.
+
+    $ sudo apt-get install build-essential autoconf automake libtool libsnappy-dev
+
+#### Load balancing
+
+Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
+If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
+
+|default_partition_key|partition_key| behavior |
+| --- | --- | --- |
+|Not set|Not exists| All messages are assigned a partition at random |
+|Set| Not exists| All messages are assigned to the specific partition |
+|Not set| Exists | Messages which have partition_key record are assigned to the specific partition, others are assigned a partition at random |
+|Set| Exists | Messages which have partition_key record are assigned to the specific partition with parition_key, others are assigned to the specific partition with default_parition_key |
+
+If key name `message_key` exists in a message, this plugin publishes the value of message_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key exists and if partition_key is not set explicitly, messsage_key will be used for partitioning.
+
+### Non-buffered output plugin
+
+This plugin uses ruby-kafka producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead. This is mainly for testing.
+
+    <match *.**>
+      @type kafka
+
+      # Brokers: you can choose either brokers or zookeeper.
+      brokers        <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+      zookeeper      <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
+      zookeeper_path <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
+
+      default_topic         (string) :default => nil
+      default_partition_key (string) :default => nil
+      default_message_key   (string) :default => nil
+      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      output_include_tag    (bool) :default => false
+      output_include_time   (bool) :default => false
+      exclude_topic_key     (bool) :default => false
+      exclude_partition_key (bool) :default => false
+
+      # ruby-kafka producer options
+      max_send_retries  (integer)     :default => 1
+      required_acks     (integer)     :default => -1
+      ack_timeout       (integer)     :default => nil (Use default of ruby-kafka)
+      compression_codec (gzip|snappy) :default => nil
+    </match>
+
+This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.
 
 ## Contributing
 
