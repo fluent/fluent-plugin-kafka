@@ -45,6 +45,12 @@ class Fluent::KafkaGroupInput < Fluent::Input
   class ForShutdown < StandardError
   end
 
+  BufferError = if defined?(Fluent::Plugin::Buffer::BufferOverflowError)
+                  Fluent::Plugin::Buffer::BufferOverflowError
+                else
+                  Fluent::BufferQueueLimitError
+                end
+
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
   end
@@ -190,7 +196,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     retries = 0
     begin
       router.emit_stream(tag, es)
-    rescue Fluent::BufferQueueLimitError
+    rescue BufferError
       raise ForShutdown if @consumer.nil?
 
       if @retry_emit_limit.nil?
