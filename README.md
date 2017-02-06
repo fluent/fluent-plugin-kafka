@@ -97,9 +97,11 @@ Consume events by kafka consumer group features..
       message_key <key (Optional, for text format only, default is message)>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
+      retry_emit_limit <Wait retry_emit_limit x 1s when BuffereQueueLimitError happens. The default is nil and it means waiting until BufferQueueLimitError is resolved>
+      use_record_time <If true, replace event time with contents of 'time' field of fetched record>
+      time_format <string (Optional when use_record_time is used)>
 
       # ruby-kafka consumer options
-      max_bytes               (integer) :default => nil (Use default of ruby-kafka)
       max_wait_time           (integer) :default => nil (Use default of ruby-kafka)
       min_bytes               (integer) :default => nil (Use default of ruby-kafka)
       offset_commit_interval  (integer) :default => nil (Use default of ruby-kafka)
