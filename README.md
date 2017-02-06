@@ -102,6 +102,7 @@ Consume events by kafka consumer group features..
       time_format <string (Optional when use_record_time is used)>
 
       # ruby-kafka consumer options
+      max_bytes               (integer) :default => 1048576
       max_wait_time           (integer) :default => nil (Use default of ruby-kafka)
       min_bytes               (integer) :default => nil (Use default of ruby-kafka)
       offset_commit_interval  (integer) :default => nil (Use default of ruby-kafka)
