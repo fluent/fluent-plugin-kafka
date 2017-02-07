@@ -140,6 +140,8 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       required_acks       (integer)     :default => -1
       ack_timeout         (integer)     :default => nil (Use default of ruby-kafka)
       compression_codec   (gzip|snappy) :default => nil (No compression)
+      max_buffer_size     (integer)     :default => nil (Use default of ruby-kafka)
+      max_buffer_bytesize (integer)     :default => nil (Use default of ruby-kafka) 
     </match>
 
 `<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](http://docs.fluentd.org/articles/formatter-plugin-overview).
@@ -154,6 +156,8 @@ Supports following ruby-kafka's producer options.
 - required_acks - default: -1 - The number of acks required per request. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
+- max_buffer_size - default: ruby-kafka default (1000) - The number of messages allowed in the buffer.
+- max_buffer_bytesize - default: ruby-kafka default (10_000_000) - The maximum size of the buffer in bytes.
 
 See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
 
@@ -203,10 +207,12 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
       exclude_partition_key (bool) :default => false
 
       # ruby-kafka producer options
-      max_send_retries  (integer)     :default => 1
-      required_acks     (integer)     :default => -1
-      ack_timeout       (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec (gzip|snappy) :default => nil
+      max_send_retries    (integer)     :default => 1
+      required_acks       (integer)     :default => -1
+      ack_timeout         (integer)     :default => nil (Use default of ruby-kafka) 
+      compression_codec   (gzip|snappy) :default => nil
+      max_buffer_size     (integer)     :default => nil (Use default of ruby-kafka)
+      max_buffer_bytesize (integer)     :default => nil (Use default of ruby-kafka) 
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.

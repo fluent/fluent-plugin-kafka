@@ -54,6 +54,12 @@ DESC
 
   config_param :time_format, :string, :default => nil
 
+  config_param :max_buffer_size, :integer, :default => nil,
+               :desc => "Number of messages to be buffered by the kafka producer."
+
+  config_param :max_buffer_bytesize, :integer, :default => nil,
+               :desc => "Maximum size in bytes to be buffered."
+
   include Fluent::KafkaPluginUtil::SSLSettings
 
   attr_accessor :output_data_type
@@ -122,6 +128,8 @@ DESC
     @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks}
     @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
     @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
+    @producer_opts[:max_buffer_size] = @max_buffer_size if @max_buffer_size
+    @producer_opts[:max_buffer_bytesize] = @max_buffer_bytesize if @max_buffer_bytesize
   end
 
   def start
