@@ -27,6 +27,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Time format to be used to parse 'time' filed."
 
   # Kafka consumer options
+  config_param :max_bytes, :integer, :default => 1048576,
+               :desc => "Maximum number of bytes to fetch."
   config_param :max_wait_time, :integer, :default => nil,
                :desc => "How long to block until the server sends us data."
   config_param :min_bytes, :integer, :default => nil,
@@ -144,7 +146,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def setup_consumer
     consumer = @kafka.consumer(@consumer_opts)
     @topics.each { |topic|
-      consumer.subscribe(topic, start_from_beginning: @start_from_beginning)
+      consumer.subscribe(topic, start_from_beginning: @start_from_beginning, max_bytes_per_partition: @max_bytes)
     }
     consumer
   end
