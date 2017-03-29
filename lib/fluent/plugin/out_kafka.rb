@@ -55,6 +55,7 @@ DESC
   config_param :time_format, :string, :default => nil
 
   include Fluent::KafkaPluginUtil::SSLSettings
+  include Fluent::KafkaPluginUtil::SaslSettings
 
   attr_accessor :output_data_type
   attr_accessor :field_separator
@@ -85,7 +86,8 @@ DESC
     begin
       if @seed_brokers.length > 0
         @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
-                           ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
+                           ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+                           principal: @principal, keytab: @keytab)
         log.info "initialized kafka producer: #{@client_id}"
       else
         log.warn "No brokers found on Zookeeper"

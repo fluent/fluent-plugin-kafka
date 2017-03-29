@@ -18,5 +18,16 @@ module Fluent
         File.read(path)
       end
     end
+
+    module SaslSettings
+      def self.included(klass)
+        klass.instance_eval {
+          config_param :principal, :string, :default => nil,
+                       :desc => "a Kerberos principal to use with SASL authentication (GSSAPI)."
+          config_param :keytab, :string, :default => nil,
+                       :desc => "a filepath to Kerberos keytab. Must be used with principal."
+        }
+      end
+    end
   end
 end

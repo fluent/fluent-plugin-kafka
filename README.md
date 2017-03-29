@@ -32,11 +32,20 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 ### Common parameters
 
+#### SSL authentication
+
 - ssl_ca_cert
 - ssl_client_cert
 - ssl_client_cert_key
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
+
+#### SASL authentication
+
+- principal
+- keytab
+
+Set principal and path to keytab for SASL/GSSAPI authentication. See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
 
 ### Input plugin (@type 'kafka')
 
@@ -146,7 +155,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
 `<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](http://docs.fluentd.org/articles/formatter-plugin-overview).
 
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
-In this case, `get_kafka_client_log` is useful for identifying the error cause.    
+In this case, `get_kafka_client_log` is useful for identifying the error cause.
 ruby-kafka's log is routed to fluentd log so you can see ruby-kafka's log in fluentd logs.
 
 Supports following ruby-kafka's producer options.

@@ -43,6 +43,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
 
   include Fluent::KafkaPluginUtil::SSLSettings
+  include Fluent::KafkaPluginUtil::SaslSettings
 
   class ForShutdown < StandardError
   end
@@ -125,7 +126,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @kafka = Kafka.new(seed_brokers: @brokers,
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),
-                       ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
+                       ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+                       principal: @principal, keytab: @keytab)
     @consumer = setup_consumer
     @thread = Thread.new(&method(:run))
   end
