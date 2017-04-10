@@ -62,6 +62,7 @@ DESC
 The codec the producer uses to compress messages.
 Supported codecs: (gzip|snappy)
 DESC
+  config_param :max_send_limit_bytes, :size, :default => nil
 
   config_param :time_format, :string, :default => nil
 
@@ -242,6 +243,10 @@ DESC
 
           record_buf = @formatter_proc.call(tag, time, record)
           record_buf_bytes = record_buf.bytesize
+          if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
+            log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
+            next
+          end
         rescue StandardError => e
           log.warn "unexpected error during format record. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :time => time, :record => record
           next
