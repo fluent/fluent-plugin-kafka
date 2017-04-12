@@ -206,10 +206,12 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
       exclude_partition_key (bool) :default => false
 
       # ruby-kafka producer options
-      max_send_retries  (integer)     :default => 1
-      required_acks     (integer)     :default => -1
-      ack_timeout       (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec (gzip|snappy) :default => nil
+      max_send_retries    (integer)     :default => 1
+      required_acks       (integer)     :default => -1
+      ack_timeout         (integer)     :default => nil (Use default of ruby-kafka) 
+      compression_codec   (gzip|snappy) :default => nil
+      max_buffer_size     (integer)     :default => nil (Use default of ruby-kafka)
+      max_buffer_bytesize (integer)     :default => nil (Use default of ruby-kafka) 
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.
