@@ -253,12 +253,12 @@ DESC
         end
 
         if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes)
-          log.on_trace { log.trace("#{messages} messages send.") }
+          log.debug { "#{messages} messages send because reaches kafka_agg_max_bytes" }
           producer.deliver_messages
           messages = 0
           messages_bytes = 0
         end
-        log.on_trace { log.trace("message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}.") }
+        log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
         messages += 1
         producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
         messages_bytes += record_buf_bytes
@@ -267,7 +267,7 @@ DESC
         bytes_by_topic[topic] += record_buf_bytes
       }
       if messages > 0
-        log.trace { "#{messages} messages send." }
+        log.debug { "#{messages} messages send." }
         producer.deliver_messages
       end
       log.debug { "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})" }

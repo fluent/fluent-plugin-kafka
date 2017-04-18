@@ -162,14 +162,14 @@ DESC
             next
           end
 
-          log.on_trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
+          log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
           messages += 1
 
           producer.produce(record_buf, message_key, partition, partition_key)
         }
 
         if messages > 0
-          log.trace { "#{messages} messages send." }
+          log.debug { "#{messages} messages send." }
           producer.deliver_messages
         end
       end

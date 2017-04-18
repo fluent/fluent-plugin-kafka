@@ -191,7 +191,7 @@ DESC
 
         value = @formatter_proc.call(tag, time, record)
 
-        log.on_trace { log.trace("message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{value}.") }
+        log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{value}." }
 	begin
           producer.produce(value, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
 	rescue Kafka::BufferOverflow => e
