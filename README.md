@@ -137,11 +137,12 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
 
       # ruby-kafka producer options
-      max_send_retries     (integer)     :default => 1
-      required_acks        (integer)     :default => -1
-      ack_timeout          (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec    (gzip|snappy) :default => nil (No compression)
-      max_send_limit_bytes (integer)     :default => nil (No drop)
+      max_send_retries             (integer)     :default => 1
+      required_acks                (integer)     :default => -1
+      ack_timeout                  (integer)     :default => nil (Use default of ruby-kafka)
+      compression_codec            (gzip|snappy) :default => nil (No compression)
+      max_send_limit_bytes         (integer)     :default => nil (No drop)
+      discard_kafka_delivery_failed   (bool)        :default => false (No discard)
     </match>
 
 `<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](http://docs.fluentd.org/articles/formatter-plugin-overview).
@@ -157,6 +158,7 @@ Supports following ruby-kafka's producer options.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 - max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
+- discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
 
 See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
 

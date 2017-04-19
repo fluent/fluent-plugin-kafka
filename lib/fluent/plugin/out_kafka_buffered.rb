@@ -63,6 +63,7 @@ The codec the producer uses to compress messages.
 Supported codecs: (gzip|snappy)
 DESC
   config_param :max_send_limit_bytes, :size, :default => nil
+  config_param :discard_kafka_delivery_failed, :bool, :default => false
 
   config_param :time_format, :string, :default => nil
 
@@ -142,6 +143,11 @@ DESC
     @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks}
     @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
     @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
+
+    if @discard_kafka_delivery_failed
+      log.warn "'discard_kafka_delivery_failed' option discards events which cause delivery failure, e.g. invalid topic or something."
+      log.warn "If this is unexpected, you need to check your configuration or data."
+    end
   end
 
   def start
@@ -209,6 +215,19 @@ DESC
     end
   end
 
+  def deliver_messages(producer, tag)
+    if @discard_kafka_delivery_failed
+      begin
+        producer.deliver_messages
+      rescue Kafka::DeliveryFailed => e
+        log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+        producer.clear_buffer
+      end
+    else
+      producer.deliver_messages
+    end
+  end
+
   def write(chunk)
     tag = chunk.key
     def_topic = @default_topic || tag
@@ -254,7 +273,7 @@ DESC
 
         if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes)
           log.debug { "#{messages} messages send because reaches kafka_agg_max_bytes" }
-          producer.deliver_messages
+          deliver_messages(producer, tag)
           messages = 0
           messages_bytes = 0
         end
@@ -268,7 +287,7 @@ DESC
       }
       if messages > 0
         log.debug { "#{messages} messages send." }
-        producer.deliver_messages
+        deliver_messages(producer, tag)
       end
       log.debug { "(records|bytes) (#{records_by_topic}|#{bytes_by_topic})" }
     end
