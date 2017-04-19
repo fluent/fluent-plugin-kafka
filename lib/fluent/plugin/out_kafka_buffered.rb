@@ -63,7 +63,7 @@ The codec the producer uses to compress messages.
 Supported codecs: (gzip|snappy)
 DESC
   config_param :max_send_limit_bytes, :size, :default => nil
-  config_param :skip_kafka_delivery_failed, :bool, :default => false
+  config_param :discard_kafka_delivery_failed, :bool, :default => false
 
   config_param :time_format, :string, :default => nil
 
@@ -143,6 +143,11 @@ DESC
     @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks}
     @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
     @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
+
+    if @discard_kafka_delivery_failed
+      log.warn "'discard_kafka_delivery_failed' option discards events which cause delivery failure, e.g. invalid topic or something."
+      log.warn "If this is unexpected, you need to check your configuration or data."
+    end
   end
 
   def start
@@ -211,11 +216,11 @@ DESC
   end
 
   def deliver_messages(producer, tag)
-    if @skip_kafka_delivery_failed
+    if @discard_kafka_delivery_failed
       begin
         producer.deliver_messages
       rescue Kafka::DeliveryFailed => e
-        log.warn "DeliveryFailed occurred. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+        log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
         producer.clear_buffer
       end
     else
