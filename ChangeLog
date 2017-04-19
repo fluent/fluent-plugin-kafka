@@ -1,3 +1,8 @@
+Release 0.5.5 - 2017/04/19
+
+	* output: Some trace log level changed to debug
+	* out_kafka_buffered: Add discard_kafka_delivery_failed parameter
+
 Release 0.5.4 - 2017/04/12
 
 	* out_kafka_buffered: Add max_send_limit_bytes parameter
