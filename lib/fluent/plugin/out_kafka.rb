@@ -14,6 +14,7 @@ DESC
                :desc => "Set brokers via Zookeeper: <zookeeper_host>:<zookeeper_port>"
   config_param :zookeeper_path, :string, :default => '/brokers/ids',
                :desc => "Path in path for Broker id. Default to /brokers/ids"
+  config_param :topic_key, :string, :default => 'topic'
   config_param :default_topic, :string, :default => nil,
                :desc => "Output topic."
   config_param :default_message_key, :string, :default => nil
@@ -184,7 +185,7 @@ DESC
           end
         end
         record['tag'] = tag if @output_include_tag
-        topic = (@exclude_topic_key ? record.delete('topic') : record['topic']) || @default_topic || tag
+        topic = (@exclude_topic_key ? record.delete(@topic_key) : record[@topic_key]) || @default_topic || tag
         partition_key = (@exclude_partition_key ? record.delete('partition_key') : record['partition_key']) || @default_partition_key
         partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
         message_key = (@exclude_message_key ? record.delete('message_key') : record['message_key']) || @default_message_key
