@@ -67,6 +67,12 @@ DESC
 
   config_param :time_format, :string, :default => nil
 
+  config_param :active_support_notification_regex, :string, :default => nil,
+               :desc => <<-DESC
+Add a regular expression to capture ActiveSupport notifications from the Kafka client
+requires activesupport gem - records will be generated under fluent_kafka_stats.**
+DESC
+
   include Fluent::KafkaPluginUtil::SSLSettings
 
   attr_accessor :output_data_type
@@ -147,6 +153,16 @@ DESC
     if @discard_kafka_delivery_failed
       log.warn "'discard_kafka_delivery_failed' option discards events which cause delivery failure, e.g. invalid topic or something."
       log.warn "If this is unexpected, you need to check your configuration or data."
+    end
+
+    if @active_support_notification_regex
+      require 'active_support/notifications'
+      require 'active_support/core_ext/hash/keys'
+      ActiveSupport::Notifications.subscribe(Regexp.new(@active_support_notification_regex)) do |*args|
+        event = ActiveSupport::Notifications::Event.new(*args)
+        message = event.payload.respond_to?(:stringify_keys) ? event.payload.stringify_keys : event.payload
+        @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
+      end
     end
   end
 

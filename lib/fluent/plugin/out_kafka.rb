@@ -60,6 +60,12 @@ DESC
   config_param :max_buffer_bytesize, :integer, :default => nil,
                :desc => "Maximum size in bytes to be buffered."
 
+  config_param :active_support_notification_regex, :string, :default => nil,
+               :desc => <<-DESC
+Add a regular expression to capture ActiveSupport notifications from the Kafka client
+requires activesupport gem - records will be generated under fluent_kafka_stats.**
+DESC
+
   include Fluent::KafkaPluginUtil::SSLSettings
 
   attr_accessor :output_data_type
@@ -130,6 +136,15 @@ DESC
     @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
     @producer_opts[:max_buffer_size] = @max_buffer_size if @max_buffer_size
     @producer_opts[:max_buffer_bytesize] = @max_buffer_bytesize if @max_buffer_bytesize
+    if @active_support_notification_regex
+      require 'active_support/notifications'
+      require 'active_support/core_ext/hash/keys'
+      ActiveSupport::Notifications.subscribe(Regexp.new(@active_support_notification_regex)) do |*args|
+        event = ActiveSupport::Notifications::Event.new(*args)
+        message = event.payload.respond_to?(:stringify_keys) ? event.payload.stringify_keys : event.payload
+        @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
+      end
+    end
   end
 
   def start
