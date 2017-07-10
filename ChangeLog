@@ -1,3 +1,7 @@
+Release 0.5.6 - 2017/07/10
+
+	* output: Add ActiveSupport notification support
+
 Release 0.5.5 - 2017/04/19
 
 	* output: Some trace log level changed to debug
