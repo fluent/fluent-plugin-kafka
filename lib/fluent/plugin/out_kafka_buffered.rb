@@ -48,6 +48,7 @@ Set true to remove topic name key from data
 DESC
 
   config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
+  config_param :kafka_agg_max_messages, :integer, :default => nil
   config_param :get_kafka_client_log, :bool, :default => false
 
   # ruby-kafka producer options
@@ -271,8 +272,8 @@ DESC
           next
         end
 
-        if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes)
-          log.debug { "#{messages} messages send because reaches kafka_agg_max_bytes" }
+        if (messages > 0) and (messages_bytes + record_buf_bytes > @kafka_agg_max_bytes) or (@kafka_agg_max_messages && messages >= @kafka_agg_max_messages)
+          log.debug { "#{messages} messages send because reaches the limit of batch transmission." }
           deliver_messages(producer, tag)
           messages = 0
           messages_bytes = 0
