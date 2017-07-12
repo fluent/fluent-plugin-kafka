@@ -141,6 +141,8 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       required_acks                (integer)     :default => -1
       ack_timeout                  (integer)     :default => nil (Use default of ruby-kafka)
       compression_codec            (gzip|snappy) :default => nil (No compression)
+      kafka_agg_max_bytes          (integer)     :default => 4096
+      kafka_agg_max_messages       (integer)     :default => nil (No limit)
       max_send_limit_bytes         (integer)     :default => nil (No drop)
       discard_kafka_delivery_failed   (bool)        :default => false (No discard)
     </match>
@@ -157,6 +159,8 @@ Supports following ruby-kafka's producer options.
 - required_acks - default: -1 - The number of acks required per request. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
+- kafka_agg_max_bytes - default: 4096 - Maximum value of total message size to be included in one batch transmission.
+- kafka_agg_max_messages - default: nil - Maximum number of messages to include in one batch transmission.
 - max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
 
