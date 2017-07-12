@@ -1,3 +1,7 @@
+Release 0.5.7 - 2017/07/13
+
+	* out_kafka_buffered: Add kafka_agg_max_messages parameter
+
 Release 0.5.6 - 2017/07/10
 
 	* output: Add ActiveSupport notification support
