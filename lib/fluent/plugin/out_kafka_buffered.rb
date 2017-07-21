@@ -102,7 +102,7 @@ DESC
         logger = @get_kafka_client_log ? log : nil
         @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                            ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
-                           principal: @principal, keytab: @keytab)
+                           sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
         log.info "initialized kafka producer: #{@client_id}"
       else
         log.warn "No brokers found on Zookeeper"
