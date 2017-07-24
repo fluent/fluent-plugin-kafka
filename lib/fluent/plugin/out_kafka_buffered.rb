@@ -75,6 +75,7 @@ requires activesupport gem - records will be generated under fluent_kafka_stats.
 DESC
 
   include Fluent::KafkaPluginUtil::SSLSettings
+  include Fluent::KafkaPluginUtil::SaslSettings
 
   attr_accessor :output_data_type
   attr_accessor :field_separator
@@ -109,7 +110,8 @@ DESC
       if @seed_brokers.length > 0
         logger = @get_kafka_client_log ? log : nil
         @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
-                           ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key))
+                           ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+                           sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
         log.info "initialized kafka producer: #{@client_id}"
       else
         log.warn "No brokers found on Zookeeper"
