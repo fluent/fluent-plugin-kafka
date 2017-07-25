@@ -1,3 +1,7 @@
+Release 0.6.0 - 2017/07/25
+
+	* Add principal and keytab parameters for SASL support
+
 Release 0.5.7 - 2017/07/13
 
 	* out_kafka_buffered: Add kafka_agg_max_messages parameter
