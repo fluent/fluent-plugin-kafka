@@ -74,6 +74,9 @@ Add a regular expression to capture ActiveSupport notifications from the Kafka c
 requires activesupport gem - records will be generated under fluent_kafka_stats.**
 DESC
 
+  config_param :statsd_monitoring, :bool, :default => false
+  config_param :datadog_monitoring, :bool, :default => false
+
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -166,6 +169,16 @@ DESC
         message = event.payload.respond_to?(:stringify_keys) ? event.payload.stringify_keys : event.payload
         @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
       end
+    end
+
+    if @statsd_monitoring
+      require 'kafka/statsd'
+      log.info 'statsd monitoring started'
+    end
+
+    if @datadog_monitoring
+      require 'kafka/datadog'
+      log.info 'datadog monitoring started'
     end
   end
 
