@@ -4,7 +4,7 @@ module Fluent
       def self.included(klass)
         klass.instance_eval {
           # https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl
-          config_param :ssl_ca_cert, :string, :default => nil,
+          config_param :ssl_ca_cert, :array, :value_type => :string, :default => nil,
                        :desc => "a PEM encoded CA cert to use with and SSL connection."
           config_param :ssl_client_cert, :string, :default => nil,
                        :desc => "a PEM encoded client cert to use with and SSL connection. Must be used in combination with ssl_client_cert_key."
@@ -15,7 +15,12 @@ module Fluent
 
       def read_ssl_file(path)
         return nil if path.nil?
-        File.read(path)
+
+        if path.is_a?(Array)
+          path.map { |fp| File.read(fp) }
+        else
+          File.read(path)
+        end
       end
     end
 
