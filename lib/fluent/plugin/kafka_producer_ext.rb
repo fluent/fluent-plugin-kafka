@@ -19,8 +19,7 @@ module Kafka
         topic,
         partition,
         partition_key,
-        create_time,
-        key.to_s.bytesize + value.to_s.bytesize
+        create_time
       )
 
       @target_topics.add(topic)
@@ -88,8 +87,7 @@ module Kafka
         @topic,
         partition,
         partition_key,
-        create_time,
-        key.to_s.bytesize + value.to_s.bytesize
+        create_time
       )
 
       @pending_message_queue.write(message)
