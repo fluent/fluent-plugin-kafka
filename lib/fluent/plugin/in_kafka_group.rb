@@ -26,6 +26,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' filed."
 
+   config_param :retry_wait_seconds, :integer, :default => 30
   # Kafka consumer options
   config_param :max_bytes, :integer, :default => 1048576,
                :desc => "Maximum number of bytes to fetch."
@@ -121,7 +122,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
   def start
     super
-
+   
     @kafka = Kafka.new(seed_brokers: @brokers,
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),
@@ -150,7 +151,20 @@ class Fluent::KafkaGroupInput < Fluent::Input
     }
     consumer
   end
-
+  
+  def reconnect_consumer
+    log.warn "Could not connect to broker. Next retry will be in #{@retry_wait_seconds} seconds"
+    sleep @retry_wait_seconds
+    consumer = @consumer
+    @consumer = nil
+    consumer.stop
+    @consumer = setup_consumer
+    log.warn "Re-startingg consumer #{Time.now.to_s}"
+  rescue =>e
+    log.error "unexpected error during re-starting consumer object access", :error => e.to_s
+    log.error_backtrace
+  end
+  
   def run
     while @consumer
       begin
@@ -176,6 +190,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
               log.debug_backtrace
+              reconnect_consumer
             end
           }
 
