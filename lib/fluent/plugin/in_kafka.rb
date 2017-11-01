@@ -122,7 +122,7 @@ class Fluent::KafkaInput < Fluent::Input
     when 'ltsv'
       require 'ltsv'
       Proc.new { |msg, te|
-        r = LTSV.parse(msg.value).first
+        r = LTSV.parse(msg.value, {:symbolize_keys => false}).first
         add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
         r
       }

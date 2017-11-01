@@ -111,7 +111,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
       Proc.new { |msg| Yajl::Parser.parse(msg.value) }
     when 'ltsv'
       require 'ltsv'
-      Proc.new { |msg| LTSV.parse(msg.value).first }
+      Proc.new { |msg| LTSV.parse(msg.value, {:symbolize_keys => false}).first }
     when 'msgpack'
       require 'msgpack'
       Proc.new { |msg| MessagePack.unpack(msg.value) }
