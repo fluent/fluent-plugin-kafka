@@ -191,7 +191,6 @@ class Fluent::KafkaGroupInput < Fluent::Input
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
               log.debug_backtrace
-              reconnect_consumer
             end
           }
 
@@ -203,6 +202,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
       rescue => e
         log.error "unexpected error during consuming events from kafka. Re-fetch events.", :error => e.to_s
         log.error_backtrace
+        reconnect_consumer
       end
     end
   rescue => e
