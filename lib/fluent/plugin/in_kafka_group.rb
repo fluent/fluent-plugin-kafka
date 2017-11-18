@@ -43,6 +43,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :start_from_beginning, :bool, :default => true,
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
 
+  config_param :multi_worker_support, :bool, :default => false
+
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -72,6 +74,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
       raise Fluent::ConfigError, "kafka_group: '#{config}' is a required parameter"
     end
     config_array
+  end
+
+  def multi_workers_ready?
+    @multi_worker_support
   end
 
   private :_config_to_array
@@ -123,7 +129,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
   def start
     super
-   
+
     @kafka = Kafka.new(seed_brokers: @brokers,
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),

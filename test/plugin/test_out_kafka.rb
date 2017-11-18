@@ -43,6 +43,21 @@ class KafkaOutputTest < Test::Unit::TestCase
     d = create_driver
   end
 
+  def test_mutli_worker_support
+    d = create_driver
+    assert_equal false, d.instance.multi_workers_ready?
+
+    d = create_driver(CONFIG + %[
+      multi_worker_support false
+    ])
+    assert_equal false, d.instance.multi_workers_ready?
+
+    d = create_driver(CONFIG + %[
+      multi_worker_support true
+    ])
+    assert_equal true, d.instance.multi_workers_ready?
+  end
+
   def test_write
     d = create_driver
     time = Time.parse("2011-01-02 13:14:15 UTC").to_i

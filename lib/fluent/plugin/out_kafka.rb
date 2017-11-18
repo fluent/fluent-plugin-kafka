@@ -66,6 +66,8 @@ Add a regular expression to capture ActiveSupport notifications from the Kafka c
 requires activesupport gem - records will be generated under fluent_kafka_stats.**
 DESC
 
+  config_param :multi_worker_support, :bool, :default => false
+
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -147,6 +149,10 @@ DESC
         @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
       end
     end
+  end
+
+  def multi_workers_ready?
+    @multi_worker_support
   end
 
   def start
