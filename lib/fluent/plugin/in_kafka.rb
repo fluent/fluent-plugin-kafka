@@ -45,8 +45,6 @@ class Fluent::KafkaInput < Fluent::Input
   config_param :min_bytes, :integer, :default => nil,
                :desc => "Smallest amount of data the server should send us."
 
-  config_param :multi_worker_support, :bool, :default => false
-
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -148,10 +146,6 @@ class Fluent::KafkaInput < Fluent::Input
     hash['kafka_topic'.freeze] = te.topic
     hash['kafka_partition'.freeze] = te.partition
     hash['kafka_offset'.freeze] = offset
-  end
-
-  def multi_workers_ready?
-    @multi_worker_support
   end
 
   def start

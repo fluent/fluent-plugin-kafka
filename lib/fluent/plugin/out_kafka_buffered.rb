@@ -77,8 +77,6 @@ DESC
   config_param :monitoring_list, :array, :default => [],
                :desc => "library to be used to monitor. statsd and datadog are supported"
 
-  config_param :multi_worker_support, :bool, :default => false
-
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -101,7 +99,7 @@ DESC
   end
 
   def multi_workers_ready?
-    @multi_worker_support
+    true
   end
 
   def refresh_client(raise_error = true)

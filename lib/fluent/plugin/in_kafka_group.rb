@@ -43,8 +43,6 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :start_from_beginning, :bool, :default => true,
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
 
-  config_param :multi_worker_support, :bool, :default => false
-
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -77,7 +75,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def multi_workers_ready?
-    @multi_worker_support
+    true
   end
 
   private :_config_to_array

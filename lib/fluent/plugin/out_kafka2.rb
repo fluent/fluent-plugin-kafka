@@ -51,8 +51,6 @@ Add a regular expression to capture ActiveSupport notifications from the Kafka c
 requires activesupport gem - records will be generated under fluent_kafka_stats.**
 DESC
 
-    config_param :multi_worker_support, :bool, :default => false
-
     config_section :buffer do
       config_set_default :chunk_keys, ["topic"]
     end
@@ -83,10 +81,6 @@ DESC
           log.error e
         end
       end
-    end
-
-    def multi_workers_ready?
-      @multi_worker_support
     end
 
     def configure(conf)
