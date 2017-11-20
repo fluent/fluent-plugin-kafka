@@ -45,17 +45,8 @@ class KafkaOutputTest < Test::Unit::TestCase
 
   def test_mutli_worker_support
     d = create_driver
-    assert_equal false, d.instance.multi_workers_ready?
-
-    d = create_driver(CONFIG + %[
-      multi_worker_support false
-    ])
-    assert_equal false, d.instance.multi_workers_ready?
-
-    d = create_driver(CONFIG + %[
-      multi_worker_support true
-    ])
     assert_equal true, d.instance.multi_workers_ready?
+
   end
 
   def test_write
