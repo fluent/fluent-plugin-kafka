@@ -113,12 +113,22 @@ class Fluent::KafkaInput < Fluent::Input
   def setup_parser
     case @format
     when 'json'
-      require 'yajl'
-      Proc.new { |msg, te|
-        r = Yajl::Parser.parse(msg.value)
-        add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
-        r
-      }
+      begin
+        require 'oj'
+        Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
+        Proc.new { |msg, te|
+          r = Oj.load(msg.value)
+          add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
+          r
+        }
+      rescue LoadError
+        require 'yajl'
+        Proc.new { |msg, te|
+          r = Yajl::Parser.parse(msg.value)
+          add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
+          r
+        }
+      end
     when 'ltsv'
       require 'ltsv'
       Proc.new { |msg, te|
