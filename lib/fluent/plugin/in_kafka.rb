@@ -36,6 +36,8 @@ class Fluent::KafkaInput < Fluent::Input
                :desc => "Replace message timestamp with contents of 'time' field."
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' filed."
+  config_param :kafka_message_key, :string, :default => nil,
+               :desc => "Set kafka's message key to this field"
 
   # Kafka#fetch_messages options
   config_param :max_bytes, :integer, :default => nil,
@@ -175,6 +177,7 @@ class Fluent::KafkaInput < Fluent::Input
         @add_suffix,
         offset_manager,
         router,
+        @kafka_message_key,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -199,7 +202,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -209,6 +212,7 @@ class Fluent::KafkaInput < Fluent::Input
       @options = options
       @offset_manager = offset_manager
       @router = router
+      @kafka_message_key = kafka_message_key
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
@@ -253,6 +257,9 @@ class Fluent::KafkaInput < Fluent::Input
             end
           else
             record_time = Fluent::Engine.now
+          end
+          if @kafka_message_key
+            record[@kafka_message_key] = msg.key
           end
           es.add(record_time, record)
         rescue => e
