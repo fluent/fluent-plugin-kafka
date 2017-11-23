@@ -222,8 +222,14 @@ DESC
 
   def setup_formatter(conf)
     if @output_data_type == 'json'
-      require 'yajl'
-      Proc.new { |tag, time, record| Yajl::Encoder.encode(record) }
+      begin
+        require 'oj'
+        Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
+        Proc.new { |tag, time, record| Oj.dump(record) }
+      rescue LoadError
+        require 'yajl'
+        Proc.new { |tag, time, record| Yajl::Encoder.encode(record) }
+      end
     elsif @output_data_type == 'ltsv'
       require 'ltsv'
       Proc.new { |tag, time, record| LTSV.dump(record) }

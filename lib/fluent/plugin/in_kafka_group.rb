@@ -114,8 +114,14 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def setup_parser
     case @format
     when 'json'
-      require 'yajl'
-      Proc.new { |msg| Yajl::Parser.parse(msg.value) }
+      begin
+        require 'oj'
+        Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
+        Proc.new { |msg| Oj.load(msg.value) }
+      rescue LoadError
+        require 'yajl'
+        Proc.new { |msg| Yajl::Parser.parse(msg.value) }
+      end
     when 'ltsv'
       require 'ltsv'
       Proc.new { |msg| LTSV.parse(msg.value, {:symbolize_keys => false}).first }
