@@ -74,6 +74,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
     config_array
   end
 
+  def multi_workers_ready?
+    true
+  end
+
   private :_config_to_array
 
   def configure(conf)
@@ -123,7 +127,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
   def start
     super
-   
+
     @kafka = Kafka.new(seed_brokers: @brokers,
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),

@@ -98,6 +98,10 @@ DESC
     @producers_mutex = Mutex.new
   end
 
+  def multi_workers_ready?
+    true
+  end
+
   def refresh_client(raise_error = true)
     if @zookeeper
       @seed_brokers = []
