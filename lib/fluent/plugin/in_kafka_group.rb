@@ -25,6 +25,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Replace message timestamp with contents of 'time' field."
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' filed."
+  config_param :kafka_message_key, :string, :default => nil,
+               :desc => "Set kafka's message key to this field"
 
   config_param :retry_wait_seconds, :integer, :default => 30
   # Kafka consumer options
@@ -192,6 +194,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
                 end
               else
                 record_time = Fluent::Engine.now
+              end
+              if @kafka_message_key
+                record[@kafka_message_key] = msg.key
               end
               es.add(record_time, record)
             rescue => e
