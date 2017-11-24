@@ -92,6 +92,8 @@ Supports a start of processing from the assigned offset for specific topics.
 
 See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka.
 
+Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameters. With `add_prefix kafka`, the tag is `kafka.app_event`.
+
 ### Input plugin (@type 'kafka_group', supports kafka group)
 
 Consume events by kafka consumer group features..
@@ -120,6 +122,8 @@ Consume events by kafka consumer group features..
     </source>
 
 See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka options.
+
+Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
 ### Buffered output plugin
 
