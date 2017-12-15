@@ -11,6 +11,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Consumer group name, must set."
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
+  config_param :client_id, :string, :default => 'kafka'               
   config_param :format, :string, :default => 'json',
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
@@ -136,7 +137,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def start
     super
 
-    @kafka = Kafka.new(seed_brokers: @brokers,
+    @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id,
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),
                        ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
