@@ -15,10 +15,14 @@ module Fluent::Plugin
 Set brokers directly:
 <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
 DESC
+    config_param :topic_key, :string, :default => 'topic', :desc => "Field for kafka topic"
     config_param :default_topic, :string, :default => nil,
                  :desc => "Default output topic when record doesn't have topic field"
+    config_param :message_key_key, :string, :default => 'message_key', :desc => "Field for kafka message key"
     config_param :default_message_key, :string, :default => nil
+    config_param :partition_key_key, :string, :default => 'partition_key', :desc => "Field for kafka partition key"
     config_param :default_partition_key, :string, :default => nil
+    config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
     config_param :client_id, :string, :default => 'fluentd'
     config_param :exclude_partition_key, :bool, :default => false,
@@ -123,6 +127,8 @@ DESC
           @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
         end
       end
+
+      @topic_key_sym = @topic_key.to_sym
     end
 
     def multi_workers_ready?
@@ -168,7 +174,7 @@ DESC
     # TODO: optimize write performance
     def write(chunk)
       tag = chunk.metadata.tag
-      topic = chunk.metadata.variables[:topic] || @default_topic || tag
+      topic = chunk.metadata.variables[@topic_key_sym] || @default_topic || tag
       producer = @kafka.topic_producer(topic, @producer_opts)
 
       messages = 0
@@ -178,10 +184,10 @@ DESC
         chunk.msgpack_each { |time, record|
           begin
             record = inject_values_to_record(tag, time, record)
-            record.delete('topic'.freeze) if @exclude_topic_key
-            partition_key = (@exclude_partition_key ? record.delete('partition_key'.freeze) : record['partition_key'.freeze]) || @default_partition_key
-            partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
-            message_key = (@exclude_message_key ? record.delete('message_key'.freeze) : record['message_key'.freeze]) || @default_message_key
+            record.delete(@topic_key) if @exclude_topic_key
+            partition_key = (@exclude_partition_key ? record.delete(@partition_key_key) : record[@partition_key_key]) || @default_partition_key
+            partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
+            message_key = (@exclude_message_key ? record.delete(@message_key) : record[@message_key]) || @default_message_key
 
             record_buf = @formatter_proc.call(tag, time, record)
           rescue StandardError => e
