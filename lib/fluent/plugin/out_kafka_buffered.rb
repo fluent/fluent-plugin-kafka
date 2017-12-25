@@ -16,12 +16,15 @@ DESC
 Set brokers via Zookeeper:
 <zookeeper_host>:<zookeeper_port>
 DESC
-  config_param :zookeeper_path, :string, :default => '/brokers/ids',
-               :desc => "Path in path for Broker id. Default to /brokers/ids"
-  config_param :default_topic, :string, :default => nil,
-               :desc => "Output topic"
+  config_param :zookeeper_path, :string, :default => '/brokers/ids', :desc => "Path in path for Broker id. Default to /brokers/ids"
+
+  config_param :topic_key, :string, :default => 'topic', :desc => "Field for kafka topic"
+  config_param :default_topic, :string, :default => nil, :desc => "Default output topic when record doesn't have topic field"
+  config_param :message_key_key, :string, :default => 'message_key', :desc => "Field for kafka message key"
   config_param :default_message_key, :string, :default => nil
+  config_param :partition_key_key, :string, :default => 'partition_key', :desc => "Field for kafka partition key"
   config_param :default_partition_key, :string, :default => nil
+  config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
   config_param :default_partition, :integer, :default => nil
   config_param :client_id, :string, :default => 'kafka'
   config_param :output_data_type, :string, :default => 'json',
@@ -40,7 +43,7 @@ Set true to remove partition from data
 DESC
    config_param :exclude_message_key, :bool, :default => false,
                :desc => <<-DESC
-Set true to remove partition key from data
+Set true to remove message key from data
 DESC
    config_param :exclude_topic_key, :bool, :default => false,
                 :desc => <<-DESC
@@ -289,10 +292,10 @@ DESC
           end
 
           record['tag'] = tag if @output_include_tag
-          topic = (@exclude_topic_key ? record.delete('topic'.freeze) : record['topic'.freeze]) || def_topic
-          partition_key = (@exclude_partition_key ? record.delete('partition_key'.freeze) : record['partition_key'.freeze]) || @default_partition_key
-          partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
-          message_key = (@exclude_message_key ? record.delete('message_key'.freeze) : record['message_key'.freeze]) || @default_message_key
+          topic = (@exclude_topic_key ? record.delete(@topic_key) : record[@topic_key]) || def_topic
+          partition_key = (@exclude_partition_key ? record.delete(@partition_key_key) : record[@partition_key_key]) || @default_partition_key
+          partition = (@exclude_partition ? record.delete(@partition) : record[@partition]) || @default_partition
+          message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0
