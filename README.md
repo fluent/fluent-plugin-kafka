@@ -129,7 +129,7 @@ Consuming topic name is used for event tag. So when the target topic name is `ap
 
 This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions.
 
-    <match *.**>
+    <match app.**>
       @type kafka_buffered
 
       # Brokers: you can choose either brokers or zookeeper. If you are not familiar with zookeeper, use brokers parameters.
@@ -137,6 +137,10 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
       zookeeper_path      <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
 
+      topic_key             (string) :default => 'topic'
+      partition_key         (string) :default => 'partition'
+      partition_key_key     (string) :default => 'partition_key'
+      message_key_key       (string) :default => 'message_key'
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
       default_message_key   (string) :default => nil
@@ -207,11 +211,52 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
 
 If key name `message_key` exists in a message, this plugin publishes the value of message_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key exists and if partition_key is not set explicitly, messsage_key will be used for partitioning.
 
+### Output plugin
+
+This plugin is for v1.0. This will be `out_kafka` plugin in the feature.
+
+    <match app.**>
+      @type kafka2
+
+      brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+
+      topic_key             (string) :default => 'topic'
+      partition_key         (string) :default => 'partition'
+      partition_key_key     (string) :default => 'partition_key'
+      message_key_key       (string) :default => 'message_key'
+      default_topic         (string) :default => nil
+      default_partition_key (string) :default => nil
+      default_message_key   (string) :default => nil
+      exclude_topic_key     (bool) :default => false
+      exclude_partition_key (bool) :default => false
+      get_kafka_client_log  (bool) :default => false
+
+      <format>
+        @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      </format>
+      <inject>
+        tag_key tag
+        time_key time
+      </inject>
+
+      # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
+      # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
+      <buffer topic>
+        flush_interavl 10s
+      </buffer>
+
+      # ruby-kafka producer options
+      max_send_retries             (integer)     :default => 1
+      required_acks                (integer)     :default => -1
+      ack_timeout                  (integer)     :default => nil (Use default of ruby-kafka)
+      compression_codec            (gzip|snappy) :default => nil (No compression)
+    </match>
+
 ### Non-buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead. This is mainly for testing.
 
-    <match *.**>
+    <match app.**>
       @type kafka
 
       # Brokers: you can choose either brokers or zookeeper.
