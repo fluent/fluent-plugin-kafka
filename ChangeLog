@@ -1,3 +1,7 @@
+Release 0.6.6 - 2017/12/25
+
+	* output: Make topic/partition/partition_key/message_key configurable
+
 Release 0.6.5 - 2017/12/14
 
 	* in_kafka_group: Add client_id parameter
