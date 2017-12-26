@@ -213,7 +213,7 @@ If key name `message_key` exists in a message, this plugin publishes the value o
 
 ### Output plugin
 
-This plugin is for v1.0. This will be `out_kafka` plugin in the feature.
+This plugin is for v1.0. This will be `out_kafka` plugin in the future.
 
     <match app.**>
       @type kafka2
