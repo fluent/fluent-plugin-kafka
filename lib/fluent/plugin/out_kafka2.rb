@@ -106,11 +106,11 @@ DESC
       @formatter_proc = setup_formatter(formatter_conf)
 
       if @default_topic.nil?
-        if @chunk_keys.include?('topic') && !@chunk_keys.include?('tag')
+        if @chunk_keys.include?('topic') && !@chunk_key_tag
           log.warn "Use 'topic' field of event record for topic but no fallback. Recommend to set default_topic or set 'tag' in buffer chunk keys like <buffer topic,tag>"
         end
       else
-        if @chunk_keys.include?('tag')
+        if @chunk_key_tag
           log.warn "default_topic is set. Fluentd's event tag is not used for topic"
         end
       end
