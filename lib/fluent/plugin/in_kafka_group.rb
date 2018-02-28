@@ -108,7 +108,11 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
 
     if @use_record_time and @time_format
-      @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
+      if defined?(Fluent::TimeParser)
+        @time_parser = Fluent::TimeParser.new(@time_format)
+      else
+        @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
+      end
     end
   end
 
