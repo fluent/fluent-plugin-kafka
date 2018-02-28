@@ -242,7 +242,7 @@ This plugin is for v1.0. This will be `out_kafka` plugin in the future.
       # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
       # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
       <buffer topic>
-        flush_interavl 10s
+        flush_interval 10s
       </buffer>
 
       # ruby-kafka producer options
