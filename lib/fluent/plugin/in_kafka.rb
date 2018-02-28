@@ -108,9 +108,7 @@ class Fluent::KafkaInput < Fluent::Input
     @parser_proc = setup_parser
 
     if @use_record_time and @time_format
-      require 'fluent/version'
-      major, minor, patch = Fluent::VERSION.split('.').map(&:to_i)
-      if major > 0 || (major == 0 && minor >= 14 && patch >= 7)
+      if defined?(Fluent::TimeParser)
         @time_parser = Fluent::TimeParser.new(@time_format)
       else
         @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
