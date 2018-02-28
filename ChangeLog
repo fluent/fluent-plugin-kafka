@@ -1,3 +1,9 @@
+Release 0.7.0 - 2018/02/27
+
+	* output: SASL PLAIN/SCRAM support
+	* input: Fix TimeParser location bug in v1
+	* out_kafka2: Fix warning condition for tag chunk key
+
 Release 0.6.6 - 2017/12/25
 
 	* output: Make topic/partition/partition_key/message_key configurable
