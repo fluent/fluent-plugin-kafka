@@ -141,7 +141,7 @@ DESC
     if @zookeeper
       require 'zookeeper'
     else
-      @seed_brokers = @brokers.match(",").nil? ? [@brokers] : @brokers.split(",")
+      @seed_brokers = @brokers.split(",")
       log.info "brokers has been set directly: #{@seed_brokers}"
     end
 
