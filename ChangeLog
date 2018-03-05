@@ -1,3 +1,7 @@
+Release 0.7.1 - 2018/03/05
+
+	* out_kafka2: Fix the regression of kafka client initialization
+
 Release 0.7.0 - 2018/02/27
 
 	* output: SASL PLAIN/SCRAM support
