@@ -101,7 +101,8 @@ DESC
       super
 
       if @brokers.size > 0
-        log.info "brokers has been set: #{@brokers}"
+        @seed_brokers = @brokers
+        log.info "brokers has been set: #{@seed_brokers}"
       else
         raise Fluent::Config, 'No brokers specified. Need one broker at least.'
       end
