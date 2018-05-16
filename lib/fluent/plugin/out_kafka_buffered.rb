@@ -111,7 +111,11 @@ DESC
       z = Zookeeper.new(@zookeeper)
       z.get_children(:path => @zookeeper_path)[:children].each do |id|
         broker = Yajl.load(z.get(:path => @zookeeper_path + "/#{id}")[:data])
-        @seed_brokers.push("#{broker['host']}:#{broker['port']}")
+        if @ssl_client_cert
+          @seed_brokers.push(pickup_ssl_endpoint(broker))
+        else
+          @seed_brokers.push("#{broker['host']}:#{broker['port']}")
+        end
       end
       z.close
       log.info "brokers has been refreshed via Zookeeper: #{@seed_brokers}"
