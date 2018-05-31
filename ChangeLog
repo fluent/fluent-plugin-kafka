@@ -1,3 +1,7 @@
+Release 0.7.3 - 2018/05/30
+
+	* output: Use SSL endpoint when ssl_client_cert is true
+
 Release 0.7.2 - 2018/03/12
 
 	* output: Fix the regression of get_kafka_client_log parameter
