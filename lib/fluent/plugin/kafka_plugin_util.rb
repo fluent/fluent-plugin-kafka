@@ -22,6 +22,12 @@ module Fluent
           File.read(path)
         end
       end
+
+      def pickup_ssl_endpoint(node)
+        ssl_endpoint = node['endpoints'].find {|e| e.start_with?('SSL')}
+        raise 'no SSL endpoint found on Zookeeper' unless ssl_endpoint
+        return [URI.parse(ssl_endpoint).host, URI.parse(ssl_endpoint).port].join(':')
+      end
     end
 
     module SaslSettings
