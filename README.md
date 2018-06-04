@@ -197,6 +197,9 @@ On Ubuntu, need development packages and snappy library.
 
     $ sudo apt-get install build-essential autoconf automake libtool libsnappy-dev
 
+On CentOS 7
+    $ sudo yum install gcc autoconf automake libtool snappy-devel
+
 #### Load balancing
 
 Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
