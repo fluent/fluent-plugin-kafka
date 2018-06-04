@@ -197,7 +197,7 @@ On Ubuntu, need development packages and snappy library.
 
     $ sudo apt-get install build-essential autoconf automake libtool libsnappy-dev
 
-On CentOS 7
+On CentOS 7 installation is also necessary.
 
     $ sudo yum install gcc autoconf automake libtool snappy-devel
 
