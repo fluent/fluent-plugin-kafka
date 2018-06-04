@@ -198,6 +198,7 @@ On Ubuntu, need development packages and snappy library.
     $ sudo apt-get install build-essential autoconf automake libtool libsnappy-dev
 
 On CentOS 7
+
     $ sudo yum install gcc autoconf automake libtool snappy-devel
 
 #### Load balancing
