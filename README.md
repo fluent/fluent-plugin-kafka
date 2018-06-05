@@ -199,7 +199,7 @@ On Ubuntu, need development packages and snappy library.
 
 On CentOS 7 installation is also necessary.
 
-    $ sudo yum install gcc autoconf automake libtool snappy-devel  
+    $ sudo yum install gcc autoconf automake libtool snappy-devel   
 
 #### Load balancing
 
