@@ -8,7 +8,7 @@ module Fluent::Plugin
   class Fluent::Kafka2Output < Output
     Fluent::Plugin.register_output('kafka2', self)
 
-    helpers :inject, :formatter
+    helpers :inject, :formatter, :event_emitter
 
     config_param :brokers, :array, :value_type => :string, :default => ['localhost:9092'],
                  :desc => <<-DESC
