@@ -1,3 +1,7 @@
+Release 0.7.4 - 2018/07/11
+
+	* out_kafka2: Need event_emitter helper for notification
+
 Release 0.7.3 - 2018/05/30
 
 	* output: Use SSL endpoint when ssl_client_cert is true
