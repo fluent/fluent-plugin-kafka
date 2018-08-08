@@ -36,6 +36,9 @@ DESC
 
     config_param :get_kafka_client_log, :bool, :default => false
 
+    config_param :ignore_exceptions, :string, :default => nil, :desc => "Ignore exception list split by comma (,)"
+    config_param :exception_backup, :bool, :default => true, :desc => "chunk backup when ignore exception occured"
+
     # ruby-kafka producer options
     config_param :max_send_retries, :integer, :default => 2,
                  :desc => "Number of times to retry sending of messages to a leader."
@@ -140,6 +143,7 @@ DESC
       end
 
       @topic_key_sym = @topic_key.to_sym
+      @ignore_exceptions = if ignore_exceptions.nil?; [] else ignore_exceptions.split(',') end
     end
 
     def multi_workers_ready?
@@ -218,12 +222,22 @@ DESC
         end
       end
     rescue Exception => e
+      ignore = false
+      if ignore_exceptions.size > 0
+        ignore_exceptions.each { | ignore_exception |
+          ignore = true if e.class.name == ignore_exception
+        }
+      end
+
       log.warn "Send exception occurred: #{e}"
       log.warn "Exception Backtrace : #{e.backtrace.join("\n")}"
+      log.warn "Exception ignored in tag : #{tag}" if ignore
       # For safety, refresh client and its producers
       refresh_client(false)
+      # raise UnrecoverableError for backup ignored exception chunk
+      raise Fluent::UnrecoverableError if exception_backup
       # Raise exception to retry sendind messages
-      raise e
+      raise e if not ignore
     ensure
       producer.shutdown if producer
     end
