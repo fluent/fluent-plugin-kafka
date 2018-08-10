@@ -234,7 +234,7 @@ DESC
       # For safety, refresh client and its producers
       refresh_client(false)
       # raise UnrecoverableError for backup ignored exception chunk
-      raise Fluent::UnrecoverableError if exception_backup
+      raise Fluent::UnrecoverableError if ignore && exception_backup
       # Raise exception to retry sendind messages
       raise e unless ignore
     ensure
