@@ -82,6 +82,7 @@ DESC
   config_param :rdkafka_message_max_bytes, :integer, :default => nil
   config_param :rdkafka_message_max_num, :integer, :default => nil
   config_param :rdkafka_delivery_handle_poll_timeout, :integer, :default => 30
+  config_param :rdkafka_options, :hash, :default => {}
 
   config_param :max_enqueue_retries, :integer, :default => 3
   config_param :enqueue_retry_backoff, :integer, :default => 3
@@ -153,6 +154,10 @@ DESC
     config[:"queue.buffering.max.messages"] = @rdkafka_buffering_max_messages if @rdkafka_buffering_max_messages
     config[:"message.max.bytes"] = @rdkafka_message_max_bytes if @rdkafka_message_max_bytes
     config[:"batch.num.messages"] = @rdkafka_message_max_num if @rdkafka_message_max_num
+
+    @rdkafka_options.each { |k, v|
+      config[k.to_sym] = v
+    }
 
     config
   end
