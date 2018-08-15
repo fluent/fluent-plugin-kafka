@@ -1,3 +1,8 @@
+Release 0.7.5 - 2018/08/14
+
+	* out_kafka2: Fix `message_key_key` parameter handling
+	* Limit ruby-kafka version('< 0.7.0') to avoid runtime error
+
 Release 0.7.4 - 2018/07/11
 
 	* out_kafka2: Need event_emitter helper for notification
