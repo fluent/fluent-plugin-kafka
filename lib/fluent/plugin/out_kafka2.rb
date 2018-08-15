@@ -221,12 +221,7 @@ DESC
         end
       end
     rescue Exception => e
-      ignore = false
-      if @ignore_exceptions && !@ignore_exceptions.empty?
-        ignore_exceptions.each { | ignore_exception |
-          ignore = true if e.class.name == ignore_exception
-        }
-      end
+      ignore = @ignore_exceptions.include?(e.class.name)
 
       log.warn "Send exception occurred: #{e}"
       log.warn "Exception Backtrace : #{e.backtrace.join("\n")}"
