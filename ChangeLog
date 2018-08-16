@@ -1,3 +1,7 @@
+Release 0.7.6 - 2018/08/15
+
+	* out_kafka2: Add ignore_exceptions and exception_backup parameters
+
 Release 0.7.5 - 2018/08/14
 
 	* out_kafka2: Fix `message_key_key` parameter handling
