@@ -177,6 +177,7 @@ class Fluent::KafkaInput < Fluent::Input
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),
                        ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+                       ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
                        sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
     @zookeeper = Zookeeper.new(@offset_zookeeper) if @offset_zookeeper
 

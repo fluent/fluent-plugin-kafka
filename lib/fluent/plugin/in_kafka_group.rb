@@ -11,7 +11,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Consumer group name, must set."
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
-  config_param :client_id, :string, :default => 'kafka'               
+  config_param :client_id, :string, :default => 'kafka'
   config_param :format, :string, :default => 'json',
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
@@ -145,6 +145,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
                        ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                        ssl_client_cert: read_ssl_file(@ssl_client_cert),
                        ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+                       ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
                        sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
     @consumer = setup_consumer
     @thread = Thread.new(&method(:run))
@@ -170,7 +171,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     }
     consumer
   end
-  
+
   def reconnect_consumer
     log.warn "Stopping Consumer"
     consumer = @consumer
@@ -184,7 +185,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     log.error "unexpected error during re-starting consumer object access", :error => e.to_s
     log.error_backtrace
   end
-  
+
   def run
     while @consumer
       begin
