@@ -37,6 +37,7 @@ If you want to use zookeeper related parameters, you also need to install zookee
 - ssl_ca_cert
 - ssl_client_cert
 - ssl_client_cert_key
+- ssl_ca_certs_from_system
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
 
@@ -280,10 +281,10 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
       # ruby-kafka producer options
       max_send_retries    (integer)     :default => 1
       required_acks       (integer)     :default => -1
-      ack_timeout         (integer)     :default => nil (Use default of ruby-kafka) 
+      ack_timeout         (integer)     :default => nil (Use default of ruby-kafka)
       compression_codec   (gzip|snappy) :default => nil
       max_buffer_size     (integer)     :default => nil (Use default of ruby-kafka)
-      max_buffer_bytesize (integer)     :default => nil (Use default of ruby-kafka) 
+      max_buffer_bytesize (integer)     :default => nil (Use default of ruby-kafka)
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.

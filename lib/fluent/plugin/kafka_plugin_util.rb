@@ -10,6 +10,8 @@ module Fluent
                        :desc => "a PEM encoded client cert to use with and SSL connection. Must be used in combination with ssl_client_cert_key."
           config_param :ssl_client_cert_key, :string, :default => nil,
                        :desc => "a PEM encoded client cert key to use with and SSL connection. Must be used in combination with ssl_client_cert."
+          config_param :ssl_ca_certs_from_system, :bool, :default => false,
+                       :desc => "this configures the store to look up CA certificates from the system default certificate store on an as needed basis. The location of the store can usually be determined by: OpenSSL::X509::DEFAULT_CERT_FILE."
         }
       end
 
