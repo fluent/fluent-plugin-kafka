@@ -1,3 +1,10 @@
+Release 0.7.7 - 2018/08/27
+
+	* in_kafka_group: Add retry_limit and disable_retry_limit parameters
+	* input: Support SSL parameters
+	* Add ssl_ca_certs_from_system parameter
+	* Make password parameter secret
+
 Release 0.7.6 - 2018/08/15
 
 	* out_kafka2: Add ignore_exceptions and exception_backup parameters
