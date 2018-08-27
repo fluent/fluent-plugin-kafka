@@ -192,7 +192,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   rescue =>e
     log.error "unexpected error during re-starting consumer object access", :error => e.to_s
     log.error_backtrace
-    if @retry_count <= retry_limit or disable_retry_limit == true
+    if @retry_count <= @retry_limit or disable_retry_limit
       reconnect_consumer
     end
   end
