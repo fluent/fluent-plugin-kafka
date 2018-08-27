@@ -30,6 +30,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Set kafka's message key to this field"
 
   config_param :retry_wait_seconds, :integer, :default => 30
+  config_param :disable_retry_limit, :bool, :default => false,
+               :desc => "If set true, it disables retry_limit and make Fluentd retry indefinitely (default: false)"
+  config_param :retry_limit, :integer, :default => 10,
+               :desc => "The maximum number of retries for connecting kafka (default: 10)"
   # Kafka consumer options
   config_param :max_bytes, :integer, :default => 1048576,
                :desc => "Maximum number of bytes to fetch."
@@ -67,6 +71,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     require 'kafka'
 
     @time_parser = nil
+    @retry_count = 1
   end
 
   def _config_to_array(config)
@@ -185,14 +190,21 @@ class Fluent::KafkaGroupInput < Fluent::Input
     log.warn "Stopping Consumer"
     consumer = @consumer
     @consumer = nil
-    consumer.stop
-    log.warn "Could not connect to broker. Next retry will be in #{@retry_wait_seconds} seconds"
+    if consumer 
+      consumer.stop
+    end
+    log.warn "Could not connect to broker. retry_time:#{@retry_count}. Next retry will be in #{@retry_wait_seconds} seconds"
+    @retry_count = @retry_count + 1
     sleep @retry_wait_seconds
     @consumer = setup_consumer
     log.warn "Re-starting consumer #{Time.now.to_s}"
+    @retry_count = 0 
   rescue =>e
     log.error "unexpected error during re-starting consumer object access", :error => e.to_s
     log.error_backtrace
+    if @retry_count <= @retry_limit or disable_retry_limit
+      reconnect_consumer
+    end
   end
 
   def run
@@ -264,3 +276,4 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
   end
 end
+
