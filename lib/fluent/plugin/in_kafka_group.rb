@@ -147,16 +147,16 @@ class Fluent::KafkaGroupInput < Fluent::Input
     super
 
     if @scram_mechanism != nil && @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
                          sasl_scram_mechanism: @scram_mechanism)
     elsif @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password)
     else
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
     end
@@ -190,7 +190,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     log.warn "Stopping Consumer"
     consumer = @consumer
     @consumer = nil
-    if consumer 
+    if consumer
       consumer.stop
     end
     log.warn "Could not connect to broker. retry_time:#{@retry_count}. Next retry will be in #{@retry_wait_seconds} seconds"
@@ -198,7 +198,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     sleep @retry_wait_seconds
     @consumer = setup_consumer
     log.warn "Re-starting consumer #{Time.now.to_s}"
-    @retry_count = 0 
+    @retry_count = 0
   rescue =>e
     log.error "unexpected error during re-starting consumer object access", :error => e.to_s
     log.error_backtrace
@@ -276,4 +276,3 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
   end
 end
-
