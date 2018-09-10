@@ -79,7 +79,9 @@ DESC
 
   config_param :monitoring_list, :array, :default => [],
                :desc => "library to be used to monitor. statsd and datadog are supported"
-
+  
+  config_param :avro_schema_json, :string, :default => nil,
+               :desc => "The json schema for avro format"
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -253,6 +255,17 @@ DESC
     elsif @output_data_type == 'msgpack'
       require 'msgpack'
       Proc.new { |tag, time, record| record.to_msgpack }
+    elsif @output_data_type == 'avro'
+      require 'avro'
+      schema = Avro::Schema.parse(@avro_schema_json)
+      writer = Avro::IO::DatumWriter.new(schema)
+      buffer = StringIO.new
+      encoder = Avro::IO::BinaryEncoder.new(buffer)
+      func = -> (tag, time, record) {
+        writer.write(record, encoder)
+        buffer.string
+      }
+      func
     elsif @output_data_type =~ /^attr:(.*)$/
       @custom_attributes = $1.split(',').map(&:strip).reject(&:empty?)
       @custom_attributes.unshift('time') if @output_include_time
