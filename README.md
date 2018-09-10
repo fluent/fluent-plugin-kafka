@@ -145,13 +145,16 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
       default_message_key   (string) :default => nil
-      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>|avro) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
-
+    
+      # if the output_data_type is avro, avro_schema_json is requried
+      avro_schema_json      (string) :default => nil
+      
       # See fluentd document for buffer related parameters: http://docs.fluentd.org/articles/buffer-plugin-overview
 
       # ruby-kafka producer options
