@@ -1,3 +1,7 @@
+Release 0.7.9 - 2018/09/11
+
+	* in_kafka_group: Add fetcher_max_queue_size parameter
+
 Release 0.7.8 - 2018/08/29
 
 	* input: Fix regression of kafka initialization
