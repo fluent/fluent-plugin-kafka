@@ -25,6 +25,10 @@ DESC
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
     config_param :client_id, :string, :default => 'fluentd'
+    config_param :sasl_over_ssl, :bool, :default => true,
+               :desc => <<-DESC
+Set to false to prevent SSL strict mode when using SASL authentication
+DESC
     config_param :exclude_partition_key, :bool, :default => false,
                  :desc => 'Set true to remove partition key from data'
     config_param :exclude_partition, :bool, :default => false,
@@ -80,7 +84,7 @@ DESC
         if @scram_mechanism != nil && @username != nil && @password != nil
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
-                             sasl_scram_username: @username, sasl_scram_password: @password, sasl_scram_mechanism: @scram_mechanism)
+                             sasl_scram_username: @username, sasl_scram_password: @password, sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl)
         elsif @username != nil && @password != nil
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
