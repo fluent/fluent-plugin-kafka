@@ -337,7 +337,7 @@ DESC
         end
         log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
         messages += 1
-        producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
+        producer.produce_for_buffered(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
