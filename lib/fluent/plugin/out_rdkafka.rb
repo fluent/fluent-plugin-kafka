@@ -21,18 +21,6 @@ class Rdkafka::Producer
   end
 end
 
-class Rdkafka::Config
-  def producer
-    # Create Kafka config
-    config = native_config
-    ## Monkey patch to disable callback
-    # Set callback to receive delivery reports on config
-    #Rdkafka::Bindings.rd_kafka_conf_set_dr_msg_cb(config, Rdkafka::Bindings::DeliveryCallback)
-    # Return producer with Kafka client
-    Rdkafka::Producer.new(native_kafka(config, :rd_kafka_producer))
-  end
-end
-
 class Fluent::KafkaOutputBuffered2 < Fluent::BufferedOutput
   Fluent::Plugin.register_output('rdkafka', self)
 
