@@ -1,3 +1,9 @@
+Release 0.8.0 - 2018/10/18
+
+	* output: Support SASL without SSL
+	* output: Add rdkafka based output
+	* Update ruby-kafka dependency to v0.7 or later
+
 Release 0.7.9 - 2018/09/11
 
 	* in_kafka_group: Add fetcher_max_queue_size parameter
