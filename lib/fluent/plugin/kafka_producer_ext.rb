@@ -9,6 +9,8 @@ require 'kafka/producer'
 
 # for out_kafka_buffered
 module Kafka
+  EMPTY_HEADER = {}
+
   class Producer
     def produce_for_buffered(value, key: nil, topic:, partition: nil, partition_key: nil)
       create_time = Time.now
@@ -16,12 +18,18 @@ module Kafka
       message = PendingMessage.new(
         value: value,
         key: key,
-        headers: {},
+        headers: EMPTY_HEADER,
         topic: topic,
         partition: partition,
         partition_key: partition_key,
         create_time: create_time
       )
+
+      # If the producer is in transactional mode, all the message production
+      # must be used when the producer is currently in transaction
+      if @transaction_manager.transactional? && !@transaction_manager.in_transaction?
+        raise 'You must trigger begin_transaction before producing messages'
+      end
 
       @target_topics.add(topic)
       @pending_message_queue.write(message)
@@ -34,15 +42,26 @@ end
 # for out_kafka2
 module Kafka
   class Client
-    def topic_producer(topic, compression_codec: nil, compression_threshold: 1, ack_timeout: 5, required_acks: :all, max_retries: 2, retry_backoff: 1, max_buffer_size: 1000, max_buffer_bytesize: 10_000_000)
+    def topic_producer(topic, compression_codec: nil, compression_threshold: 1, ack_timeout: 5, required_acks: :all, max_retries: 2, retry_backoff: 1, max_buffer_size: 1000, max_buffer_bytesize: 10_000_000, idempotent: false, transactional: false, transactional_id: nil, transactional_timeout: 60)
+      cluster = initialize_cluster
       compressor = Compressor.new(
         codec_name: compression_codec,
         threshold: compression_threshold,
         instrumenter: @instrumenter,
       )
 
+      transaction_manager = TransactionManager.new(
+        cluster: cluster,
+        logger: @logger,
+        idempotent: idempotent,
+        transactional: transactional,
+        transactional_id: transactional_id,
+        transactional_timeout: transactional_timeout,
+      )
+
       TopicProducer.new(topic,
-        cluster: initialize_cluster,
+        cluster: cluster,
+        transaction_manager: transaction_manager,
         logger: @logger,
         instrumenter: @instrumenter,
         compressor: compressor,
@@ -57,8 +76,9 @@ module Kafka
   end
 
   class TopicProducer
-    def initialize(topic, cluster:, logger:, instrumenter:, compressor:, ack_timeout:, required_acks:, max_retries:, retry_backoff:, max_buffer_size:, max_buffer_bytesize:)
+    def initialize(topic, cluster:, transaction_manager:, logger:, instrumenter:, compressor:, ack_timeout:, required_acks:, max_retries:, retry_backoff:, max_buffer_size:, max_buffer_bytesize:)
       @cluster = cluster
+      @transaction_manager = transaction_manager
       @logger = logger
       @instrumenter = instrumenter
       @required_acks = required_acks == :all ? -1 : required_acks
@@ -79,18 +99,24 @@ module Kafka
       @pending_message_queue = PendingMessageQueue.new
     end
 
-    def produce(value, key: key, partition: partition, partition_key: partition_key)
+    def produce(value, key: nil, partition: nil, partition_key: nil)
       create_time = Time.now
 
       message = PendingMessage.new(
         value: value,
         key: key,
-        headers: {},
+        headers: EMPTY_HEADER,
         topic: @topic,
         partition: partition,
         partition_key: partition_key,
         create_time: create_time
       )
+
+      # If the producer is in transactional mode, all the message production
+      # must be used when the producer is currently in transaction
+      if @transaction_manager.transactional? && !@transaction_manager.in_transaction?
+        raise 'You must trigger begin_transaction before producing messages'
+      end
 
       @pending_message_queue.write(message)
 
@@ -127,10 +153,37 @@ module Kafka
     #
     # @return [nil]
     def shutdown
+      @transaction_manager.close
       @cluster.disconnect
     end
 
-    private
+    def init_transactions
+      @transaction_manager.init_transactions
+    end
+
+    def begin_transaction
+      @transaction_manager.begin_transaction
+    end
+
+    def commit_transaction
+      @transaction_manager.commit_transaction
+    end
+
+    def abort_transaction
+      @transaction_manager.abort_transaction
+    end
+
+    def transaction
+      raise 'This method requires a block' unless block_given?
+      begin_transaction
+      yield
+      commit_transaction
+    rescue Kafka::Producer::AbortTransaction
+      abort_transaction
+    rescue
+      abort_transaction
+      raise
+    end
 
     def deliver_messages_with_retries
       attempt = 0
@@ -139,6 +192,7 @@ module Kafka
 
       operation = ProduceOperation.new(
         cluster: @cluster,
+        transaction_manager: @transaction_manager,
         buffer: @buffer,
         required_acks: @required_acks,
         ack_timeout: @ack_timeout,
@@ -150,7 +204,11 @@ module Kafka
       loop do
         attempt += 1
 
-        @cluster.refresh_metadata_if_necessary!
+        begin
+          @cluster.refresh_metadata_if_necessary!
+        rescue ConnectionError => e
+          raise DeliveryFailed.new(e, buffer_messages)
+        end
 
         assign_partitions!
         operation.execute
@@ -202,6 +260,7 @@ module Kafka
           @buffer.write(
             value: message.value,
             key: message.key,
+            headers: message.headers,
             topic: message.topic,
             partition: partition,
             create_time: message.create_time,
@@ -220,6 +279,30 @@ module Kafka
       end
 
       @pending_message_queue.replace(failed_messages)
+    end
+
+    def buffer_messages
+      messages = []
+
+      @pending_message_queue.each do |message|
+        messages << message
+      end
+
+      @buffer.each do |topic, partition, messages_for_partition|
+        messages_for_partition.each do |message|
+          messages << PendingMessage.new(
+            value: message.value,
+            key: message.key,
+            headers: message.headers,
+            topic: topic,
+            partition: partition,
+            partition_key: nil,
+            create_time: message.create_time
+          )
+        end
+      end
+
+      messages
     end
   end
 end
