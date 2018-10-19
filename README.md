@@ -18,7 +18,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install fluent-plugin-kafka
+    $ gem install fluent-plugin-kafka --no-document
 
 If you want to use zookeeper related parameters, you also need to install zookeeper gem. zookeeper gem includes native extension, so development tools are needed, e.g. gcc, make and etc.
 
@@ -192,7 +192,7 @@ See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) f
 This plugin supports compression codec "snappy" also.
 Install snappy module before you use snappy compression.
 
-    $ gem install snappy
+    $ gem install snappy --no-document
 
 snappy gem uses native extension, so you need to install several packages before.
 On Ubuntu, need development packages and snappy library.
@@ -219,7 +219,7 @@ If key name `message_key` exists in a message, this plugin publishes the value o
 
 ### Output plugin
 
-This plugin is for v1.0. This will be `out_kafka` plugin in the future.
+This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the future.
 
     <match app.**>
       @type kafka2
@@ -289,6 +289,26 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.
+
+### rdkafka based output plugin
+
+This plugin uses `rdkafka` instead of `ruby-kafka` for ruby client.
+You need to install rdkafka gem.
+
+    # rdkafka is C extension library so need development tools like ruby-devel, gcc and etc
+    $ gem install rdkafka --no-document
+
+    <match kafka.**>
+      @type rdkafka
+
+      default_topic kafka
+      flush_interval 1s
+      output_data_type json
+
+      rdkafka_options {
+        "log_level" : 7
+      }
+    </match>
 
 ## Contributing
 
