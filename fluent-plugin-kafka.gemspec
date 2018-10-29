@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |gem|
   gem.authors       = ["Hidemasa Togashi", "Masahiro Nakagawa"]
-  gem.email         = ["togachiro@gmail.com", "repeatedly@gmail.com"]
+  gem.email         = ["sandeep.kotha@live.com"]
   gem.description   = %q{Fluentd plugin for Apache Kafka > 0.8}
   gem.summary       = %q{Fluentd plugin for Apache Kafka > 0.8}
   gem.homepage      = "https://github.com/fluent/fluent-plugin-kafka"
