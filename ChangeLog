@@ -1,3 +1,7 @@
+Release 0.8.1 - 2018/11/20
+
+	* input: Support SASL without SSL
+
 Release 0.8.0 - 2018/10/18
 
 	* output: Support SASL without SSL
