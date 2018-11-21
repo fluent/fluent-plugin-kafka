@@ -41,12 +41,25 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
 
-#### SASL authentication
+#### SASL authentication 
+
+##### with GSSAPI
 
 - principal
 - keytab
 
-Set principal and path to keytab for SASL/GSSAPI authentication. See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
+Set principal and path to keytab for SASL/GSSAPI authentication. 
+See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
+
+##### with Plain/SCRAM
+
+- username
+- password
+- scram_mechanism
+- sasl_over_ssl
+
+Set username, password, scram_mechanism and sasl_over_ssl for SASL/Plain or Scram authentication. 
+See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
 
 ### Input plugin (@type 'kafka')
 

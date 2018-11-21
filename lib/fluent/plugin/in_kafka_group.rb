@@ -12,6 +12,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
   config_param :client_id, :string, :default => 'kafka'
+  config_param :sasl_over_ssl, :bool, :default => true,
+               :desc => "Set to false to prevent SSL strict mode when using SASL authentication"
   config_param :format, :string, :default => 'json',
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
@@ -153,7 +155,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
-                         sasl_scram_mechanism: @scram_mechanism)
+                         sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl)
     elsif @username != nil && @password != nil
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
