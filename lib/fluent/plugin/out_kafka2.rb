@@ -25,6 +25,7 @@ DESC
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
     config_param :client_id, :string, :default => 'fluentd'
+    config_param :idempotent, :bool, :default => false, :desc => 'Enable idempotent producer'
     config_param :sasl_over_ssl, :bool, :default => true,
                :desc => <<-DESC
 Set to false to prevent SSL strict mode when using SASL authentication
@@ -133,7 +134,7 @@ DESC
         end
       end
 
-      @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks}
+      @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks, idempotent: @idempotent}
       @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
       @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
       if @active_support_notification_regex
