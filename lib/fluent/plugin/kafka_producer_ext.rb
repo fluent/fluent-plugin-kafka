@@ -235,13 +235,13 @@ module Kafka
       unless @pending_message_queue.empty?
         # Mark the cluster as stale in order to force a cluster metadata refresh.
         @cluster.mark_as_stale!
-        raise DeliveryFailed, "Failed to assign partitions to #{@pending_message_queue.size} messages"
+        raise DeliveryFailed.new("Failed to assign partitions to #{@pending_message_queue.size} messages", buffer_messages)
       end
 
       unless @buffer.empty?
         partitions = @buffer.map {|topic, partition, _| "#{topic}/#{partition}" }.join(", ")
 
-        raise DeliveryFailed, "Failed to send messages to #{partitions}"
+        raise DeliveryFailed.new("Failed to send messages to #{partitions}", buffer_messages)
       end
     end
 
