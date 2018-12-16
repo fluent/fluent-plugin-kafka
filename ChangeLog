@@ -1,3 +1,7 @@
+Release 0.8.3 - 2018/12/16
+
+	* output: Add ssl_client_cert_chain parameter
+
 Release 0.8.2 - 2018/12/07
 
 	* output: Add idempotent parameter
