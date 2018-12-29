@@ -82,9 +82,8 @@ Add a regular expression to capture ActiveSupport notifications from the Kafka c
 requires activesupport gem - records will be generated under fluent_kafka_stats.**
 DESC
 
-  config_param :monitoring_list, :array, :default => [],
-               :desc => "library to be used to monitor. statsd and datadog are supported",
-               :obsoleted => "Use <monitoring> section instead."
+  config_param :monitoring_list, :array, :default => [], deprecated: "Use <monitoring> section instead.",
+               :desc => "library to be used to monitor. statsd and datadog are supported"
 
   config_section :monitoring, param_name: :monitorings, multi: true do
     config_param :target, :string, :default => nil,
