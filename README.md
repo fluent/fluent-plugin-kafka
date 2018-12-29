@@ -177,7 +177,12 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       kafka_agg_max_messages       (integer)     :default => nil (No limit)
       max_send_limit_bytes         (integer)     :default => nil (No drop)
       discard_kafka_delivery_failed   (bool)     :default => false (No discard)
-      monitoring_list              (array)       :default => []
+      <monitoring>
+        target                      (string) :default => nil (Use default of ruby-kafka)
+        namespace                   (string) :default => 'ruby_kafka' (Use default of ruby-kafka)
+        host                        (string) :default => '127.0.0.1' (Use default of ruby-kafka)
+        port                        (integer) :default => 8125 (Use default of ruby-kafka)
+      </monitoring>
     </match>
 
 `<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](http://docs.fluentd.org/articles/formatter-plugin-overview).
@@ -196,7 +201,7 @@ Supports following ruby-kafka's producer options.
 - kafka_agg_max_messages - default: nil - Maximum number of messages to include in one batch transmission.
 - max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
-- monitoring_list - default: [] - library to be used to monitor. statsd and datadog are supported
+- monitoring - default: nil - library to be used to monitor. statsd and datadog are supported
 
 If you want to know about detail of monitoring, see also https://github.com/zendesk/ruby-kafka#monitoring
 
@@ -215,6 +220,7 @@ On Ubuntu, need development packages and snappy library.
 On CentOS 7 installation is also necessary.
 
     $ sudo yum install gcc autoconf automake libtool snappy-devel
+
 
 #### Load balancing
 
