@@ -217,9 +217,9 @@ DESC
         log.info "statsd monitoring started"
       elsif @monitoring == 'datadog'
         require "kafka/datadog"
-        Kafka::Statsd.namespace = m.namespace if m.namespace
-        Kafka::Statsd.host = m.host if m.host
-        Kafka::Statsd.port = m.port if m.port
+        Kafka::Datadog.namespace = m.namespace if m.namespace
+        Kafka::Datadog.host = m.host if m.host
+        Kafka::Datadog.port = m.port if m.port
         log.info "datadog monitoring started"
       end
     }
@@ -381,4 +381,4 @@ DESC
     # Raise exception to retry sendind messages
     raise e
   end
-end
+end 
