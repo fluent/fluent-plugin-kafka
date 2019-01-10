@@ -226,7 +226,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
               record = @parser_proc.call(msg)
               if @use_record_time
                 if @time_format
-                  record_time = @time_parser.parse(record['time'])
+                  record_time = @time_parser.parse(record['time'].to_s)
                 else
                   record_time = record['time']
                 end
