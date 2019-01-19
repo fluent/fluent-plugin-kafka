@@ -1,3 +1,7 @@
+Release 0.8.4 - 2019/01/18
+
+	* in_kafka_group: Support integer/float time field with time_format
+
 Release 0.8.3 - 2018/12/16
 
 	* output: Add ssl_client_cert_chain parameter
