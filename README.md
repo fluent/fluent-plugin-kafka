@@ -249,6 +249,7 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
+      use_default_for_unknown_topic (bool) :default => false
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
