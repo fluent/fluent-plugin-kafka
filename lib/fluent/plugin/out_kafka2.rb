@@ -24,6 +24,7 @@ DESC
     config_param :default_partition_key, :string, :default => nil
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
+    config_param :use_default_for_unknown_topic, :bool, :default => false, :desc => "If true, default_topic is used when topic not found"
     config_param :client_id, :string, :default => 'fluentd'
     config_param :idempotent, :bool, :default => false, :desc => 'Enable idempotent producer'
     config_param :sasl_over_ssl, :bool, :default => true,
@@ -126,6 +127,9 @@ DESC
       @formatter_proc = setup_formatter(formatter_conf)
 
       if @default_topic.nil?
+        if @use_default_for_unknown_topic
+          raise Fluent::ConfigError, "default_topic must be set when use_default_for_unknown_topic is true"
+        end
         if @chunk_keys.include?('topic') && !@chunk_key_tag
           log.warn "Use 'topic' field of event record for topic but no fallback. Recommend to set default_topic or set 'tag' in buffer chunk keys like <buffer topic,tag>"
         end
@@ -195,12 +199,12 @@ DESC
     def write(chunk)
       tag = chunk.metadata.tag
       topic = chunk.metadata.variables[@topic_key_sym] || @default_topic || tag
-      producer = @kafka.topic_producer(topic, @producer_opts)
 
       messages = 0
       record_buf = nil
 
       begin
+        producer = @kafka.topic_producer(topic, @producer_opts)
         chunk.msgpack_each { |time, record|
           begin
             record = inject_values_to_record(tag, time, record)
@@ -225,6 +229,14 @@ DESC
           log.debug { "#{messages} messages send." }
           producer.deliver_messages
         end
+      rescue Kafka::UnknownTopicOrPartition
+        if @use_default_for_unknown_topic && topic != @default_topic
+          producer.shutdown if producer
+          log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+          topic = @default_topic
+          retry
+        end
+        raise
       end
     rescue Exception => e
       ignore = @ignore_exceptions.include?(e.class.name)
