@@ -202,7 +202,7 @@ Supports following ruby-kafka's producer options.
 - max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
 - monitoring_list - default: [] - deprecated: Use <monitoring> section instead.
-- monitoring - default: nil - library to be used to monitor. statsd and datadog are supported
+- monitoring - default: nil - library to be used to monitor. statsd and datadog are supported.
 
 If you want to know about detail of monitoring, see also https://github.com/zendesk/ruby-kafka#monitoring
 
