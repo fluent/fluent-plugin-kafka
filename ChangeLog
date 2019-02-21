@@ -1,3 +1,8 @@
+Release 0.9.0 - 2019/02/22
+
+	* Add v1 API based rdkafka2 output plugin
+	* out_kafka2: Add use_default_for_unknown_topic parameter
+
 Release 0.8.4 - 2019/01/18
 
 	* in_kafka_group: Support integer/float time field with time_format
