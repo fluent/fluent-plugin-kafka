@@ -17,6 +17,19 @@ module Fluent
         }
       end
 
+      DummyFormatter = Object.new
+
+      def start
+        super
+
+        # This is bad point here but easy to fix for all kafka plugins
+        unless log.respond_to?(:formatter)
+          def log.formatter
+            Fluent::KafkaPluginUtil::SSLSettings::DummyFormatter
+          end
+        end
+      end
+
       def read_ssl_file(path)
         return nil if path.nil?
 
