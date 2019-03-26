@@ -219,16 +219,16 @@ On CentOS 7 installation is also necessary.
 #### Load balancing
 
 Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
-If key name `partition_key` exists in a message, this plugin set its value of partition_key as key.
+If key name `partition_key_key` exists in a message, this plugin set the value of partition_key_key as key.
 
-|default_partition_key|partition_key| behavior |
+|default_partition_key|partition_key_key| behavior |
 | --- | --- | --- |
 |Not set|Not exists| All messages are assigned a partition at random |
 |Set| Not exists| All messages are assigned to the specific partition |
-|Not set| Exists | Messages which have partition_key record are assigned to the specific partition, others are assigned a partition at random |
-|Set| Exists | Messages which have partition_key record are assigned to the specific partition with parition_key, others are assigned to the specific partition with default_parition_key |
+|Not set| Exists | Messages which have partition_key_key record are assigned to the specific partition, others are assigned a partition at random |
+|Set| Exists | Messages which have partition_key_key record are assigned to the specific partition with partition_key_key, others are assigned to the specific partition with default_parition_key |
 
-If key name `message_key` exists in a message, this plugin publishes the value of message_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key exists and if partition_key is not set explicitly, messsage_key will be used for partitioning.
+If key name `message_key_key` exists in a message, this plugin publishes the value of message_key_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key_key exists and if partition_key_key is not set explicitly, messsage_key_key will be used for partitioning.
 
 ### Output plugin
 
