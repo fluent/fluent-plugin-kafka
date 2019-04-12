@@ -142,7 +142,7 @@ Consuming topic name is used for event tag. So when the target topic name is `ap
 
 ### Buffered output plugin
 
-This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions.
+This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions. This plugin is for v0.12. If you use v1, see `kafka2`.
 
     <match app.**>
       @type kafka_buffered
@@ -254,6 +254,8 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       </format>
+
+      # Optional. See https://docs.fluentd.org/v1.0/articles/inject-section
       <inject>
         tag_key tag
         time_key time
@@ -333,6 +335,8 @@ You need to install rdkafka gem.
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       </format>
+
+      # Optional. See https://docs.fluentd.org/v1.0/articles/inject-section
       <inject>
         tag_key tag
         time_key time
