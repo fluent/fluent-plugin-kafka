@@ -20,7 +20,7 @@ Or install it yourself as:
 
     $ gem install fluent-plugin-kafka --no-document
 
-If you want to use zookeeper related parameters, you also need to install zookeeper gem. zookeeper gem includes native extension, so development tools are needed, e.g. gcc, make and etc.
+If you want to use zookeeper related parameters, you also need to install zookeeper gem. zookeeper gem includes native extension, so development tools are needed, e.g. ruby-devel, gcc, make and etc.
 
 ## Requirements
 
@@ -311,6 +311,46 @@ You need to install rdkafka gem.
 
     # rdkafka is C extension library so need development tools like ruby-devel, gcc and etc
     $ gem install rdkafka --no-document
+
+`rdkafka2` is for fluentd v1.0 or later.
+
+    <match app.**>
+      @type rdkafka2
+
+      brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+
+      topic_key             (string) :default => 'topic'
+      default_topic         (string) :default => nil
+      partition_key         (string) :default => 'partition'
+      partition_key_key     (string) :default => 'partition_key'
+      message_key_key       (string) :default => 'message_key'
+      default_topic         (string) :default => nil
+      default_partition_key (string) :default => nil
+      default_message_key   (string) :default => nil
+      exclude_topic_key     (bool) :default => false
+      exclude_partition_key (bool) :default => false
+
+      <format>
+        @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      </format>
+      <inject>
+        tag_key tag
+        time_key time
+      </inject>
+
+      # See fluentd document for buffer section parameters: https://docs.fluentd.org/v1.0/articles/buffer-section
+      # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
+      <buffer topic>
+        flush_interval 10s
+      </buffer>
+
+      # You can set any rdkafka configuration via this parameter: https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+      rdkafka_options {
+        "log_level" : 7
+      }
+    </match>
+
+If you use v0.12, use `rdkafka` instead.
 
     <match kafka.**>
       @type rdkafka
