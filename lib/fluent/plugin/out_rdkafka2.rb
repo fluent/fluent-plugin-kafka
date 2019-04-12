@@ -39,7 +39,6 @@ DESC
     config_param :default_message_key, :string, :default => nil
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
-    config_param :client_id, :string, :default => 'kafka'
     config_param :output_data_type, :string, :default => 'json', :obsoleted => "Use <format> section instead"
     config_param :output_include_tag, :bool, :default => false, :obsoleted => "Use <inject> section instead"
     config_param :output_include_time, :bool, :default => false, :obsoleted => "Use <inject> section instead"
@@ -49,36 +48,36 @@ Set true to remove partition from data
 DESC
     config_param :exclude_message_key, :bool, :default => false,
                  :desc => <<-DESC
-Set true to remove partition key from data
+Set true to remove message_key from data
 DESC
     config_param :exclude_topic_key, :bool, :default => false,
                  :desc => <<-DESC
-Set true to remove topic name key from data
+Set true to remove topic key from data
 DESC
     config_param :max_send_retries, :integer, :default => 2,
-                 :desc => "Number of times to retry sending of messages to a leader."
+                 :desc => "Number of times to retry sending of messages to a leader. Used for message.send.max.retries"
     config_param :required_acks, :integer, :default => -1,
-                 :desc => "The number of acks required per request."
+                 :desc => "The number of acks required per request. Used for request.required.acks"
     config_param :ack_timeout, :time, :default => nil,
-                 :desc => "How long the producer waits for acks."
+                 :desc => "How long the producer waits for acks. Used for request.timeout.ms"
     config_param :compression_codec, :string, :default => nil,
                  :desc => <<-DESC
-The codec the producer uses to compress messages.
+The codec the producer uses to compress messages. Used for compression.codec
 Supported codecs: (gzip|snappy)
 DESC
 
-    config_param :rdkafka_buffering_max_ms, :integer, :default => nil
-    config_param :rdkafka_buffering_max_messages, :integer, :default => nil
-    config_param :rdkafka_message_max_bytes, :integer, :default => nil
-    config_param :rdkafka_message_max_num, :integer, :default => nil
-    config_param :rdkafka_delivery_handle_poll_timeout, :integer, :default => 30
-    config_param :rdkafka_options, :hash, :default => {}
+    config_param :rdkafka_buffering_max_ms, :integer, :default => nil, :desc => 'Used for queue.buffering.max.ms'
+    config_param :rdkafka_buffering_max_messages, :integer, :default => nil, :desc => 'Used for queue.buffering.max.messages'
+    config_param :rdkafka_message_max_bytes, :integer, :default => nil, :desc => 'Used for message.max.bytes'
+    config_param :rdkafka_message_max_num, :integer, :default => nil, :desc => 'Used for batch.num.messages'
+    config_param :rdkafka_delivery_handle_poll_timeout, :integer, :default => 30, :desc => 'Timeout for polling message wait'
+    config_param :rdkafka_options, :hash, :default => {}, :desc => 'Set any rdkafka configuration. See https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md'
 
     config_param :max_enqueue_retries, :integer, :default => 3
     config_param :enqueue_retry_backoff, :integer, :default => 3
 
-    config_param :service_name, :string, :default => nil
-    config_param :ssl_client_cert_key_password, :string, :default => nil
+    config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
+    config_param :ssl_client_cert_key_password, :string, :default => nil, :desc => 'Used for ssl.key.password'
 
     config_section :buffer do
       config_set_default :chunk_keys, ["topic"]
