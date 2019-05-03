@@ -30,9 +30,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Time format to be used to parse 'time' filed."
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
-  config_param :connect_timeout, :integer, :default => 10,
+  config_param :connect_timeout, :integer, :default => nil,
                :desc => "[Integer, nil] the timeout setting for connecting to brokers"
-  config_param :socket_timeout, :integer, :default => 10,
+  config_param :socket_timeout, :integer, :default => nil,
                :desc => "[Integer, nil] the timeout setting for socket connection"
 
   config_param :retry_wait_seconds, :integer, :default => 30
