@@ -30,6 +30,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Time format to be used to parse 'time' filed."
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
+  config_param :connect_timeout, :integer, :default => nil,
+               :desc => "[Integer, nil] the timeout setting for connecting to brokers"
+  config_param :socket_timeout, :integer, :default => nil,
+               :desc => "[Integer, nil] the timeout setting for socket connection"
 
   config_param :retry_wait_seconds, :integer, :default => 30
   config_param :disable_retry_limit, :bool, :default => false,
@@ -152,16 +156,16 @@ class Fluent::KafkaGroupInput < Fluent::Input
     super
 
     if @scram_mechanism != nil && @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
                          sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl)
     elsif @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password)
     else
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: log, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
     end
