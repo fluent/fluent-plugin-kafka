@@ -230,7 +230,7 @@ DESC
 
     def write(chunk)
       tag = chunk.metadata.tag
-      topic = chunk.metadata.variables[@topic_key_sym] || @default_topic || tag
+      topic = (chunk.metadata.variables && chunk.metadata.variables[@topic_key_sym]) || @default_topic || tag
 
       handlers = []
       record_buf = nil
