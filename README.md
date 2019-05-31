@@ -166,7 +166,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
 
-      # See fluentd document for buffer related parameters: https://docs.fluentd.org/buffer
+      # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/0.12/buffer
 
       # ruby-kafka producer options
       max_send_retries             (integer)     :default => 1
@@ -180,7 +180,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       monitoring_list              (array)       :default => []
     </match>
 
-`<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/formatter).
+`<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/v/0.12/formatter).
 
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
 In this case, `get_kafka_client_log` is useful for identifying the error cause.
@@ -255,13 +255,13 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       </format>
 
-      # Optional. See https://docs.fluentd.org/configuration/inject-section
+      # Optional. See https://docs.fluentd.org/v/1.0/configuration/inject-section
       <inject>
         tag_key tag
         time_key time
       </inject>
 
-      # See fluentd document for buffer related parameters: https://docs.fluentd.org/configuration/buffer-section
+      # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/1.0/configuration/buffer-section
       # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
       <buffer topic>
         flush_interval 10s
@@ -336,13 +336,13 @@ You need to install rdkafka gem.
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       </format>
 
-      # Optional. See https://docs.fluentd.org/configuration/inject-section
+      # Optional. See https://docs.fluentd.org/v/1.0/configuration/inject-section
       <inject>
         tag_key tag
         time_key time
       </inject>
 
-      # See fluentd document for buffer section parameters: https://docs.fluentd.org/configuration/buffer-section
+      # See fluentd document for buffer section parameters: https://docs.fluentd.org/v/1.0/configuration/buffer-section
       # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
       <buffer topic>
         flush_interval 10s
