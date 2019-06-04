@@ -69,7 +69,7 @@ DESC
   config_param :compression_codec, :string, :default => nil,
                :desc => <<-DESC
 The codec the producer uses to compress messages.
-Supported codecs: (gzip|snappy)
+Supported codecs depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression
 DESC
   config_param :max_send_limit_bytes, :size, :default => nil
   config_param :discard_kafka_delivery_failed, :bool, :default => false

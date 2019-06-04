@@ -140,18 +140,14 @@ See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-mes
 
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
-### Buffered output plugin
+### Output plugin
 
-This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions. This plugin is for v0.12. If you use v1, see `kafka2`.
+This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the future.
 
     <match app.**>
-      @type kafka_buffered
+      @type kafka2
 
-      # Brokers: you can choose either brokers or zookeeper. If you are not familiar with zookeeper, use brokers parameters.
-      brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
-      zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
-      zookeeper_path      <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
-
+      brokers               <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
       topic_key             (string) :default => 'topic'
       partition_key         (string) :default => 'partition'
       partition_key_key     (string) :default => 'partition_key'
@@ -159,28 +155,37 @@ This plugin uses ruby-kafka producer for writing data. This plugin works with re
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
       default_message_key   (string) :default => nil
-      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
-      output_include_tag    (bool) :default => false
-      output_include_time   (bool) :default => false
-      exclude_topic_key     (bool) :default => false
-      exclude_partition_key (bool) :default => false
-      get_kafka_client_log  (bool) :default => false
+      exclude_topic_key     (bool)   :default => false
+      exclude_partition_key (bool)   :default => false
+      get_kafka_client_log  (bool)   :default => false
+      use_default_for_unknown_topic (bool) :default => false
 
-      # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/0.12/buffer
+      <format>
+        @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      </format>
+
+      # Optional. See https://docs.fluentd.org/v/1.0/configuration/inject-section
+      <inject>
+        tag_key tag
+        time_key time
+      </inject>
+
+      # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/1.0/configuration/buffer-section
+      # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
+      <buffer topic>
+        flush_interval 10s
+      </buffer>
 
       # ruby-kafka producer options
-      max_send_retries             (integer)     :default => 1
-      required_acks                (integer)     :default => -1
-      ack_timeout                  (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec            (gzip|snappy) :default => nil (No compression)
-      kafka_agg_max_bytes          (integer)     :default => 4096
-      kafka_agg_max_messages       (integer)     :default => nil (No limit)
-      max_send_limit_bytes         (integer)     :default => nil (No drop)
-      discard_kafka_delivery_failed   (bool)     :default => false (No discard)
-      monitoring_list              (array)       :default => []
+      idempotent        (bool)    :default => false
+      sasl_over_ssl     (bool)    :default => false
+      max_send_retries  (integer) :default => 1
+      required_acks     (integer) :default => -1
+      ack_timeout       (integer) :default => nil (Use default of ruby-kafka)
+      compression_codec (string)  :default => nil (No compression. Depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression)
     </match>
 
-`<formatter name>` of `output_data_type` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/v/0.12/formatter).
+The `<formatter name>` in `<format>` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/v/1.0/formatter).
 
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
 In this case, `get_kafka_client_log` is useful for identifying the error cause.
@@ -230,14 +235,17 @@ If key name `partition_key_key` exists in a message, this plugin set the value o
 
 If key name `message_key_key` exists in a message, this plugin publishes the value of message_key_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key_key exists and if partition_key_key is not set explicitly, messsage_key_key will be used for partitioning.
 
-### Output plugin
+### Buffered output plugin
 
-This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the future.
+This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions. This plugin is for v0.12. If you use v1, see `kafka2`.
 
     <match app.**>
-      @type kafka2
+      @type kafka_buffered
 
+      # Brokers: you can choose either brokers or zookeeper. If you are not familiar with zookeeper, use brokers parameters.
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
+      zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
+      zookeeper_path      <broker path in zookeeper> :default => /brokers/ids # Set path in zookeeper for kafka
 
       topic_key             (string) :default => 'topic'
       partition_key         (string) :default => 'partition'
@@ -246,32 +254,27 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
       default_message_key   (string) :default => nil
+      output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
+      output_include_tag    (bool) :default => false
+      output_include_time   (bool) :default => false
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
-      use_default_for_unknown_topic (bool) :default => false
 
-      <format>
-        @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
-      </format>
-
-      # Optional. See https://docs.fluentd.org/v/1.0/configuration/inject-section
-      <inject>
-        tag_key tag
-        time_key time
-      </inject>
-
-      # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/1.0/configuration/buffer-section
-      # Buffer chunk key should be same with topic_key. If value is not found in the record, default_topic is used.
-      <buffer topic>
-        flush_interval 10s
-      </buffer>
+      # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/0.12/buffer
 
       # ruby-kafka producer options
-      max_send_retries             (integer)     :default => 1
-      required_acks                (integer)     :default => -1
-      ack_timeout                  (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec            (gzip|snappy) :default => nil (No compression)
+      idempotent                   (bool)    :default => false
+      sasl_over_ssl                (bool)    :default => false
+      max_send_retries             (integer) :default => 1
+      required_acks                (integer) :default => -1
+      ack_timeout                  (integer) :default => nil (Use default of ruby-kafka)
+      compression_codec            (string)  :default => nil (No compression. Depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression)
+      kafka_agg_max_bytes          (integer) :default => 4096
+      kafka_agg_max_messages       (integer) :default => nil (No limit)
+      max_send_limit_bytes         (integer) :default => nil (No drop)
+      discard_kafka_delivery_failed   (bool) :default => false (No discard)
+      monitoring_list              (array)   :default => []
     </match>
 
 ### Non-buffered output plugin
@@ -296,12 +299,12 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
       exclude_partition_key (bool) :default => false
 
       # ruby-kafka producer options
-      max_send_retries    (integer)     :default => 1
-      required_acks       (integer)     :default => -1
-      ack_timeout         (integer)     :default => nil (Use default of ruby-kafka)
-      compression_codec   (gzip|snappy) :default => nil
-      max_buffer_size     (integer)     :default => nil (Use default of ruby-kafka)
-      max_buffer_bytesize (integer)     :default => nil (Use default of ruby-kafka)
+      max_send_retries    (integer) :default => 1
+      required_acks       (integer) :default => -1
+      ack_timeout         (integer) :default => nil (Use default of ruby-kafka)
+      compression_codec   (string)  :default => nil (No compression. Depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression)
+      max_buffer_size     (integer) :default => nil (Use default of ruby-kafka)
+      max_buffer_bytesize (integer) :default => nil (Use default of ruby-kafka)
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.
