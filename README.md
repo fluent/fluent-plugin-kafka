@@ -221,6 +221,11 @@ On CentOS 7 installation is also necessary.
 
     $ sudo yum install gcc autoconf automake libtool snappy-devel
 
+This plugin supports compression codec "lz4" also.
+Install extlz4 module before you use lz4 compression.
+
+    $ gem install extlz4 --no-document
+
 #### Load balancing
 
 Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
