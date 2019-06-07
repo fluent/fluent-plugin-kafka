@@ -226,6 +226,11 @@ Install extlz4 module before you use lz4 compression.
 
     $ gem install extlz4 --no-document
 
+This plugin supports compression codec "zstd" also.
+Install zstd-ruby module before you use zstd compression.
+
+    $ gem install zstd-ruby --no-document
+
 #### Load balancing
 
 Messages will be assigned a partition at random as default by ruby-kafka, but messages with the same partition key will always be assigned to the same partition by setting `default_partition_key` in config file.
