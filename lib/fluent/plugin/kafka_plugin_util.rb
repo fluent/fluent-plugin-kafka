@@ -14,6 +14,8 @@ module Fluent
                        :desc => "an extra PEM encoded cert to use with and SSL connection."
           config_param :ssl_ca_certs_from_system, :bool, :default => false,
                        :desc => "this configures the store to look up CA certificates from the system default certificate store on an as needed basis. The location of the store can usually be determined by: OpenSSL::X509::DEFAULT_CERT_FILE."
+          config_param :ssl_verify_hostname, :bool, :default => true,
+                       :desc => "this configures whether hostname of certificate should be verified or not."
         }
       end
 
