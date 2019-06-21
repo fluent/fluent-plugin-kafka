@@ -57,7 +57,7 @@ DESC
 The codec the producer uses to compress messages.
 Supported codecs depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression
 DESC
-
+    config_param :max_send_limit_bytes, :size, :default => nil
     config_param :active_support_notification_regex, :string, :default => nil,
                  :desc => <<-DESC
 Add a regular expression to capture ActiveSupport notifications from the Kafka client
@@ -214,6 +214,11 @@ DESC
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
             record_buf = @formatter_proc.call(tag, time, record)
+            record_buf_bytes = record_buf.bytesize
+            if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
+              log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
+              next
+            end
           rescue StandardError => e
             log.warn "unexpected error during format record. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :time => time, :record => record
             next

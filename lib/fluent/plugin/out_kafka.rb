@@ -55,7 +55,7 @@ DESC
                :desc => "How long the producer waits for acks."
   config_param :compression_codec, :string, :default => nil,
                :desc => "The codec the producer uses to compress messages."
-
+  config_param :max_send_limit_bytes, :size, :default => nil
   config_param :time_format, :string, :default => nil
 
   config_param :max_buffer_size, :integer, :default => nil,
@@ -229,7 +229,11 @@ DESC
         message_key = (@exclude_message_key ? record.delete('message_key') : record['message_key']) || @default_message_key
 
         value = @formatter_proc.call(tag, time, record)
-
+        record_buf_bytes = value.bytesize
+        if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
+		  log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
+		  next
+        end
         log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{value}." }
 	begin
           producer.produce(value, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
