@@ -228,15 +228,15 @@ DESC
         partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
         message_key = (@exclude_message_key ? record.delete('message_key') : record['message_key']) || @default_message_key
 
-        value = @formatter_proc.call(tag, time, record)
-        record_buf_bytes = value.bytesize
+        record_buf = @formatter_proc.call(tag, time, record)
+        record_buf_bytes = record_buf.bytesize
         if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
-		  log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => value
+		  log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
 		  next
         end
-        log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{value}." }
+        log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
 	begin
-          producer.produce(value, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
+          producer.produce(record_buf, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
 	rescue Kafka::BufferOverflow => e
 	  log.warn "BufferOverflow occurred: #{e}"
 	  log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
