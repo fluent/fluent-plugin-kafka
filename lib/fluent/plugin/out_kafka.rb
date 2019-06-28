@@ -231,14 +231,14 @@ DESC
         value = @formatter_proc.call(tag, time, record)
 
         log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{value}." }
-	begin
+        begin
           producer.produce(value, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
-	rescue Kafka::BufferOverflow => e
-	  log.warn "BufferOverflow occurred: #{e}"
-	  log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
-	  producer.deliver_messages
-	  log.info "Recovered from BufferOverflow successfully`"
-	end
+        rescue Kafka::BufferOverflow => e
+          log.warn "BufferOverflow occurred: #{e}"
+          log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
+          producer.deliver_messages
+          log.info "Recovered from BufferOverflow successfully`"
+        end
       end
 
       producer.deliver_messages
