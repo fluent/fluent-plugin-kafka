@@ -231,18 +231,18 @@ DESC
         record_buf = @formatter_proc.call(tag, time, record)
         record_buf_bytes = record_buf.bytesize
         if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
-		  log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
-		  next
+                  log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
+                  next
         end
         log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
-	begin
+        begin
           producer.produce(record_buf, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
-	rescue Kafka::BufferOverflow => e
-	  log.warn "BufferOverflow occurred: #{e}"
-	  log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
-	  producer.deliver_messages
-	  log.info "Recovered from BufferOverflow successfully`"
-	end
+        rescue Kafka::BufferOverflow => e
+          log.warn "BufferOverflow occurred: #{e}"
+          log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
+          producer.deliver_messages
+          log.info "Recovered from BufferOverflow successfully`"
+        end
       end
 
       producer.deliver_messages
