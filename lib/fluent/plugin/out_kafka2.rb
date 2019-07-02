@@ -8,7 +8,7 @@ module Fluent::Plugin
   class Fluent::Kafka2Output < Output
     Fluent::Plugin.register_output('kafka2', self)
 
-    helpers :inject, :formatter, :event_emitter
+    helpers :inject, :formatter, :event_emitter, :record_accessor
 
     config_param :brokers, :array, :value_type => :string, :default => ['localhost:9092'],
                  :desc => <<-DESC
@@ -39,6 +39,8 @@ DESC
                  :desc => 'Set true to remove partition key from data'
     config_param :exclude_topic_key, :bool, :default => false,
                  :desc => 'Set true to remove topic name key from data'
+    config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string
+    config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string
 
     config_param :get_kafka_client_log, :bool, :default => false
 
@@ -213,6 +215,12 @@ DESC
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
+            headers = @headers
+
+            @headers_from_record.each do |key, value|
+              headers[key] = record_accessor_create(value).call(record)
+            end
+
             record_buf = @formatter_proc.call(tag, time, record)
           rescue StandardError => e
             log.warn "unexpected error during format record. Skip broken event:", :error => e.to_s, :error_class => e.class.to_s, :time => time, :record => record
@@ -222,7 +230,7 @@ DESC
           log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
           messages += 1
 
-          producer.produce(record_buf, key: message_key, partition_key: partition_key, partition: partition)
+          producer.produce(record_buf, key: message_key, partition_key: partition_key, partition: partition, headers: headers)
         }
 
         if messages > 0

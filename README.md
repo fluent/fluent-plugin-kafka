@@ -158,6 +158,8 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
       exclude_topic_key     (bool)   :default => false
       exclude_partition_key (bool)   :default => false
       get_kafka_client_log  (bool)   :default => false
+      headers               (hash)   :default => {}
+      headers_from_record   (hash)   :default => {}
       use_default_for_unknown_topic (bool) :default => false
 
       <format>
@@ -244,6 +246,31 @@ If key name `partition_key_key` exists in a message, this plugin set the value o
 |Set| Exists | Messages which have partition_key_key record are assigned to the specific partition with partition_key_key, others are assigned to the specific partition with default_parition_key |
 
 If key name `message_key_key` exists in a message, this plugin publishes the value of message_key_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key_key exists and if partition_key_key is not set explicitly, messsage_key_key will be used for partitioning.
+
+#### Headers
+It is possible to set headers on Kafka messages. The format is like key1:value1,key2:value2
+
+    <match app.**>
+      @type kafka2
+      [...]
+      headers some_header_name:some_header_value
+    <match>
+
+You may set header values based on a value of a fluentd record field. For example, imagine a fluentd record like:
+
+    {"source": { "ip": "127.0.0.1 }, "payload": "hello world" }
+
+And the following fluentd config:
+
+    <match app.**>
+      @type kafka2
+      [...]
+      headers_from_record source_ip:$.source.ip
+    <match>
+
+The Kafka message will have a header of source_ip=12.7.0.0.1.
+
+The configuration format is jsonpath. It is descibed in https://docs.fluentd.org/plugin-helper-overview/api-plugin-helper-record_accessor
 
 ### Buffered output plugin
 
