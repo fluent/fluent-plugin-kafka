@@ -65,7 +65,7 @@ DESC
 The codec the producer uses to compress messages. Used for compression.codec
 Supported codecs: (gzip|snappy)
 DESC
-
+    config_param :max_send_limit_bytes, :size, :default => nil
     config_param :rdkafka_buffering_max_ms, :integer, :default => nil, :desc => 'Used for queue.buffering.max.ms'
     config_param :rdkafka_buffering_max_messages, :integer, :default => nil, :desc => 'Used for queue.buffering.max.messages'
     config_param :rdkafka_message_max_bytes, :integer, :default => nil, :desc => 'Used for message.max.bytes'
