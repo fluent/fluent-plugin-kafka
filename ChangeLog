@@ -1,3 +1,10 @@
+Release 0.10.0 - 2019/07/03
+
+	* output: Fixed max_send_limit_bytes parameter to be in all kafka outputs
+	* output: Add ssl_verify_hostname parameter
+	* rdkafka output: Fix exceptiona handling
+	* Update ruby-kafka version to v0.7.8 or later
+
 Release 0.9.6 - 2019/05/28
 
 	* out_kafka2: Add metadata nil check
