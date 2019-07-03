@@ -284,7 +284,7 @@ DESC
         handler = producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition)
         return handler
       rescue Exception => e
-        if e.code == :queue_full
+        if e.respond_to?(:code) && e.code == :queue_full
           if attempt <= @max_enqueue_retries
             log.warn "Failed to enqueue message; attempting retry #{attempt} of #{@max_enqueue_retries} after #{@enqueue_retry_backoff}s"
             sleep @enqueue_retry_backoff
