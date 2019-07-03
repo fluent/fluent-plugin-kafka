@@ -24,7 +24,7 @@ module Fluent::Plugin
   class Fluent::Rdkafka2Output < Output
     Fluent::Plugin.register_output('rdkafka2', self)
 
-    helpers :inject, :formatter
+    helpers :inject, :formatter, :record_accessor
 
     config_param :brokers, :string, :default => 'localhost:9092',
                  :desc => <<-DESC
@@ -54,6 +54,9 @@ DESC
                  :desc => <<-DESC
 Set true to remove topic key from data
 DESC
+    config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string
+    config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string
+
     config_param :max_send_retries, :integer, :default => 2,
                  :desc => "Number of times to retry sending of messages to a leader. Used for message.send.max.retries"
     config_param :required_acks, :integer, :default => -1,
@@ -245,6 +248,11 @@ DESC
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
+            headers = @headers
+            @headers_from_record.each do |key, value|
+              headers[key] = record_accessor_create(value).call(record)
+            end
+
             record_buf = @formatter_proc.call(tag, time, record)
             record_buf_bytes = record_buf.bytesize
             if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
@@ -256,7 +264,7 @@ DESC
             next
           end
 
-          handlers << enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+          handlers << enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
         }
         handlers.each { |handler|
           handler.wait(@rdkafka_delivery_handle_poll_timeout) if @rdkafka_delivery_handle_poll_timeout != 0
@@ -268,11 +276,11 @@ DESC
       raise e
     end
 
-    def enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+    def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
       attempt = 0
       loop do
         begin
-          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition)
+          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers)
         rescue Exception => e
           if e.code == :queue_full
             if attempt <= @max_enqueue_retries

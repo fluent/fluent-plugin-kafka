@@ -248,7 +248,9 @@ If key name `partition_key_key` exists in a message, this plugin set the value o
 If key name `message_key_key` exists in a message, this plugin publishes the value of message_key_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key_key exists and if partition_key_key is not set explicitly, messsage_key_key will be used for partitioning.
 
 #### Headers
-It is possible to set headers on Kafka messages. The format is like key1:value1,key2:value2
+It is possible to set headers on Kafka messages. This only works for kafka2 and rdkafka2 output plugin.
+
+The format is like key1:value1,key2:value2. For example:
 
     <match app.**>
       @type kafka2
@@ -371,6 +373,8 @@ You need to install rdkafka gem.
       default_message_key   (string) :default => nil
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
+      headers               (hash)   :default => {}
+      headers_from_record   (hash)   :default => {}
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json

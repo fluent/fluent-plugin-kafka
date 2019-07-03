@@ -216,7 +216,6 @@ DESC
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
             headers = @headers
-
             @headers_from_record.each do |key, value|
               headers[key] = record_accessor_create(value).call(record)
             end
