@@ -260,7 +260,7 @@ The format is like key1:value1,key2:value2. For example:
 
 You may set header values based on a value of a fluentd record field. For example, imagine a fluentd record like:
 
-    {"source": { "ip": "127.0.0.1 }, "payload": "hello world" }
+    {"source": { "ip": "127.0.0.1" }, "payload": "hello world" }
 
 And the following fluentd config:
 

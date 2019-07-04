@@ -39,8 +39,10 @@ DESC
                  :desc => 'Set true to remove partition key from data'
     config_param :exclude_topic_key, :bool, :default => false,
                  :desc => 'Set true to remove topic name key from data'
-    config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string
-    config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string
+    config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string,
+                 :desc => 'Kafka message headers'
+    config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string,
+                 :desc => 'Kafka message headers where the header value is a jsonpath to a record value'
 
     config_param :get_kafka_client_log, :bool, :default => false
 
@@ -155,6 +157,11 @@ DESC
       end
 
       @topic_key_sym = @topic_key.to_sym
+
+      @headers_from_record_accessors = {}
+      @headers_from_record.each do |key, value|
+        @headers_from_record_accessors[key] = record_accessor_create(value)
+      end
     end
 
     def multi_workers_ready?
@@ -205,6 +212,8 @@ DESC
       messages = 0
       record_buf = nil
 
+      headers = @headers.clone
+
       begin
         producer = @kafka.topic_producer(topic, @producer_opts)
         chunk.msgpack_each { |time, record|
@@ -215,9 +224,8 @@ DESC
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
-            headers = @headers
-            @headers_from_record.each do |key, value|
-              headers[key] = record_accessor_create(value).call(record)
+            @headers_from_record_accessors.each do |key, header_accessor|
+              headers[key] = header_accessor.call(record)
             end
 
             record_buf = @formatter_proc.call(tag, time, record)
