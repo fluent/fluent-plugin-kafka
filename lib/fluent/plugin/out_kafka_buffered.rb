@@ -22,6 +22,7 @@ DESC
   config_param :default_topic, :string, :default => nil, :desc => "Default output topic when record doesn't have topic field"
   config_param :message_key_key, :string, :default => 'message_key', :desc => "Field for kafka message key"
   config_param :default_message_key, :string, :default => nil
+  config_param :create_time_key, :string, :default => nil, :desc => "Field for CreateTime"
   config_param :partition_key_key, :string, :default => 'partition_key', :desc => "Field for kafka partition key"
   config_param :default_partition_key, :string, :default => nil
   config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
@@ -339,7 +340,10 @@ DESC
         end
         log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
         messages += 1
-        producer.produce_for_buffered(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
+
+        create_time = @create_time_key != nil ? record[@create_time_key]: nil
+
+        producer.produce_for_buffered(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition, create_time: create_time)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
