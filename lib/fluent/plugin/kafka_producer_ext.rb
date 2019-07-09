@@ -12,9 +12,7 @@ module Kafka
   EMPTY_HEADER = {}
 
   class Producer
-    def produce_for_buffered(value, key: nil, topic:, partition: nil, partition_key: nil)
-      create_time = Time.now
-
+    def produce_for_buffered(value, key: nil, topic:, partition: nil, partition_key: nil, create_time: Time.now)
       message = PendingMessage.new(
         value: value,
         key: key,
@@ -99,9 +97,7 @@ module Kafka
       @pending_message_queue = PendingMessageQueue.new
     end
 
-    def produce(value, key: nil, partition: nil, partition_key: nil)
-      create_time = Time.now
-
+    def produce(value, key: nil, partition: nil, partition_key: nil, create_time: Time.now)
       message = PendingMessage.new(
         value: value,
         key: key,

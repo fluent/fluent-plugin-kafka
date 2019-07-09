@@ -46,14 +46,15 @@ DESC
                :desc => <<-DESC
 Set true to remove partition from data
 DESC
-   config_param :exclude_message_key, :bool, :default => false,
+  config_param :exclude_message_key, :bool, :default => false,
                :desc => <<-DESC
 Set true to remove message key from data
 DESC
-   config_param :exclude_topic_key, :bool, :default => false,
+  config_param :exclude_topic_key, :bool, :default => false,
                 :desc => <<-DESC
 Set true to remove topic name key from data
 DESC
+  config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for kafka create_time'
 
   config_param :kafka_agg_max_bytes, :size, :default => 4*1024  #4k
   config_param :kafka_agg_max_messages, :integer, :default => nil
@@ -339,7 +340,8 @@ DESC
         end
         log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
         messages += 1
-        producer.produce_for_buffered(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
+        producer.produce_for_buffered(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition,
+                                      create_time: @use_event_time ? Time.at(time) : Time.now)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1
