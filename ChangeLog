@@ -1,3 +1,10 @@
+Release 0.11.0 - 2019/07/17
+
+	* out_kafka2: Add connect_timeout / socket_timeout parameters
+	* out_kafka2/out_rdkafka2: Add headers / headers_from_record parameters
+	* output: Add use_event_time parameter to use fluentd event time for CreateTime
+	* input: Add get_kafka_client_log parameter. Default is `false`
+
 Release 0.10.0 - 2019/07/03
 
 	* output: Fixed max_send_limit_bytes parameter to be in all kafka outputs
