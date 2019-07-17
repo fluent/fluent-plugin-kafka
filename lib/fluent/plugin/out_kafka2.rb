@@ -39,6 +39,7 @@ DESC
                  :desc => 'Set true to remove partition key from data'
     config_param :exclude_topic_key, :bool, :default => false,
                  :desc => 'Set true to remove topic name key from data'
+    config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for kafka create_time'
     config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string,
                  :desc => 'Kafka message headers'
     config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string,
@@ -244,7 +245,8 @@ DESC
           log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
           messages += 1
 
-          producer.produce(record_buf, key: message_key, partition_key: partition_key, partition: partition, headers: headers)
+          producer.produce(record_buf, key: message_key, partition_key: partition_key, partition: partition, headers: headers,
+                           create_time: @use_event_time ? Time.at(time) : Time.now)
         }
 
         if messages > 0
