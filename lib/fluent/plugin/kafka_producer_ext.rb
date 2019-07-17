@@ -97,11 +97,11 @@ module Kafka
       @pending_message_queue = PendingMessageQueue.new
     end
 
-    def produce(value, key: nil, partition: nil, partition_key: nil, create_time: Time.now)
+    def produce(value, key: nil, partition: nil, partition_key: nil, headers: EMPTY_HEADER, create_time: Time.now)
       message = PendingMessage.new(
         value: value,
         key: key,
-        headers: EMPTY_HEADER,
+        headers: headers,
         topic: @topic,
         partition: partition,
         partition_key: partition_key,
