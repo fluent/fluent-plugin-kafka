@@ -24,7 +24,7 @@ module Fluent::Plugin
   class Fluent::Rdkafka2Output < Output
     Fluent::Plugin.register_output('rdkafka2', self)
 
-    helpers :inject, :formatter
+    helpers :inject, :formatter, :record_accessor
 
     config_param :brokers, :string, :default => 'localhost:9092',
                  :desc => <<-DESC
@@ -54,6 +54,11 @@ DESC
                  :desc => <<-DESC
 Set true to remove topic key from data
 DESC
+    config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string,
+                 :desc => 'Kafka message headers'
+    config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string,
+                 :desc => 'Kafka message headers where the header value is a jsonpath to a record value'
+
     config_param :max_send_retries, :integer, :default => 2,
                  :desc => "Number of times to retry sending of messages to a leader. Used for message.send.max.retries"
     config_param :required_acks, :integer, :default => -1,
@@ -128,6 +133,11 @@ DESC
       end
       @formatter_proc = setup_formatter(formatter_conf)
       @topic_key_sym = @topic_key.to_sym
+
+      @headers_from_record_accessors = {}
+      @headers_from_record.each do |key, value|
+        @headers_from_record_accessors[key] = record_accessor_create(value)
+      end
     end
 
     def build_config
@@ -236,6 +246,8 @@ DESC
       record_buf = nil
       record_buf_bytes = nil
 
+      headers = @headers.clone
+
       begin
         producer = get_producer
         chunk.msgpack_each { |time, record|
@@ -244,6 +256,10 @@ DESC
             record.delete(@topic_key) if @exclude_topic_key
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
+
+            @headers_from_record_accessors.each do |key, header_accessor|
+              headers[key] = header_accessor.call(record)
+            end
 
             record_buf = @formatter_proc.call(tag, time, record)
             record_buf_bytes = record_buf.bytesize
@@ -256,7 +272,7 @@ DESC
             next
           end
 
-          handlers << enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+          handlers << enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
         }
         handlers.each { |handler|
           handler.wait(@rdkafka_delivery_handle_poll_timeout) if @rdkafka_delivery_handle_poll_timeout != 0
@@ -268,11 +284,11 @@ DESC
       raise e
     end
 
-    def enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+    def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
       attempt = 0
       loop do
         begin
-          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition)
+          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers)
         rescue Exception => e
           if e.respond_to?(:code) && e.code == :queue_full
             if attempt <= @max_enqueue_retries
