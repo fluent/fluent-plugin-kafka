@@ -220,7 +220,8 @@ DESC
       messages = 0
       record_buf = nil
 
-      headers = @headers.clone
+      base_headers = @headers
+      mutate_headers = !@headers_from_record_accessors.empty?
 
       begin
         producer = @kafka.topic_producer(topic, @producer_opts)
@@ -232,8 +233,13 @@ DESC
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
-            @headers_from_record_accessors.each do |key, header_accessor|
-              headers[key] = header_accessor.call(record)
+            if mutate_headers
+              headers = base_headers.clone
+              @headers_from_record_accessors.each do |key, header_accessor|
+                headers[key] = header_accessor.call(record)
+              end
+            else
+              headers = base_headers
             end
 
             record_buf = @formatter_proc.call(tag, time, record)
