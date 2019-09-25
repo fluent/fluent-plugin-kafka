@@ -77,6 +77,7 @@ DESC
     config_param :rdkafka_message_max_num, :integer, :default => nil, :desc => 'Used for batch.num.messages'
     config_param :rdkafka_delivery_handle_poll_timeout, :integer, :default => 30, :desc => 'Timeout for polling message wait'
     config_param :rdkafka_options, :hash, :default => {}, :desc => 'Set any rdkafka configuration. See https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md'
+    config_param :share_producer, :bool, :default => false, :desc => 'share kafka producer between flush threads'
 
     config_param :max_enqueue_retries, :integer, :default => 3
     config_param :enqueue_retry_backoff, :integer, :default => 3
@@ -97,8 +98,10 @@ DESC
 
     def initialize
       super
-      @producers = {}
-      @producers_mutex = Mutex.new
+
+      @producers = nil
+      @producers_mutex = nil
+      @shared_producer = nil
     end
 
     def configure(conf)
@@ -187,6 +190,13 @@ DESC
     end
 
     def start
+      if @share_producer
+        @shared_producer = @rdkafka.producer
+      else
+        @producers = {}
+        @producers_mutex = Mutex.new
+      end
+
       super
     end
 
@@ -200,30 +210,43 @@ DESC
     end
 
     def shutdown_producers
-      @producers_mutex.synchronize {
-        shutdown_threads = @producers.map { |key, producer|
-          th = Thread.new {
-            unless producer.close(10)
-              log.warn("Queue is forcefully closed after 10 seconds wait")
-            end
+      if @share_producer
+        close_producer(@shared_producer)
+        @shared_producer = nil
+      else
+        @producers_mutex.synchronize {
+          shutdown_threads = @producers.map { |key, producer|
+            th = Thread.new {
+              close_producer(producer)
+            }
+            th.abort_on_exception = true
+            th
           }
-          th.abort_on_exception = true
-          th
+          shutdown_threads.each { |th| th.join }
+          @producers = {}
         }
-        shutdown_threads.each { |th| th.join }
-        @producers = {}
-      }
+      end
+    end
+
+    def close_producer(producer)
+      unless producer.close(10)
+        log.warn("Queue is forcefully closed after 10 seconds wait")
+      end
     end
 
     def get_producer
-      @producers_mutex.synchronize {
-        producer = @producers[Thread.current.object_id]
-        unless producer
-          producer = @rdkafka.producer
-          @producers[Thread.current.object_id] = producer
-        end
-        producer
-      }
+      if @share_producer
+        @shared_producer
+      else
+        @producers_mutex.synchronize {
+          producer = @producers[Thread.current.object_id]
+          unless producer
+            producer = @rdkafka.producer
+            @producers[Thread.current.object_id] = producer
+          end
+          producer
+        }
+      end
     end
 
     def setup_formatter(conf)
