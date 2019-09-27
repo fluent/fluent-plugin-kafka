@@ -354,7 +354,10 @@ This plugin uses `rdkafka` instead of `ruby-kafka` for ruby client.
 You need to install rdkafka gem.
 
     # rdkafka is C extension library so need development tools like ruby-devel, gcc and etc
+    # for v0.12 or later
     $ gem install rdkafka --no-document
+    # for v0.11 or earlier
+    $ gem install rdkafka -v 0.6.0 --no-document
 
 `rdkafka2` is for fluentd v1.0 or later.
 

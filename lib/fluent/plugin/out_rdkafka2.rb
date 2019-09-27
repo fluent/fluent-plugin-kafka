@@ -301,7 +301,7 @@ DESC
           end
         }
         handlers.each { |handler|
-          handler.wait(@rdkafka_delivery_handle_poll_timeout)
+          handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout)
         }
       end
     rescue Exception => e
