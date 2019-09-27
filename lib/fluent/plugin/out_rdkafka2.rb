@@ -295,10 +295,13 @@ DESC
             next
           end
 
-          handlers << enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
+          handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
+          if @rdkafka_delivery_handle_poll_timeout != 0
+            handlers << handler
+          end
         }
         handlers.each { |handler|
-          handler.wait(@rdkafka_delivery_handle_poll_timeout) if @rdkafka_delivery_handle_poll_timeout != 0
+          handler.wait(@rdkafka_delivery_handle_poll_timeout)
         }
       end
     rescue Exception => e
