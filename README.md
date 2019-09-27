@@ -276,7 +276,7 @@ The configuration format is jsonpath. It is descibed in https://docs.fluentd.org
 
 ### Buffered output plugin
 
-This plugin uses ruby-kafka producer for writing data. This plugin works with recent kafka versions. This plugin is for v0.12. If you use v1, see `kafka2`.
+This plugin uses ruby-kafka producer for writing data. This plugin is for v0.12. If you use v1, see `kafka2`.
 
     <match app.**>
       @type kafka_buffered
@@ -373,8 +373,10 @@ You need to install rdkafka gem.
       default_message_key   (string) :default => nil
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
-      headers               (hash)   :default => {}
-      headers_from_record   (hash)   :default => {}
+
+      # same with kafka2
+      headers               (hash) :default => {}
+      headers_from_record   (hash) :default => {}
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
@@ -396,6 +398,15 @@ You need to install rdkafka gem.
       rdkafka_options {
         "log_level" : 7
       }
+
+      # rdkafka2 specific parameters
+
+      # share kafka producer between flush threads. This is mainly for reducing kafka operations like kerberos
+      share_producer (bool) :default => false
+      # Timeout for polling message wait. If 0, no wait.
+      rdkafka_delivery_handle_poll_timeout (integer) :default => 30
+      # If the record size is larger than this value, such records are ignored. Default is no limit
+      max_send_limit_bytes (integer) :default => nil
     </match>
 
 If you use v0.12, use `rdkafka` instead.
