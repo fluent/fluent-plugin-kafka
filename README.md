@@ -426,6 +426,18 @@ If you use v0.12, use `rdkafka` instead.
       }
     </match>
 
+## FAQ
+
+### Why fluent-plugin-kafka can't send data to our kafka cluster?
+
+We got lots of similar questions. Almost cases, this problem happens by version mismatch between ruby-kafka and kafka cluster.
+See ruby-kafka README for more details: https://github.com/zendesk/ruby-kafka#compatibility
+
+To avoid the problem, there are 2 approaches:
+
+- Upgrade your kafka cluster to latest version. This is better becase recent version is faster and robust.
+- Downgrade ruby-kafka/fluent-plugin-kafka to work with your older kafka.
+
 ## Contributing
 
 1. Fork it
