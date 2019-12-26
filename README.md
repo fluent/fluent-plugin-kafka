@@ -180,7 +180,7 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
 
       # ruby-kafka producer options
       idempotent        (bool)    :default => false
-      sasl_over_ssl     (bool)    :default => false
+      sasl_over_ssl     (bool)    :default => true
       max_send_retries  (integer) :default => 1
       required_acks     (integer) :default => -1
       ack_timeout       (integer) :default => nil (Use default of ruby-kafka)
@@ -304,7 +304,7 @@ This plugin uses ruby-kafka producer for writing data. This plugin is for v0.12.
 
       # ruby-kafka producer options
       idempotent                   (bool)    :default => false
-      sasl_over_ssl                (bool)    :default => false
+      sasl_over_ssl                (bool)    :default => true
       max_send_retries             (integer) :default => 1
       required_acks                (integer) :default => -1
       ack_timeout                  (integer) :default => nil (Use default of ruby-kafka)
