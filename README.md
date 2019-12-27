@@ -4,8 +4,6 @@
 
 A fluentd plugin to both consume and produce data for Apache Kafka.
 
-TODO: Also, I need to write tests
-
 ## Installation
 
 Add this line to your application's Gemfile:
