@@ -159,6 +159,8 @@ DESC
   def configure(conf)
     super
 
+    log.warn "Support of fluentd v0.12 has ended. Use kafka2 instead. kafka_buffered will be an alias of kafka2"
+
     if @zookeeper
       require 'zookeeper'
     else
