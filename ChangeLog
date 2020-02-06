@@ -1,3 +1,7 @@
+Release 0.12.3 - 2020/02/06
+
+	* output: Show warning message for v0.12 plugins
+
 Release 0.12.2 - 2020/01/07
 
 	* input: Refer sasl_over_ssl parameter in plain SASL
