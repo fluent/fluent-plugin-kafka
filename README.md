@@ -275,6 +275,7 @@ The configuration format is jsonpath. It is descibed in https://docs.fluentd.org
 ### Buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. This plugin is for v0.12. If you use v1, see `kafka2`.
+Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2` and will be removed in the future.
 
     <match app.**>
       @type kafka_buffered
