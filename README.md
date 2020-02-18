@@ -140,7 +140,7 @@ Consuming topic name is used for event tag. So when the target topic name is `ap
 
 ### Output plugin
 
-This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the future.
+This `kafka2` plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the future.
 
     <match app.**>
       @type kafka2
@@ -155,6 +155,8 @@ This plugin is for fluentd v1.0 or later. This will be `out_kafka` plugin in the
       default_message_key   (string) :default => nil
       exclude_topic_key     (bool)   :default => false
       exclude_partition_key (bool)   :default => false
+      exclude_partition     (bool)   :default => false
+      exclude_message_key   (bool)   :default => false
       get_kafka_client_log  (bool)   :default => false
       headers               (hash)   :default => {}
       headers_from_record   (hash)   :default => {}
@@ -197,8 +199,6 @@ Supports following ruby-kafka's producer options.
 - required_acks - default: -1 - The number of acks required per request. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
-- kafka_agg_max_bytes - default: 4096 - Maximum value of total message size to be included in one batch transmission.
-- kafka_agg_max_messages - default: nil - Maximum number of messages to include in one batch transmission.
 - max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
 - monitoring_list - default: [] - library to be used to monitor. statsd and datadog are supported
@@ -292,6 +292,10 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
       default_message_key   (string) :default => nil
+      exclude_topic_key     (bool)   :default => false
+      exclude_partition_key (bool)   :default => false
+      exclude_partition     (bool)   :default => false
+      exclude_message_key   (bool)   :default => false
       output_data_type      (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       output_include_tag    (bool) :default => false
       output_include_time   (bool) :default => false
@@ -314,6 +318,11 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
       discard_kafka_delivery_failed   (bool) :default => false (No discard)
       monitoring_list              (array)   :default => []
     </match>
+
+`kafka_buffered` has two additional parameters:
+
+- kafka_agg_max_bytes - default: 4096 - Maximum value of total message size to be included in one batch transmission.
+- kafka_agg_max_messages - default: nil - Maximum number of messages to include in one batch transmission.
 
 ### Non-buffered output plugin
 
@@ -349,10 +358,10 @@ This plugin also supports ruby-kafka related parameters. See Buffered output plu
 
 ### rdkafka based output plugin
 
-This plugin uses `rdkafka` instead of `ruby-kafka` for ruby client.
+This plugin uses `rdkafka` instead of `ruby-kafka` for kafka client.
 You need to install rdkafka gem.
 
-    # rdkafka is C extension library so need development tools like ruby-devel, gcc and etc
+    # rdkafka is C extension library. Need to install development tools like ruby-devel, gcc and etc
     # for v0.12 or later
     $ gem install rdkafka --no-document
     # for v0.11 or earlier
