@@ -94,7 +94,7 @@ DESC
       def add(level, &block)
         return unless block
 
-        # Follow rdkakfa's log level. See also rdkafka-ruby's bindings.rb.
+        # Follow rdkakfa's log level. See also rdkafka-ruby's bindings.rb: https://github.com/appsignal/rdkafka-ruby/blob/e5c7261e3f2637554a5c12b924be297d7dca1328/lib/rdkafka/bindings.rb#L117
         case level
         when Logger::FATAL
           self.fatal(block.call)
