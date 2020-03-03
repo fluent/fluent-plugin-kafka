@@ -1,4 +1,5 @@
 require 'thread'
+require 'logger'
 require 'fluent/plugin/output'
 require 'fluent/plugin/kafka_plugin_util'
 
@@ -108,8 +109,22 @@ DESC
       super
       log.instance_eval {
         def add(level, &block)
-          if block
+          return unless block
+
+          # Follow rdkakfa's log level. See also rdkafka-ruby's bindings.rb: https://github.com/appsignal/rdkafka-ruby/blob/e5c7261e3f2637554a5c12b924be297d7dca1328/lib/rdkafka/bindings.rb#L117
+          case level
+          when Logger::FATAL
+            self.fatal(block.call)
+          when Logger::ERROR
+            self.error(block.call)
+          when Logger::WARN
+            self.warn(block.call)
+          when Logger::INFO
             self.info(block.call)
+          when Logger::DEBUG
+            self.debug(block.call)
+          else
+            self.trace(block.call)
           end
         end
       }
