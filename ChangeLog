@@ -1,3 +1,7 @@
+Release 0.13.0 - 2020/03/09
+
+	* Accept ruby-kafka v1 or later
+
 Release 0.12.4 - 2020/03/03
 
 	* output: Follow rdkafka log level
