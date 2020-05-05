@@ -198,7 +198,14 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def setup_consumer
     consumer = @kafka.consumer(@consumer_opts)
     @topics.each { |topic|
-      consumer.subscribe(topic, start_from_beginning: @start_from_beginning, max_bytes_per_partition: @max_bytes)
+      if m = /^\/(.+)\/$/.match(topic)
+        topic_or_regex = Regexp.new(m[1])
+        $log.info "Subscribe to topics matching the regex #{topic}"
+      else
+        topic_or_regex = topic
+        $log.info "Subscribe to topic #{topic}"
+      end
+      consumer.subscribe(topic_or_regex, start_from_beginning: @start_from_beginning, max_bytes_per_partition: @max_bytes)
     }
     consumer
   end
