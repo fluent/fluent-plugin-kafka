@@ -29,6 +29,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :deprecated => "Use 'time_source record' instead."
   config_param :time_source, :enum, :list => [:now, :kafka, :record], :default => :now,
                :desc => "Source for message timestamp."
+  config_param :record_time_key, :string, :default => 'time',
+               :desc => "Time field when time_source is 'record'"
   config_param :get_kafka_client_log, :bool, :default => false
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
@@ -126,8 +128,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
 
     @time_source = :record if @use_record_time
+    @time_key = 'time'
 
     if @time_source == :record and @time_format
+      @time_key = @record_time_key if @record_time_key
       if defined?(Fluent::TimeParser)
         @time_parser = Fluent::TimeParser.new(@time_format)
       else
@@ -243,9 +247,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
                 record_time = Fluent::Engine.now
               when :record
                 if @time_format
-                  record_time = @time_parser.parse(record['time'].to_s)
+                  record_time = @time_parser.parse(record[@time_key].to_s)
                 else
-                  record_time = record['time']
+                  record_time = record[@time_key]
                 end
               else
                 log.fatal "BUG: invalid time_source: #{@time_source}"
