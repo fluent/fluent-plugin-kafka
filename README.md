@@ -444,7 +444,7 @@ See ruby-kafka README for more details: https://github.com/zendesk/ruby-kafka#co
 
 To avoid the problem, there are 2 approaches:
 
-- Upgrade your kafka cluster to latest version. This is better becase recent version is faster and robust.
+- Upgrade your kafka cluster to latest version. This is better because recent version is faster and robust.
 - Downgrade ruby-kafka/fluent-plugin-kafka to work with your older kafka.
 
 ## Contributing
