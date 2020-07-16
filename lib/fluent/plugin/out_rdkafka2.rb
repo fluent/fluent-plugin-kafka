@@ -33,6 +33,7 @@ Set brokers directly:
 <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,..
 Brokers: you can choose to use either brokers or zookeeper.
 DESC
+    config_param :topic, :string, :default => nil, :desc => "kafka topic. Placeholders are supported"
     config_param :topic_key, :string, :default => 'topic', :desc => "Field for kafka topic"
     config_param :default_topic, :string, :default => nil,
                  :desc => "Default output topic when record doesn't have topic field"
@@ -278,7 +279,11 @@ DESC
 
     def write(chunk)
       tag = chunk.metadata.tag
-      topic = (chunk.metadata.variables && chunk.metadata.variables[@topic_key_sym]) || @default_topic || tag
+      topic = if @topic
+                extract_placeholders(@topic, chunk)
+              else
+                (chunk.metadata.variables && chunk.metadata.variables[@topic_key_sym]) || @default_topic || tag
+              end
 
       handlers = []
       record_buf = nil
