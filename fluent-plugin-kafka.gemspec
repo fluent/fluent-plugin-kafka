@@ -13,7 +13,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.name          = "fluent-plugin-kafka"
   gem.require_paths = ["lib"]
-  gem.version       = '0.13.0'
+  gem.version       = '0.13.1'
   gem.required_ruby_version = ">= 2.1.0"
 
   gem.add_dependency "fluentd", [">= 0.10.58", "< 2"]
