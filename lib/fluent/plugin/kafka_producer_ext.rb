@@ -69,12 +69,13 @@ module Kafka
         retry_backoff: retry_backoff,
         max_buffer_size: max_buffer_size,
         max_buffer_bytesize: max_buffer_bytesize,
+        partitioner: @partitioner,
       )
     end
   end
 
   class TopicProducer
-    def initialize(topic, cluster:, transaction_manager:, logger:, instrumenter:, compressor:, ack_timeout:, required_acks:, max_retries:, retry_backoff:, max_buffer_size:, max_buffer_bytesize:)
+    def initialize(topic, cluster:, transaction_manager:, logger:, instrumenter:, compressor:, ack_timeout:, required_acks:, max_retries:, retry_backoff:, max_buffer_size:, max_buffer_bytesize:, partitioner:)
       @cluster = cluster
       @transaction_manager = transaction_manager
       @logger = logger
@@ -86,6 +87,7 @@ module Kafka
       @max_buffer_size = max_buffer_size
       @max_buffer_bytesize = max_buffer_bytesize
       @compressor = compressor
+      @partitioner = partitioner
 
       @topic = topic
       @cluster.add_target_topics(Set.new([topic]))
@@ -243,14 +245,14 @@ module Kafka
 
     def assign_partitions!
       failed_messages = []
-      partition_count = @cluster.partitions_for(@topic).count
 
       @pending_message_queue.each do |message|
         partition = message.partition
 
         begin
           if partition.nil?
-            partition = Partitioner.call(partition_count, message)
+            partition_count = @cluster.partitions_for(@topic).count
+            partition = @partitioner.call(partition_count, message)
           end
 
           @buffer.write(
