@@ -245,13 +245,13 @@ module Kafka
 
     def assign_partitions!
       failed_messages = []
+      partition_count = @cluster.partitions_for(@topic).count
 
       @pending_message_queue.each do |message|
         partition = message.partition
 
         begin
           if partition.nil?
-            partition_count = @cluster.partitions_for(@topic).count
             partition = @partitioner.call(partition_count, message)
           end
 
