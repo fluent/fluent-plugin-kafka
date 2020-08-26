@@ -73,6 +73,7 @@ The codec the producer uses to compress messages. Used for compression.codec
 Supported codecs: (gzip|snappy)
 DESC
     config_param :max_send_limit_bytes, :size, :default => nil
+    config_param :discard_kafka_delivery_failed, :bool, :default => false
     config_param :rdkafka_buffering_max_ms, :integer, :default => nil, :desc => 'Used for queue.buffering.max.ms'
     config_param :rdkafka_buffering_max_messages, :integer, :default => nil, :desc => 'Used for queue.buffering.max.messages'
     config_param :rdkafka_message_max_bytes, :integer, :default => nil, :desc => 'Used for message.max.bytes'
@@ -325,9 +326,13 @@ DESC
         }
       end
     rescue Exception => e
-      log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
-      # Raise exception to retry sendind messages
-      raise e
+      if @discard_kafka_delivery_failed
+        log.warn "Delivery failed. Discard events:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+      else
+        log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
+        # Raise exception to retry sendind messages
+        raise e
+      end
     end
 
     def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
