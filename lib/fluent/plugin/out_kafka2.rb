@@ -69,6 +69,7 @@ The codec the producer uses to compress messages.
 Supported codecs depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression
 DESC
     config_param :max_send_limit_bytes, :size, :default => nil
+    config_param :discard_kafka_delivery_failed, :bool, :default => false
     config_param :active_support_notification_regex, :string, :default => nil,
                  :desc => <<-DESC
 Add a regular expression to capture ActiveSupport notifications from the Kafka client
@@ -267,7 +268,16 @@ DESC
 
         if messages > 0
           log.debug { "#{messages} messages send." }
-          producer.deliver_messages
+          if @discard_kafka_delivery_failed
+            begin
+              producer.deliver_messages
+            rescue Kafka::DeliveryFailed => e
+              log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+              producer.clear_buffer
+            end
+          else
+            producer.deliver_messages
+          end
         end
       rescue Kafka::UnknownTopicOrPartition
         if @use_default_for_unknown_topic && topic != @default_topic
