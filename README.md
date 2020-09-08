@@ -161,6 +161,7 @@ Consume events by kafka consumer group features..
 
       # kafka consumer options
       max_wait_time_ms 500
+      max_batch_size 10000
       kafka_configs {
         "bootstrap.servers": "brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>",
         "group.id": "<consumer group name>"

@@ -42,6 +42,8 @@ class Fluent::RdKafkaGroupInput < Fluent::Input
  
   config_param :max_wait_time_ms, :integer, :default => 250,
                :desc => "How long to block polls in milliseconds until the server sends us data."
+  config_param :max_batch_size, :integer, :default => 10000,
+               :desc => "Maximum number of log lines emitted in a single batch."
  
   config_param :kafka_configs, :hash, :default => {},
                :desc => "Kafka configuration properties as desribed in https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md"
@@ -190,7 +192,7 @@ class Fluent::RdKafkaGroupInput < Fluent::Input
       if message
         if not batch
           batch = Batch.new(message.topic)
-        elsif batch.topic != message.topic
+        elsif batch.topic != message.topic || batch.messages.count >= @max_batch_size
           yield batch
           batch = Batch.new(message.topic)
         end
