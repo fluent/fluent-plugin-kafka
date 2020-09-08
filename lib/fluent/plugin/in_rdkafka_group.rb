@@ -1,11 +1,13 @@
-require 'fluent/input'
+require 'fluent/plugin/input'
 require 'fluent/time'
 require 'fluent/plugin/kafka_plugin_util'
 
 require 'rdkafka'
 
-class Fluent::RdKafkaGroupInput < Fluent::Input
+class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   Fluent::Plugin.register_input('rdkafka_group', self)
+
+  helpers :thread
 
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
@@ -54,15 +56,7 @@ class Fluent::RdKafkaGroupInput < Fluent::Input
   class ForShutdown < StandardError
   end
 
-  BufferError = if defined?(Fluent::Plugin::Buffer::BufferOverflowError)
-                  Fluent::Plugin::Buffer::BufferOverflowError
-                else
-                  Fluent::BufferQueueLimitError
-                end
-
-  unless method_defined?(:router)
-    define_method("router") { Fluent::Engine }
-  end
+  BufferError = Fluent::Plugin::Buffer::BufferOverflowError
 
   def initialize
     super
@@ -98,11 +92,7 @@ class Fluent::RdKafkaGroupInput < Fluent::Input
     @time_source = :record if @use_record_time
 
     if @time_source == :record and @time_format
-      if defined?(Fluent::TimeParser)
-        @time_parser = Fluent::TimeParser.new(@time_format)
-      else
-        @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
-      end
+      @time_parser = Fluent::TimeParser.new(@time_format)
     end
   end
 
@@ -132,7 +122,8 @@ class Fluent::RdKafkaGroupInput < Fluent::Input
     super
 
     @consumer = setup_consumer
-    @thread = Thread.new(&method(:run))
+
+    thread_create(:in_rdkafka_group, &method(:run))
   end
 
   def shutdown
@@ -143,7 +134,6 @@ class Fluent::RdKafkaGroupInput < Fluent::Input
     @consumer = nil
     consumer.close
 
-    @thread.join
     super
   end
 
