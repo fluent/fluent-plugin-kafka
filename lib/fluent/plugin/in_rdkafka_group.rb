@@ -83,7 +83,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     super
 
     $log.info "Will watch for topics #{@topics} at brokers " \
-              "#{@brokers} and '#{@consumer_group}' group"
+              "#{@kafka_configs["bootstrap.servers"]} and '#{@kafka_configs["group.id"]}' group"
 
     @topics = _config_to_array(@topics)
 
@@ -174,6 +174,11 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     end
   end
 
+  # Executes the passed codeblock on a batch of messages.
+  # It is guaranteed that every message in a given batch belongs to the same topic, because the tagging logic in :run expects that property.
+  # The number of maximum messages in a batch is capped by the :max_batch_size configuration value. It ensures that consuming from a single
+  # topic for a long time (e.g. with `auto.offset.reset` set to `earliest`) does not lead to memory exhaustion. Also, calling consumer.poll
+  # advances thes consumer offset, so in case the process crashes we might lose at most :max_batch_size messages.
   def each_batch(&block)
     batch = nil
     message = nil
