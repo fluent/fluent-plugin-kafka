@@ -2,18 +2,14 @@ require 'fluent/input'
 require 'fluent/time'
 require 'fluent/plugin/kafka_plugin_util'
 
-class Fluent::KafkaGroupInput < Fluent::Input
-  Fluent::Plugin.register_input('kafka_group', self)
+require 'rdkafka'
 
-  config_param :brokers, :string, :default => 'localhost:9092',
-               :desc => "List of broker-host:port, separate with comma, must set."
-  config_param :consumer_group, :string,
-               :desc => "Consumer group name, must set."
+class Fluent::RdKafkaGroupInput < Fluent::Input
+  Fluent::Plugin.register_input('rdkafka_group', self)
+
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
-  config_param :client_id, :string, :default => 'kafka'
-  config_param :sasl_over_ssl, :bool, :default => true,
-               :desc => "Set to false to prevent SSL strict mode when using SASL authentication"
+
   config_param :format, :string, :default => 'json',
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
@@ -24,8 +20,6 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Tag prefix (Optional)"
   config_param :add_suffix, :string, :default => nil,
                :desc => "Tag suffix (Optional)"
-  config_param :retry_emit_limit, :integer, :default => nil,
-               :desc => "How long to stop event consuming when BufferQueueLimitError happens. Wait retry_emit_limit x 1s. The default is waiting until BufferQueueLimitError is resolved"
   config_param :use_record_time, :bool, :default => false,
                :desc => "Replace message timestamp with contents of 'time' field.",
                :deprecated => "Use 'time_source record' instead."
@@ -33,38 +27,26 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Source for message timestamp."
   config_param :record_time_key, :string, :default => 'time',
                :desc => "Time field when time_source is 'record'"
-  config_param :get_kafka_client_log, :bool, :default => false
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
-  config_param :connect_timeout, :integer, :default => nil,
-               :desc => "[Integer, nil] the timeout setting for connecting to brokers"
-  config_param :socket_timeout, :integer, :default => nil,
-               :desc => "[Integer, nil] the timeout setting for socket connection"
 
+  config_param :retry_emit_limit, :integer, :default => nil,
+               :desc => "How long to stop event consuming when BufferQueueLimitError happens. Wait retry_emit_limit x 1s. The default is waiting until BufferQueueLimitError is resolved"
   config_param :retry_wait_seconds, :integer, :default => 30
   config_param :disable_retry_limit, :bool, :default => false,
                :desc => "If set true, it disables retry_limit and make Fluentd retry indefinitely (default: false)"
   config_param :retry_limit, :integer, :default => 10,
                :desc => "The maximum number of retries for connecting kafka (default: 10)"
-  # Kafka consumer options
-  config_param :max_bytes, :integer, :default => 1048576,
-               :desc => "Maximum number of bytes to fetch."
-  config_param :max_wait_time, :integer, :default => nil,
-               :desc => "How long to block until the server sends us data."
-  config_param :min_bytes, :integer, :default => nil,
-               :desc => "Smallest amount of data the server should send us."
-  config_param :session_timeout, :integer, :default => nil,
-               :desc => "The number of seconds after which, if a client hasn't contacted the Kafka cluster"
-  config_param :offset_commit_interval, :integer, :default => nil,
-               :desc => "The interval between offset commits, in seconds"
-  config_param :offset_commit_threshold, :integer, :default => nil,
-               :desc => "The number of messages that can be processed before their offsets are committed"
-  config_param :fetcher_max_queue_size, :integer, :default => nil,
-               :desc => "The number of fetched messages per partition that are queued in fetcher queue"
-  config_param :start_from_beginning, :bool, :default => true,
-               :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
+ 
+  config_param :max_wait_time_ms, :integer, :default => 250,
+               :desc => "How long to block polls in milliseconds until the server sends us data."
+  config_param :max_batch_size, :integer, :default => 10000,
+               :desc => "Maximum number of log lines emitted in a single batch."
+ 
+  config_param :kafka_configs, :hash, :default => {},
+               :desc => "Kafka configuration properties as desribed in https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md"
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
@@ -84,7 +66,6 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
   def initialize
     super
-    require 'kafka'
 
     @time_parser = nil
     @retry_count = 1
@@ -112,22 +93,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     @topics = _config_to_array(@topics)
 
-    if conf['max_wait_ms']
-      log.warn "'max_wait_ms' parameter is deprecated. Use second unit 'max_wait_time' instead"
-      @max_wait_time = conf['max_wait_ms'].to_i / 1000
-    end
-
     @parser_proc = setup_parser
-
-    @consumer_opts = {:group_id => @consumer_group}
-    @consumer_opts[:session_timeout] = @session_timeout if @session_timeout
-    @consumer_opts[:offset_commit_interval] = @offset_commit_interval if @offset_commit_interval
-    @consumer_opts[:offset_commit_threshold] = @offset_commit_threshold if @offset_commit_threshold
-    @consumer_opts[:fetcher_max_queue_size] = @fetcher_max_queue_size if @fetcher_max_queue_size
-
-    @fetch_opts = {}
-    @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
-    @fetch_opts[:min_bytes] = @min_bytes if @min_bytes
 
     @time_source = :record if @use_record_time
 
@@ -146,42 +112,24 @@ class Fluent::KafkaGroupInput < Fluent::Input
       begin
         require 'oj'
         Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
-        Proc.new { |msg| Oj.load(msg.value) }
+        Proc.new { |msg| Oj.load(msg.payload) }
       rescue LoadError
         require 'yajl'
-        Proc.new { |msg| Yajl::Parser.parse(msg.value) }
+        Proc.new { |msg| Yajl::Parser.parse(msg.payload) }
       end
     when 'ltsv'
       require 'ltsv'
-      Proc.new { |msg| LTSV.parse(msg.value, {:symbolize_keys => false}).first }
+      Proc.new { |msg| LTSV.parse(msg.payload, {:symbolize_keys => false}).first }
     when 'msgpack'
       require 'msgpack'
-      Proc.new { |msg| MessagePack.unpack(msg.value) }
+      Proc.new { |msg| MessagePack.unpack(msg.payload) }
     when 'text'
-      Proc.new { |msg| {@message_key => msg.value} }
+      Proc.new { |msg| {@message_key => msg.payload} }
     end
   end
 
   def start
     super
-
-    logger = @get_kafka_client_log ? log : nil
-    if @scram_mechanism != nil && @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
-                         ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
-                         ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
-                         sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
-    elsif @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
-                         ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
-                         ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password,
-                         sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
-    else
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
-                         ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
-                         ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab,
-                         ssl_verify_hostname: @ssl_verify_hostname)
-    end
 
     @consumer = setup_consumer
     @thread = Thread.new(&method(:run))
@@ -193,25 +141,15 @@ class Fluent::KafkaGroupInput < Fluent::Input
     # If the problem happens, we will add a guard for consumer.
     consumer = @consumer
     @consumer = nil
-    consumer.stop
+    consumer.close
 
     @thread.join
-    @kafka.close
     super
   end
 
   def setup_consumer
-    consumer = @kafka.consumer(@consumer_opts)
-    @topics.each { |topic|
-      if m = /^\/(.+)\/$/.match(topic)
-        topic_or_regex = Regexp.new(m[1])
-        $log.info "Subscribe to topics matching the regex #{topic}"
-      else
-        topic_or_regex = topic
-        $log.info "Subscribe to topic #{topic}"
-      end
-      consumer.subscribe(topic_or_regex, start_from_beginning: @start_from_beginning, max_bytes_per_partition: @max_bytes)
-    }
+    consumer = Rdkafka::Config.new(@kafka_configs).consumer
+    consumer.subscribe(*@topics)
     consumer
   end
 
@@ -220,7 +158,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     consumer = @consumer
     @consumer = nil
     if consumer
-      consumer.stop
+      consumer.close
     end
     log.warn "Could not connect to broker. retry_time:#{@retry_count}. Next retry will be in #{@retry_wait_seconds} seconds"
     @retry_count = @retry_count + 1
@@ -236,10 +174,42 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
   end
 
+  class Batch
+    attr_reader :topic
+    attr_reader :messages
+
+    def initialize(topic)
+      @topic = topic
+      @messages = []
+    end
+  end
+
+  def each_batch(&block)
+    batch = nil
+    message = nil
+    while @consumer
+      message = @consumer.poll(@max_wait_time_ms)
+      if message
+        if not batch
+          batch = Batch.new(message.topic)
+        elsif batch.topic != message.topic || batch.messages.count >= @max_batch_size
+          yield batch
+          batch = Batch.new(message.topic)
+        end
+        batch.messages << message
+      else
+        yield batch if batch
+        batch = nil
+      end
+    end
+    yield batch if batch
+  end
+
   def run
     while @consumer
       begin
-        @consumer.each_batch(@fetch_opts) { |batch|
+        each_batch { |batch|
+          log.debug "A new batch for topic #{batch.topic} with #{batch.messages.count} messages"
           es = Fluent::MultiEventStream.new
           tag = batch.topic
           tag = @add_prefix + "." + tag if @add_prefix
@@ -250,7 +220,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
               record = @parser_proc.call(msg)
               case @time_source
               when :kafka
-                record_time = Fluent::EventTime.from_time(msg.create_time)
+                record_time = Fluent::EventTime.from_time(msg.timestamp)
               when :now
                 record_time = Fluent::Engine.now
               when :record
@@ -272,7 +242,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
               end
               es.add(record_time, record)
             rescue => e
-              log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+              log.warn "parser error in #{msg.topic}/#{msg.partition}", :error => e.to_s, :value => msg.payload, :offset => msg.offset
               log.debug_backtrace
             end
           }
