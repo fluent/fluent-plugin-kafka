@@ -187,7 +187,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       if message
         if not batch
           batch = Batch.new(message.topic)
-        elsif batch.topic != message.topic || batch.messages.count >= @max_batch_size
+        elsif batch.topic != message.topic || batch.messages.size >= @max_batch_size
           yield batch
           batch = Batch.new(message.topic)
         end
@@ -204,7 +204,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     while @consumer
       begin
         each_batch { |batch|
-          log.debug "A new batch for topic #{batch.topic} with #{batch.messages.count} messages"
+          log.debug "A new batch for topic #{batch.topic} with #{batch.messages.size} messages"
           es = Fluent::MultiEventStream.new
           tag = batch.topic
           tag = @add_prefix + "." + tag if @add_prefix
