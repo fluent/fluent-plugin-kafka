@@ -141,9 +141,11 @@ See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-mes
 
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
-### Input plugin (@type 'kafka_group', supports kafka group, uses rdkafka-ruby)
+### Input plugin (@type 'rdkafka_group', supports kafka consumer groups, uses rdkafka-ruby)
 
-Consume events by kafka consumer group features..
+:warning: **The in_rdkafka_group consumer was not yet tested under heavy production load. Use it at your own risk!**
+
+With the introduction of the rdkafka-ruby based input plugin we hope to support Kafka brokers above version 2.1 where we saw [compatibility issues](https://github.com/fluent/fluent-plugin-kafka/issues/315) when using the ruby-kafka based @kafka_group input type. The rdkafka-ruby lib wraps the highly performant and production ready librdkafka C lib.
 
     <source>
       @type rdkafka_group

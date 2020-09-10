@@ -82,7 +82,9 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   def configure(conf)
     super
 
-    $log.info "Will watch for topics #{@topics} at brokers " \
+    log.warn "The in_rdkafka_group consumer was not yet tested under heavy production load. Use it at your own risk!"
+
+    log.info "Will watch for topics #{@topics} at brokers " \
               "#{@kafka_configs["bootstrap.servers"]} and '#{@kafka_configs["group.id"]}' group"
 
     @topics = _config_to_array(@topics)
