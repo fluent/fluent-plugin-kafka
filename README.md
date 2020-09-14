@@ -141,6 +141,39 @@ See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-mes
 
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
+### Input plugin (@type 'rdkafka_group', supports kafka consumer groups, uses rdkafka-ruby)
+
+:warning: **The in_rdkafka_group consumer was not yet tested under heavy production load. Use it at your own risk!**
+
+With the introduction of the rdkafka-ruby based input plugin we hope to support Kafka brokers above version 2.1 where we saw [compatibility issues](https://github.com/fluent/fluent-plugin-kafka/issues/315) when using the ruby-kafka based @kafka_group input type. The rdkafka-ruby lib wraps the highly performant and production ready librdkafka C lib.
+
+    <source>
+      @type rdkafka_group
+      topics <listening topics(separate with comma',')>
+      format <input text type (text|json|ltsv|msgpack)> :default => json
+      message_key <key (Optional, for text format only, default is message)>
+      kafka_mesasge_key <key (Optional, If specified, set kafka's message key to this key)>
+      add_headers <If true, add kafka's message headers to record>
+      add_prefix <tag prefix (Optional)>
+      add_suffix <tag suffix (Optional)>
+      retry_emit_limit <Wait retry_emit_limit x 1s when BuffereQueueLimitError happens. The default is nil and it means waiting until BufferQueueLimitError is resolved>
+      use_record_time (Deprecated. Use 'time_source record' instead.) <If true, replace event time with contents of 'time' field of fetched record>
+      time_source <source for message timestamp (now|kafka|record)> :default => now
+      time_format <string (Optional when use_record_time is used)>
+
+      # kafka consumer options
+      max_wait_time_ms 500
+      max_batch_size 10000
+      kafka_configs {
+        "bootstrap.servers": "brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>",
+        "group.id": "<consumer group name>"
+      }
+    </source>
+
+See also [rdkafka-ruby](https://github.com/appsignal/rdkafka-ruby) and [librdkafka](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for more detailed documentation about Kafka consumer options.
+
+Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
+
 ### Output plugin
 
 This `kafka2` plugin is for fluentd v1 or later. This plugin uses `ruby-kafka` producer for writing data.
