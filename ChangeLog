@@ -1,3 +1,8 @@
+Release 0.15.0 - 2020/09/14
+
+	* Add experimental `in_rdkafka_group`
+	* in_kafka: Expose `ssl_verify_hostname` parameter
+
 Release 0.14.2 - 2020/08/26
 
 	* in_kafka_group: Add `add_headers` parameter
