@@ -128,7 +128,7 @@ DESC
         @seed_brokers = @brokers
         log.info "brokers has been set: #{@seed_brokers}"
       else
-        raise Fluent::Config, 'No brokers specified. Need one broker at least.'
+        raise Fluent::ConfigError, 'No brokers specified. Need one broker at least.'
       end
 
       formatter_conf = conf.elements('format').first
