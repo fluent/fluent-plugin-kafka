@@ -7,7 +7,7 @@ require 'rdkafka'
 class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   Fluent::Plugin.register_input('rdkafka_group', self)
 
-  helpers :thread
+  helpers :thread, :parser, :compat_parameters
 
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
@@ -41,14 +41,18 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
                :desc => "If set true, it disables retry_limit and make Fluentd retry indefinitely (default: false)"
   config_param :retry_limit, :integer, :default => 10,
                :desc => "The maximum number of retries for connecting kafka (default: 10)"
- 
+
   config_param :max_wait_time_ms, :integer, :default => 250,
                :desc => "How long to block polls in milliseconds until the server sends us data."
   config_param :max_batch_size, :integer, :default => 10000,
                :desc => "Maximum number of log lines emitted in a single batch."
- 
+
   config_param :kafka_configs, :hash, :default => {},
                :desc => "Kafka configuration properties as desribed in https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md"
+
+  config_section :parse do
+    config_set_default :@type, 'json'
+  end
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
@@ -80,6 +84,8 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   private :_config_to_array
 
   def configure(conf)
+    compat_parameters_convert(conf, :parser)
+
     super
 
     log.warn "The in_rdkafka_group consumer was not yet tested under heavy production load. Use it at your own risk!"
@@ -89,7 +95,14 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
 
     @topics = _config_to_array(@topics)
 
-    @parser_proc = setup_parser
+    parser_conf = conf.elements('parse').first
+    unless parser_conf
+      raise Fluent::ConfigError, "<parse> section or format parameter is required."
+    end
+    unless parser_conf["@type"]
+      raise Fluent::ConfigError, "parse/@type is required."
+    end
+    @parser_proc = setup_parser(parser_conf)
 
     @time_source = :record if @use_record_time
 
@@ -98,8 +111,9 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     end
   end
 
-  def setup_parser
-    case @format
+  def setup_parser(parser_conf)
+    format = parser_conf["@type"]
+    case format
     when 'json'
       begin
         require 'oj'
@@ -117,6 +131,13 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       Proc.new { |msg| MessagePack.unpack(msg.payload) }
     when 'text'
       Proc.new { |msg| {@message_key => msg.payload} }
+    else
+      @custom_parser = parser_create(usage: 'in-rdkafka-plugin', conf: parser_conf)
+      Proc.new { |msg|
+        @custom_parser.parse(msg.payload) {|_time, record|
+          record
+        }
+      }
     end
   end
 

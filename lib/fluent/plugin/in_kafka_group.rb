@@ -117,7 +117,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
       @max_wait_time = conf['max_wait_ms'].to_i / 1000
     end
 
-    @parser_proc = setup_parser
+    @parser_proc = setup_parser(conf)
 
     @consumer_opts = {:group_id => @consumer_group}
     @consumer_opts[:session_timeout] = @session_timeout if @session_timeout
@@ -140,7 +140,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
   end
 
-  def setup_parser
+  def setup_parser(conf)
     case @format
     when 'json'
       begin
@@ -159,6 +159,14 @@ class Fluent::KafkaGroupInput < Fluent::Input
       Proc.new { |msg| MessagePack.unpack(msg.value) }
     when 'text'
       Proc.new { |msg| {@message_key => msg.value} }
+    else
+      @custom_parser = Fluent::Plugin.new_parser(conf['format'])
+      @custom_parser.configure(conf)
+      Proc.new { |msg|
+        @custom_parser.parse(msg.value) {|_time, record|
+          record
+        }
+      }
     end
   end
 
