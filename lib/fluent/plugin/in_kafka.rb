@@ -113,7 +113,7 @@ class Fluent::KafkaInput < Fluent::Input
 
     require 'zookeeper' if @offset_zookeeper
 
-    @parser_proc = setup_parser
+    @parser_proc = setup_parser(conf)
 
     @time_source = :record if @use_record_time
 
@@ -126,7 +126,7 @@ class Fluent::KafkaInput < Fluent::Input
     end
   end
 
-  def setup_parser
+  def setup_parser(conf)
     case @format
     when 'json'
       begin
@@ -164,6 +164,14 @@ class Fluent::KafkaInput < Fluent::Input
         r = {@message_key => msg.value}
         add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
         r
+      }
+    else
+      @custom_parser = Fluent::Plugin.new_parser(conf['format'])
+      @custom_parser.configure(conf)
+      Proc.new { |msg|
+        @custom_parser.parse(msg.value) {|_time, record|
+          record
+        }
       }
     end
   end
