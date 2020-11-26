@@ -28,6 +28,7 @@ Release 0.14.0 - 2020/08/07
 Release 0.13.1 - 2020/07/17
 
 	* in_kafka_group: Support ssl_verify_hostname parameter
+	* in_kafka_group: Support regex based topics
 	* out_kafka2/out_rdkafka2: Support topic parameter with placeholders
 
 Release 0.13.0 - 2020/03/09

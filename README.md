@@ -139,6 +139,8 @@ Consume events by kafka consumer group features..
 
 See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka options.
 
+`topics` supports regex pattern since v0.13.1. If you want to use regex pattern, use `/pattern/` like `/foo.*/`.
+
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
 ### Input plugin (@type 'rdkafka_group', supports kafka consumer groups, uses rdkafka-ruby)
