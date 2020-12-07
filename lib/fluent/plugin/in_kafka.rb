@@ -224,6 +224,7 @@ class Fluent::KafkaInput < Fluent::Input
         router,
         @kafka_message_key,
         @time_source,
+        @record_time_key,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -248,7 +249,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -260,6 +261,7 @@ class Fluent::KafkaInput < Fluent::Input
       @router = router
       @kafka_message_key = kafka_message_key
       @time_source = time_source
+      @record_time_key = record_time_key
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
