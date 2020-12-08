@@ -1,3 +1,7 @@
+Release 0.15.3 - 2020/12/08
+
+	* in_kafka: Fix `record_time_key` parameter not working
+
 Release 0.15.2 - 2020/09/30
 
 	* input: Support 3rd party parser
