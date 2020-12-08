@@ -31,6 +31,8 @@ class Fluent::KafkaInput < Fluent::Input
   config_param :add_suffix, :string, :default => nil,
                :desc => "tag suffix"
   config_param :add_offset_in_record, :bool, :default => false
+  config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
+               :desc => "Source for the fluentd event tag"
 
   config_param :offset_zookeeper, :string, :default => nil
   config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
@@ -225,6 +227,7 @@ class Fluent::KafkaInput < Fluent::Input
         @kafka_message_key,
         @time_source,
         @record_time_key,
+        @tag_source,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -249,7 +252,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, tag_source, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -262,6 +265,7 @@ class Fluent::KafkaInput < Fluent::Input
       @kafka_message_key = kafka_message_key
       @time_source = time_source
       @record_time_key = record_time_key
+      @tag_source = tag_source
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
@@ -298,6 +302,11 @@ class Fluent::KafkaInput < Fluent::Input
       messages.each { |msg|
         begin
           record = @parser.call(msg, @topic_entry)
+          if @tag_source == :record
+            tag = record["tag"]
+            tag = @add_prefix + "." + tag if @add_prefix
+            tag = tag + "." + @add_suffix if @add_suffix
+          end
           case @time_source
           when :kafka
             record_time = Fluent::EventTime.from_time(msg.create_time)
