@@ -36,6 +36,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :get_kafka_client_log, :bool, :default => false
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
+  config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
+               :desc => "Source for the fluentd event tag"
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
   config_param :connect_timeout, :integer, :default => nil,
@@ -256,6 +258,11 @@ class Fluent::KafkaGroupInput < Fluent::Input
           batch.messages.each { |msg|
             begin
               record = @parser_proc.call(msg)
+              if @tag_source == :record
+                tag = record["tag"]
+                tag = @add_prefix + "." + tag if @add_prefix
+                tag = tag + "." + @add_suffix if @add_suffix
+              end
               case @time_source
               when :kafka
                 record_time = Fluent::EventTime.from_time(msg.create_time)
