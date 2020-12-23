@@ -250,19 +250,18 @@ class Fluent::KafkaGroupInput < Fluent::Input
     while @consumer
       begin
         @consumer.each_batch(@fetch_opts) { |batch|
-          es = Fluent::MultiEventStream.new
-          tag = batch.topic
-          tag = @add_prefix + "." + tag if @add_prefix
-          tag = tag + "." + @add_suffix if @add_suffix
-
+          es = {}   
           batch.messages.each { |msg|
             begin
               record = @parser_proc.call(msg)
               if @tag_source == :record
                 tag = record["tag"]
-                tag = @add_prefix + "." + tag if @add_prefix
-                tag = tag + "." + @add_suffix if @add_suffix
+              else 
+                tag = batch.topic
               end
+              tag = @add_prefix + "." + tag if @add_prefix
+              tag = tag + "." + @add_suffix if @add_suffix
+              es[tag] ||= Fluent::MultiEventStream.new
               case @time_source
               when :kafka
                 record_time = Fluent::EventTime.from_time(msg.create_time)
@@ -285,7 +284,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
                   record[k] = v
                 }
               end
-              es.add(record_time, record)
+              es[tag].add(record_time, record)
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
               log.debug_backtrace
@@ -293,7 +292,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
           }
 
           unless es.empty?
-            emit_events(tag, es)
+            es.each { |tag,es|
+              emit_events(tag, es)
+            }
           end
         }
       rescue ForShutdown
