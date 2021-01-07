@@ -62,6 +62,8 @@ module Fluent
                        :desc => "a password when using PLAIN/SCRAM SASL authentication"
           config_param :scram_mechanism, :string, :default => nil,
                        :desc => "if set, use SCRAM authentication with specified mechanism. When unset, default to PLAIN authentication"
+          config_param :oauth_token_provider, :string, :default => nil,
+                       :desc => "instance of the class that implements the OAuth token. See https://github.com/zendesk/ruby-kafka#oauthbearer ."
         }
       end
     end
