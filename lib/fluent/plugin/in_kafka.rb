@@ -33,6 +33,8 @@ class Fluent::KafkaInput < Fluent::Input
   config_param :add_offset_in_record, :bool, :default => false
   config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
                :desc => "Source for the fluentd event tag"
+  config_param :record_tag_key, :string, :default => 'tag',
+               :desc => "Tag field when tag_source is 'record'"
 
   config_param :offset_zookeeper, :string, :default => nil
   config_param :offset_zk_root_node, :string, :default => '/fluent-plugin-kafka'
@@ -228,6 +230,7 @@ class Fluent::KafkaInput < Fluent::Input
         @time_source,
         @record_time_key,
         @tag_source,
+        @record_tag_key,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -252,7 +255,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, tag_source, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, tag_source, record_tag_key, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -266,6 +269,7 @@ class Fluent::KafkaInput < Fluent::Input
       @time_source = time_source
       @record_time_key = record_time_key
       @tag_source = tag_source
+      @record_tag_key = record_tag_key
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
@@ -303,7 +307,7 @@ class Fluent::KafkaInput < Fluent::Input
         begin
           record = @parser.call(msg, @topic_entry)
           if @tag_source == :record
-            tag = record["tag"]
+            tag = record[@record_tag_key]
             tag = @add_prefix + "." + tag if @add_prefix
             tag = tag + "." + @add_suffix if @add_suffix
           end

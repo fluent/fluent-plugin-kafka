@@ -38,6 +38,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Time format to be used to parse 'time' field."
   config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
                :desc => "Source for the fluentd event tag"
+  config_param :record_tag_key, :string, :default => 'tag',
+               :desc => "Tag field when tag_source is 'record'"
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
   config_param :connect_timeout, :integer, :default => nil,
@@ -255,7 +257,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
             begin
               record = @parser_proc.call(msg)
               if @tag_source == :record
-                tag = record["tag"]
+                tag = record[@record_tag_key]
               else 
                 tag = batch.topic
               end
