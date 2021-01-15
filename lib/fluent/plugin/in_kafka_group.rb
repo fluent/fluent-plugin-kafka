@@ -248,55 +248,102 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
   end
 
+  def process_batch_with_record_tag(batch)
+    es = {} 
+    batch.messages.each { |msg|
+      begin
+        record = @parser_proc.call(msg)
+        tag = record[@record_tag_key]
+        tag = @add_prefix + "." + tag if @add_prefix
+        tag = tag + "." + @add_suffix if @add_suffix
+        es[tag] ||= Fluent::MultiEventStream.new
+        case @time_source
+        when :kafka
+          record_time = Fluent::EventTime.from_time(msg.create_time)
+        when :now
+          record_time = Fluent::Engine.now
+        when :record
+          if @time_format
+            record_time = @time_parser.parse(record[@record_time_key].to_s)
+          else
+            record_time = record[@record_time_key]
+          end
+        else
+          log.fatal "BUG: invalid time_source: #{@time_source}"
+        end
+        if @kafka_message_key
+          record[@kafka_message_key] = msg.key
+        end
+        if @add_headers
+          msg.headers.each_pair { |k, v|
+            record[k] = v
+          }
+        end
+        es[tag].add(record_time, record)
+      rescue => e
+        log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+        log.debug_backtrace
+      end
+    }
+
+    unless es.empty?
+      es.each { |tag,es|
+        emit_events(tag, es)
+      }
+    end
+  end
+
+  def process_batch(batch)
+    es = Fluent::MultiEventStream.new
+    tag = batch.topic
+    tag = @add_prefix + "." + tag if @add_prefix
+    tag = tag + "." + @add_suffix if @add_suffix
+
+    batch.messages.each { |msg|
+      begin
+        record = @parser_proc.call(msg)
+        case @time_source
+        when :kafka
+          record_time = Fluent::EventTime.from_time(msg.create_time)
+        when :now
+          record_time = Fluent::Engine.now
+        when :record
+          if @time_format
+            record_time = @time_parser.parse(record[@record_time_key].to_s)
+          else
+            record_time = record[@record_time_key]
+          end
+        else
+          log.fatal "BUG: invalid time_source: #{@time_source}"
+        end
+        if @kafka_message_key
+          record[@kafka_message_key] = msg.key
+        end
+        if @add_headers
+          msg.headers.each_pair { |k, v|
+            record[k] = v
+          }
+        end
+        es.add(record_time, record)
+      rescue => e
+        log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+        log.debug_backtrace
+      end
+    }
+
+    unless es.empty?
+      emit_events(tag, es)
+    end
+  end
+
   def run
     while @consumer
       begin
         @consumer.each_batch(@fetch_opts) { |batch|
-          es = {}   
-          batch.messages.each { |msg|
-            begin
-              record = @parser_proc.call(msg)
-              if @tag_source == :record
-                tag = record[@record_tag_key]
-              else 
-                tag = batch.topic
-              end
-              tag = @add_prefix + "." + tag if @add_prefix
-              tag = tag + "." + @add_suffix if @add_suffix
-              es[tag] ||= Fluent::MultiEventStream.new
-              case @time_source
-              when :kafka
-                record_time = Fluent::EventTime.from_time(msg.create_time)
-              when :now
-                record_time = Fluent::Engine.now
-              when :record
-                if @time_format
-                  record_time = @time_parser.parse(record[@record_time_key].to_s)
-                else
-                  record_time = record[@record_time_key]
-                end
-              else
-                log.fatal "BUG: invalid time_source: #{@time_source}"
-              end
-              if @kafka_message_key
-                record[@kafka_message_key] = msg.key
-              end
-              if @add_headers
-                msg.headers.each_pair { |k, v|
-                  record[k] = v
-                }
-              end
-              es[tag].add(record_time, record)
-            rescue => e
-              log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
-              log.debug_backtrace
-            end
-          }
-
-          unless es.empty?
-            es.each { |tag,es|
-              emit_events(tag, es)
-            }
+          if @tag_source == :record
+            process_batch_with_record_tag(batch)
+          else
+            process_batch(batch) 
           end
         }
       rescue ForShutdown
