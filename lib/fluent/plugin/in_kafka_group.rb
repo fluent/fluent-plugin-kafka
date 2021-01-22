@@ -142,6 +142,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
         @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
       end
     end
+
+    if @time_source == :record && defined?(Fluent::NumericTimeParser)
+      @float_numeric_parse = Fluent::NumericTimeParser.new(:float)
+    end
   end
 
   def setup_parser(conf)
@@ -308,10 +312,12 @@ class Fluent::KafkaGroupInput < Fluent::Input
         when :now
           record_time = Fluent::Engine.now
         when :record
+          record_time = record[@record_time_key]
+
           if @time_format
-            record_time = @time_parser.parse(record[@record_time_key].to_s)
-          else
-            record_time = record[@record_time_key]
+            record_time = @time_parser.parse(record_time.to_s)
+          elsif record_time.is_a?(Float) && @float_numeric_parse
+            record_time = @float_numeric_parse.parse(record_time)
           end
         else
           log.fatal "BUG: invalid time_source: #{@time_source}"
