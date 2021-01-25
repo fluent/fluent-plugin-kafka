@@ -1,3 +1,8 @@
+Release 0.16.0 - 2021/01/25
+
+	* input: Add `tag_source` and `record_tag_key` parameters for using record field as tag
+	* in_kafka_group: Use NumericParser for floating point
+
 Release 0.15.3 - 2020/12/08
 
 	* in_kafka: Fix `record_time_key` parameter not working
