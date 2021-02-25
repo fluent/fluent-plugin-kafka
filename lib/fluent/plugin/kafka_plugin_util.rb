@@ -33,7 +33,7 @@ module Fluent
       end
 
       def read_ssl_file(path)
-        return nil if path.nil?
+        return nil if path.nil? || path.respond_to?(:strip) && path.strip.empty?
 
         if path.is_a?(Array)
           path.map { |fp| File.read(fp) }
