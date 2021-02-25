@@ -32,13 +32,27 @@ module Fluent
         end
       end
 
+      def invalid_path?(path)
+        path.nil? || path.respond_to?(:strip) && path.strip.empty?
+      end
+
       def read_ssl_file(path)
-        return nil if path.nil? || path.respond_to?(:strip) && path.strip.empty?
+        return nil if invalid_path?(path)
 
         if path.is_a?(Array)
           path.map { |fp| File.read(fp) }
         else
           File.read(path)
+        end
+      end
+
+      END_CERTIFICATE = "\n-----END CERTIFICATE-----\n"
+
+      def read_ssl_ca_certs
+        return nil if @ssl_ca_cert.nil?
+        valid_paths = @ssl_ca_cert.reject { |path| invalid_path?(path) }
+        valid_paths.flat_map do |path|
+          File.read(path).split(END_CERTIFICATE).map { |c| c += END_CERTIFICATE }
         end
       end
 
