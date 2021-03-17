@@ -239,7 +239,7 @@ DESC
     @producers_mutex.synchronize {
       producer = @producers[Thread.current.object_id]
       unless producer
-        producer = @kafka.producer(@producer_opts)
+        producer = @kafka.producer(**@producer_opts)
         @producers[Thread.current.object_id] = producer
       end
       producer

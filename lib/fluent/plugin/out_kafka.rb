@@ -215,7 +215,7 @@ DESC
       chain.next
 
       # out_kafka is mainly for testing so don't need the performance unlike out_kafka_buffered.
-      producer = @kafka.producer(@producer_opts)
+      producer = @kafka.producer(**@producer_opts)
 
       es.each do |time, record|
         if @output_include_time
