@@ -1,6 +1,7 @@
 # fluent-plugin-kafka, a plugin for [Fluentd](http://fluentd.org)
 
-[![Build Status](https://travis-ci.org/fluent/fluent-plugin-kafka.svg?branch=master)](https://travis-ci.org/fluent/fluent-plugin-kafka)
+[![GitHub Actions Status](https://github.com/fluent/fluent-plugin-kafka/actions/workflows/linux.yml/badge.svg)](https://github.com/fluent/fluent-plugin-kafka/actions/workflows/linux.yml)
+
 
 A fluentd plugin to both consume and produce data for Apache Kafka.
 
