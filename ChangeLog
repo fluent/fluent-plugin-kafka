@@ -1,3 +1,7 @@
+Release 0.16.1 - 2021/04/14
+	* out_kafka/out_kafka_buffered: Support Ruby 3.0.0 keyword arguments interop
+	* kafka_plugin_util: Treat empty string in read_ssl_file as nil
+
 Release 0.16.0 - 2021/01/25
 
 	* input: Add `tag_source` and `record_tag_key` parameters for using record field as tag
