@@ -29,7 +29,7 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 ## Usage
 
-### Common parameters
+### Common parameters 
 
 #### SSL authentication
 
