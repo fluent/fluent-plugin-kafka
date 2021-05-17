@@ -22,6 +22,7 @@ unless ENV.has_key?('VERBOSE')
 end
 
 require 'fluent/plugin/out_kafka'
+require 'fluent/plugin/in_kafka'
 
 class Test::Unit::TestCase
 end
