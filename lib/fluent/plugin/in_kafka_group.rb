@@ -345,7 +345,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def run
     while @consumer
       begin
-        @consumer.each_batch(@fetch_opts) { |batch|
+        @consumer.each_batch(**@fetch_opts) { |batch|
           if @tag_source == :record
             process_batch_with_record_tag(batch)
           else
