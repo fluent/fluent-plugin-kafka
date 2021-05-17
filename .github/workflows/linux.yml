@@ -17,10 +17,20 @@ jobs:
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby }}
+    - name: Install confluent-kafka
+      run: |
+        sudo apt install -V -y gnupg2 wget
+        wget https://packages.confluent.io/deb/6.0/archive.key
+        sudo gpg2 --homedir /tmp --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/confluent-archive-keyring.gpg --import archive.key
+        sudo chmod 644 /usr/share/keyrings/confluent-archive-keyring.gpg
+        sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/confluent-archive-keyring.gpg] https://packages.confluent.io/deb/6.0 stable main" > /etc/apt/sources.list.d/confluent.list'
+        sudo apt update
+        sudo apt install -y confluent-community-2.13 openjdk-11-jre netcat-openbsd
     - name: unit testing
       env:
         CI: true
       run: |
+        sudo ./ci/prepare-kafka-server.sh
         gem install bundler rake
         bundle install --jobs 4 --retry 3
         bundle exec rake test
