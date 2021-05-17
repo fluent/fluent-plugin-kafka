@@ -23,6 +23,7 @@ end
 
 require 'fluent/plugin/out_kafka'
 require 'fluent/plugin/in_kafka'
+require 'fluent/plugin/in_kafka_group'
 
 class Test::Unit::TestCase
 end
