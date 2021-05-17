@@ -217,7 +217,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def setup_consumer
-    consumer = @kafka.consumer(@consumer_opts)
+    consumer = @kafka.consumer(**@consumer_opts)
     @topics.each { |topic|
       if m = /^\/(.+)\/$/.match(topic)
         topic_or_regex = Regexp.new(m[1])

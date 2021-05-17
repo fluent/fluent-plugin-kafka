@@ -294,7 +294,7 @@ class Fluent::KafkaInput < Fluent::Input
     def consume
       offset = @next_offset
       @fetch_args[:offset] = offset
-      messages = @kafka.fetch_messages(@fetch_args)
+      messages = @kafka.fetch_messages(**@fetch_args)
 
       return if messages.size.zero?
 
