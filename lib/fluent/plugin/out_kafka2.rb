@@ -24,6 +24,8 @@ DESC
     config_param :partition_key_key, :string, :default => 'partition_key', :desc => "Field for kafka partition key"
     config_param :default_partition_key, :string, :default => nil
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
+    config_param :partitioner_hash_function, :enum, list: [:crc32, :murmur2], :default => :crc32,
+                 :desc => "Specify kafka patrtitioner hash algorithm"
     config_param :default_partition, :integer, :default => nil
     config_param :use_default_for_unknown_topic, :bool, :default => false, :desc => "If true, default_topic is used when topic not found"
     config_param :client_id, :string, :default => 'fluentd'
@@ -99,17 +101,20 @@ DESC
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
                              ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
-                             sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
+                             sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname,
+                             partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
         elsif @username != nil && @password != nil
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
                              ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password, sasl_over_ssl: @sasl_over_ssl,
-                             ssl_verify_hostname: @ssl_verify_hostname)
+                             ssl_verify_hostname: @ssl_verify_hostname,
+                             partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
         else
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
                              ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab, sasl_over_ssl: @sasl_over_ssl,
-                             ssl_verify_hostname: @ssl_verify_hostname)
+                             ssl_verify_hostname: @ssl_verify_hostname,
+                             partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
         end
         log.info "initialized kafka producer: #{@client_id}"
       rescue Exception => e

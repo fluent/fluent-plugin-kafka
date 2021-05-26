@@ -26,6 +26,8 @@ DESC
   config_param :default_partition_key, :string, :default => nil
   config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
   config_param :default_partition, :integer, :default => nil
+  config_param :partitioner_hash_function, :enum, list: [:crc32, :murmur2], :default => :crc32,
+               :desc => "Specify kafka patrtitioner hash algorithm"
   config_param :client_id, :string, :default => 'kafka'
   config_param :idempotent, :bool, :default => false, :desc => 'Enable idempotent producer'
   config_param :sasl_over_ssl, :bool, :default => true,
@@ -133,15 +135,18 @@ DESC
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
                              sasl_scram_username: @username, sasl_scram_password: @password, sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl,
-                             ssl_verify_hostname: @ssl_verify_hostname)
+                             ssl_verify_hostname: @ssl_verify_hostname,
+                             partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
         elsif @username != nil && @password != nil
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
-                             sasl_plain_username: @username, sasl_plain_password: @password, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
+                             sasl_plain_username: @username, sasl_plain_password: @password, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname,
+                             partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
         else
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
-                             sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab, sasl_over_ssl: @sasl_over_ssl,  ssl_verify_hostname: @ssl_verify_hostname)
+                             sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab, sasl_over_ssl: @sasl_over_ssl,  ssl_verify_hostname: @ssl_verify_hostname,
+                             partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
         end
         log.info "initialized kafka producer: #{@client_id}"
       else
