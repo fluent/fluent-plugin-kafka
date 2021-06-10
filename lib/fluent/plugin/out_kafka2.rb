@@ -26,6 +26,8 @@ DESC
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
     config_param :use_default_for_unknown_topic, :bool, :default => false, :desc => "If true, default_topic is used when topic not found"
+    config_param :topic_template_key, :string, :default => 'topic_template', :desc => "Field for kafka topic to use as a template"
+    config_param :create_topic, :bool, :default => false, :desc => "If true, create topic from topic_template_key if topic not found"
     config_param :client_id, :string, :default => 'fluentd'
     config_param :idempotent, :bool, :default => false, :desc => 'Enable idempotent producer'
     config_param :sasl_over_ssl, :bool, :default => true,
@@ -151,6 +153,15 @@ DESC
         if @chunk_key_tag
           log.warn "default_topic is set. Fluentd's event tag is not used for topic"
         end
+        if @create_topic
+          raise Fluent::ConfigError, "Cannot set both use_default_for_unknown_topic and create_topic"
+        end
+      end
+
+      if @create_topic
+        unless @chunk_keys.include?(@topic_template_key)
+          raise Fluent::ConfigError, "#{topic_template_key} must be set in buffer chunk keys if create_topic is true, eg. <buffer #{topic_template_key},#{topic_key}>"
+        end
       end
 
       @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks, idempotent: @idempotent}
@@ -167,6 +178,7 @@ DESC
       end
 
       @topic_key_sym = @topic_key.to_sym
+      @topic_template_key_sym = @topic_template_key.to_sym
 
       @headers_from_record_accessors = {}
       @headers_from_record.each do |key, value|
@@ -284,6 +296,27 @@ DESC
           producer.shutdown if producer
           log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
           topic = @default_topic
+          retry
+        end
+        if @create_topic
+          producer.shutdown if producer
+          topic_template = chunk.metadata.variables[@topic_template_key_sym]
+
+          log.warn "'#{topic}' topic not found. Creating from template topic '#{topic_template}'"
+          topic_replicas = @kafka.replica_count_for(topic_template)
+          topic_partitions = @kafka.partitions_for(topic_template)
+          topic_config = @kafka.describe_topic(topic_template)
+
+          log.warn "Creating topic '#{topic}' (partitions=#{topic_partitions}, replicas=#{topic_replicas}, config='#{topic_config}')"
+          begin
+            @kafka.create_topic(topic,
+              num_partitions: topic_partitions,
+              replication_factor: topic_replicas,
+              config: topic_config
+            )
+          rescue Kafka::TopicAlreadyExists
+            log.warn "Topic '#{topic}' already exists"
+          end
           retry
         end
         raise

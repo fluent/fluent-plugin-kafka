@@ -286,6 +286,48 @@ If key name `partition_key_key` exists in a message, this plugin set the value o
 
 If key name `message_key_key` exists in a message, this plugin publishes the value of message_key_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key_key exists and if partition_key_key is not set explicitly, messsage_key_key will be used for partitioning.
 
+#### Topic creation
+
+It might not be possible to create Kafka topics in advance but you want to
+control topics configuration (replication factor, partitions, etc.) and
+therefore don't want to keep automatic topic creation enabled.
+For such cases, it's possible to create topics on demand when they does not
+exist, taking configuration from already existing topic.
+
+First create parent topic with required parameters (eg. app.kubernetes):
+```
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server="${KAFKA_HOST}" --create --topic "app.kubernetes" --partitions "3" --replication-factor "2" --config min.insync.replicas="2"
+```
+
+New topics will be created with 3 partitions and 2 replicas (min 2 ISR).
+Parent topic is determined by ``topic_template`` key which you can insert
+using for example ``record_transformer`` filter.
+
+```
+<filter app.kubernetes.testapp>
+  @type record_transformer
+  auto_typecast true
+  enable_ruby true
+  <record>
+    # Topic will be app.kubernetes.testapp
+    topic ${tag}
+    # It will be created from configuration of existing topic app.kubernetes
+    topic_template ${tag.split('.')[0..1].join('.')}
+    types topic:string, topic_template:string
+  </record>
+</filter>
+
+<match app.**>
+  @type kafka2
+  create_topic          true
+  topic_template_key    topic_template
+  [...]
+  <buffer topic_template,topic>
+    flush_interval 10s
+  </buffer>
+</match>
+```
+
 #### Headers
 It is possible to set headers on Kafka messages. This only works for kafka2 and rdkafka2 output plugin.
 
