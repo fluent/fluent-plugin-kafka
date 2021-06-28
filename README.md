@@ -109,7 +109,7 @@ Consuming topic name is used for event tag. So when the target topic name is `ap
 
 ### Input plugin (@type 'kafka_group', supports kafka group)
 
-Consume events by kafka consumer group features..
+Consume events by kafka consumer group features.
 
     <source>
       @type kafka_group
