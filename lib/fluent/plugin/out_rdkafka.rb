@@ -48,7 +48,7 @@ Set true to remove partition from data
 DESC
    config_param :exclude_message_key, :bool, :default => false,
                :desc => <<-DESC
-Set true to remove partition key from data
+Set true to remove message key from data
 DESC
    config_param :exclude_topic_key, :bool, :default => false,
                 :desc => <<-DESC
