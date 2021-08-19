@@ -37,7 +37,7 @@ DESC
     config_param :exclude_partition, :bool, :default => false,
                  :desc => 'Set true to remove partition from data'
     config_param :exclude_message_key, :bool, :default => false,
-                 :desc => 'Set true to remove partition key from data'
+                 :desc => 'Set true to remove message key from data'
     config_param :exclude_topic_key, :bool, :default => false,
                  :desc => 'Set true to remove topic name key from data'
     config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for kafka create_time'
