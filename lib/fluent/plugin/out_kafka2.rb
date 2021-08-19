@@ -153,9 +153,6 @@ DESC
         if @chunk_key_tag
           log.warn "default_topic is set. Fluentd's event tag is not used for topic"
         end
-        if @create_topic
-          raise Fluent::ConfigError, "Cannot set both use_default_for_unknown_topic and create_topic"
-        end
       end
 
       if @create_topic
@@ -292,15 +289,20 @@ DESC
           end
         end
       rescue Kafka::UnknownTopicOrPartition
-        if @use_default_for_unknown_topic && topic != @default_topic
-          producer.shutdown if producer
-          log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
-          topic = @default_topic
-          retry
-        end
         if @create_topic
           producer.shutdown if producer
           topic_template = chunk.metadata.variables[@topic_template_key_sym]
+
+          if not topic_template
+            if @use_default_for_unknown_topic && topic != @default_topic
+              log.warn "'#{topic}' topic not found and #{topic_template_key} not present in record. Retry with default topic '#{default_topic}'"
+              topic = @default_topic
+              retry
+            else
+              log.error "Event does not have topic template key #{topic_template_key} present, it's topic #{topic} does not exist and default topic is not set."
+              raise
+            end
+          end
 
           log.warn "'#{topic}' topic not found. Creating from template topic '#{topic_template}'"
           topic_replicas = @kafka.replica_count_for(topic_template)
@@ -317,6 +319,11 @@ DESC
           rescue Kafka::TopicAlreadyExists
             log.warn "Topic '#{topic}' already exists"
           end
+          retry
+        elsif @use_default_for_unknown_topic && topic != @default_topic
+          producer.shutdown if producer
+          log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+          topic = @default_topic
           retry
         end
         raise
