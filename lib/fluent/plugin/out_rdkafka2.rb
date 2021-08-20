@@ -56,6 +56,8 @@ DESC
                  :desc => <<-DESC
 Set true to remove topic key from data
 DESC
+    config_param :exclude_fields, :array, :default => [], value_type: :string,
+                 :desc => 'Fields to remove from data where the value is a jsonpath to a record value'
     config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string,
                  :desc => 'Kafka message headers'
     config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string,
@@ -157,6 +159,10 @@ DESC
       @headers_from_record_accessors = {}
       @headers_from_record.each do |key, value|
         @headers_from_record_accessors[key] = record_accessor_create(value)
+      end
+
+      @exclude_field_accessors = @exclude_fields.map do |field|
+        record_accessor_create(field)
       end
     end
 
@@ -303,6 +309,12 @@ DESC
 
             @headers_from_record_accessors.each do |key, header_accessor|
               headers[key] = header_accessor.call(record)
+            end
+
+            unless @exclude_fields.empty?
+              @exclude_field_accessors.each do |exclude_field_acessor|
+                exclude_field_acessor.delete(record)
+              end
             end
 
             record_buf = @formatter_proc.call(tag, time, record)

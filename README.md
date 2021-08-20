@@ -40,14 +40,14 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
 
-#### SASL authentication 
+#### SASL authentication
 
 ##### with GSSAPI
 
 - principal
 - keytab
 
-Set principal and path to keytab for SASL/GSSAPI authentication. 
+Set principal and path to keytab for SASL/GSSAPI authentication.
 See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
 
 ##### with Plain/SCRAM
@@ -57,7 +57,7 @@ See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentica
 - scram_mechanism
 - sasl_over_ssl
 
-Set username, password, scram_mechanism and sasl_over_ssl for SASL/Plain or Scram authentication. 
+Set username, password, scram_mechanism and sasl_over_ssl for SASL/Plain or Scram authentication.
 See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
 
 ### Input plugin (@type 'kafka')
@@ -315,6 +315,23 @@ And the following fluentd config:
 The Kafka message will have a header of source_ip=12.7.0.0.1.
 
 The configuration format is jsonpath. It is descibed in https://docs.fluentd.org/plugin-helper-overview/api-plugin-helper-record_accessor
+
+#### Excluding fields
+Fields can be excluded from output data. Only works for kafka2 and rdkafka2 output plugin.
+
+Fields must be specified using an array of dot notation `$.`, for example:
+
+    <match app.**>
+      @type kafka2
+      [...]
+      exclude_fields $.source.ip,$.HTTP_FOO
+    <match>
+
+This config can be used to remove fields used on another configs.
+
+For example, `$.source.ip` can be extracted with config `headers_from_record` and excluded from message payload.
+
+> Using this config to remove unused fields is discouraged. A [filter plugin](https://docs.fluentd.org/v/0.12/filter) can be used for this purpose.
 
 ### Buffered output plugin
 
