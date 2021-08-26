@@ -43,6 +43,16 @@ class KafkaOutputTest < Test::Unit::TestCase
     d = create_driver
   end
 
+  data("crc32" => "crc32",
+      "murmur2" => "murmur2")
+  def test_partitioner_hash_function(data)
+    hash_type = data
+    d = create_driver(CONFIG + %[partitioner_hash_function #{hash_type}])
+    assert_nothing_raised do
+      d.instance.refresh_client
+    end
+  end
+
   def test_mutli_worker_support
     d = create_driver
     assert_equal true, d.instance.multi_workers_ready?
