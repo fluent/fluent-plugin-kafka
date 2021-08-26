@@ -23,6 +23,7 @@ unless ENV.has_key?('VERBOSE')
 end
 
 require 'fluent/plugin/out_kafka'
+require 'fluent/plugin/out_kafka_buffered'
 require 'fluent/plugin/out_kafka2'
 require 'fluent/plugin/in_kafka'
 require 'fluent/plugin/in_kafka_group'
