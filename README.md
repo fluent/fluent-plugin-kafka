@@ -231,6 +231,8 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
 
 The `<formatter name>` in `<format>` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/v/1.0/formatter).
 
+**Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
+
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
 In this case, `get_kafka_client_log` is useful for identifying the error cause.
 ruby-kafka's log is routed to fluentd log so you can see ruby-kafka's log in fluentd logs.
@@ -367,6 +369,8 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
 - kafka_agg_max_bytes - default: 4096 - Maximum value of total message size to be included in one batch transmission.
 - kafka_agg_max_messages - default: nil - Maximum number of messages to include in one batch transmission.
 
+**Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
+
 ### Non-buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead. This is mainly for testing.
@@ -399,6 +403,8 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.
+
+**Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
 
 ### rdkafka based output plugin
 
