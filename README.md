@@ -202,6 +202,7 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
       headers_from_record   (hash)   :default => {}
       use_default_for_unknown_topic (bool) :default => false
       discard_kafka_delivery_failed (bool) :default => false (No discard)
+      partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
@@ -229,6 +230,8 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
     </match>
 
 The `<formatter name>` in `<format>` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/v/1.0/formatter).
+
+**Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
 
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
 In this case, `get_kafka_client_log` is useful for identifying the error cause.
@@ -343,6 +346,7 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
+      partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
 
       # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/0.12/buffer
 
@@ -365,6 +369,8 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
 - kafka_agg_max_bytes - default: 4096 - Maximum value of total message size to be included in one batch transmission.
 - kafka_agg_max_messages - default: nil - Maximum number of messages to include in one batch transmission.
 
+**Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
+
 ### Non-buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. For performance and reliability concerns, use `kafka_bufferd` output instead. This is mainly for testing.
@@ -385,6 +391,7 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
       output_include_time   (bool) :default => false
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
+      partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
 
       # ruby-kafka producer options
       max_send_retries    (integer) :default => 1
@@ -396,6 +403,8 @@ This plugin uses ruby-kafka producer for writing data. For performance and relia
     </match>
 
 This plugin also supports ruby-kafka related parameters. See Buffered output plugin section.
+
+**Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
 
 ### rdkafka based output plugin
 

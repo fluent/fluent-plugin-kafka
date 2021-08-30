@@ -8,6 +8,7 @@ rescue Bundler::BundlerError => e
   exit e.status_code
 end
 require 'test/unit'
+require 'test/unit/rr'
 
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 $LOAD_PATH.unshift(File.dirname(__FILE__))
@@ -22,8 +23,12 @@ unless ENV.has_key?('VERBOSE')
 end
 
 require 'fluent/plugin/out_kafka'
+require 'fluent/plugin/out_kafka_buffered'
+require 'fluent/plugin/out_kafka2'
 require 'fluent/plugin/in_kafka'
 require 'fluent/plugin/in_kafka_group'
+
+require "fluent/test/driver/output"
 
 class Test::Unit::TestCase
 end

@@ -21,5 +21,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'ruby-kafka', '>= 1.4.0', '< 2'
   gem.add_development_dependency "rake", ">= 0.9.2"
   gem.add_development_dependency "test-unit", ">= 3.0.8"
+  gem.add_development_dependency "test-unit-rr", "~> 1.0"
   gem.add_development_dependency "webrick"
+  gem.add_development_dependency "digest-murmurhash"
 end

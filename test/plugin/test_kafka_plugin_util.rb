@@ -1,14 +1,8 @@
 require 'helper'
 require 'fluent/plugin/kafka_plugin_util'
 
-class File
-    def File::read(path)
-        path
-    end
-end
-
 class KafkaPluginUtilTest < Test::Unit::TestCase
-    
+
     def self.config_param(name, type, options)
     end
     include Fluent::KafkaPluginUtil::SSLSettings
@@ -20,19 +14,31 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
     end
 
     def test_read_ssl_file_when_nil
-        assert_equal(nil, read_ssl_file(nil))
+      stub(File).read(anything) do |path|
+        path
+      end
+      assert_equal(nil, read_ssl_file(nil))
     end
 
     def test_read_ssl_file_when_empty_string
-        assert_equal(nil, read_ssl_file(""))
+      stub(File).read(anything) do |path|
+        path
+      end
+      assert_equal(nil, read_ssl_file(""))
     end
 
     def test_read_ssl_file_when_non_empty_path
-        assert_equal("path", read_ssl_file("path"))
+      stub(File).read(anything) do |path|
+        path
+      end
+      assert_equal("path", read_ssl_file("path"))
     end
 
     def test_read_ssl_file_when_non_empty_array
-        assert_equal(["a","b"], read_ssl_file(["a","b"]))
+      stub(File).read(anything) do |path|
+        path
+      end
+      assert_equal(["a","b"], read_ssl_file(["a","b"]))
     end
 
 end

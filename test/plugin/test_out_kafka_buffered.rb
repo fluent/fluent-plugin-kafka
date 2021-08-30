@@ -1,7 +1,7 @@
 require 'helper'
 require 'fluent/output'
 
-class KafkaOutputTest < Test::Unit::TestCase
+class KafkaBufferedOutputTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
   end
@@ -16,14 +16,14 @@ class KafkaOutputTest < Test::Unit::TestCase
   ]
 
   def create_driver(conf = CONFIG, tag='test')
-    Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaOutput, tag).configure(conf)
+    Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaOutputBuffered, tag).configure(conf)
   end
 
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(BASE_CONFIG)
     }
-    
+
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(CONFIG)
     }
