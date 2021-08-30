@@ -1,3 +1,8 @@
+Release 0.17.0 - 2021/08/30
+	* out_kafka/out_kafka_buffered/out_kafka2: Provide murmur2 partitioner hash function choice
+	* in_kafka/in_kafka_group/out_kafka/out_kafka_buffered/out_kafka2: Use Ruby Kafka's ssl_ca_cert_file_path parameter to feed the CA certs
+	* out_kafka/out_kafka2: fix description for `exclude_message_key` option
+
 Release 0.16.3 - 2021/05/17
 	* in_kafka_group: Fix one more Ruby 3.0 keyword arguments issue
 
