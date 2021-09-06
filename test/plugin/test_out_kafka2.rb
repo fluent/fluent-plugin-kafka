@@ -1,6 +1,6 @@
 require 'helper'
 require 'fluent/test/helpers'
-require 'fluent/output'
+require 'fluent/test/driver/output'
 
 class Kafka2OutputTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
@@ -56,5 +56,14 @@ class Kafka2OutputTest < Test::Unit::TestCase
   def test_mutli_worker_support
     d = create_driver
     assert_equal true, d.instance.multi_workers_ready?
+  end
+
+  def test_exclude_fields
+    d = create_driver(config + config_element('ROOT', '', {"exclude_fields" => "$.foo"}))
+    d.run do
+      d.feed('test', event_time, {'a' => 'b', 'foo' => 'bar', 'message' => 'test'})
+    end
+
+    assert_equal(1, d.events.size)
   end
 end
