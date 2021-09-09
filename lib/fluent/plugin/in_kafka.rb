@@ -71,6 +71,7 @@ class Fluent::KafkaInput < Fluent::Input
     require 'kafka'
 
     @time_parser = nil
+    @zookeeper = nil
   end
 
   def configure(conf)
