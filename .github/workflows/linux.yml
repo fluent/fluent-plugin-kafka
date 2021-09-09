@@ -5,6 +5,8 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      USE_RDKAFKA: 1
     strategy:
       fail-fast: false
       matrix:
