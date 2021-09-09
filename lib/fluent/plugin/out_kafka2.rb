@@ -241,7 +241,7 @@ DESC
       mutate_headers = !@headers_from_record_accessors.empty?
 
       begin
-        producer = @kafka.topic_producer(topic, @producer_opts)
+        producer = @kafka.topic_producer(topic, **@producer_opts)
         chunk.msgpack_each { |time, record|
           begin
             record = inject_values_to_record(tag, time, record)
