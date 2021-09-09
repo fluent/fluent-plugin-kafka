@@ -260,8 +260,8 @@ DESC
             end
 
             unless @exclude_fields.empty?
-              @exclude_field_accessors.each do |exclude_field_acessor|
-                exclude_field_acessor.delete(record)
+              @exclude_field_accessors.each do |exclude_field_accessor|
+                exclude_field_accessor.delete(record)
               end
             end
 
