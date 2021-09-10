@@ -42,6 +42,8 @@ DESC
                  :desc => 'Set true to remove message key from data'
     config_param :exclude_topic_key, :bool, :default => false,
                  :desc => 'Set true to remove topic name key from data'
+    config_param :exclude_fields, :array, :default => [], value_type: :string,
+                 :desc => 'Fields to remove from data where the value is a jsonpath to a record value'
     config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for kafka create_time'
     config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string,
                  :desc => 'Kafka message headers'
@@ -177,6 +179,10 @@ DESC
       @headers_from_record.each do |key, value|
         @headers_from_record_accessors[key] = record_accessor_create(value)
       end
+
+      @exclude_field_accessors = @exclude_fields.map do |field|
+        record_accessor_create(field)
+      end
     end
 
     def multi_workers_ready?
@@ -235,7 +241,7 @@ DESC
       mutate_headers = !@headers_from_record_accessors.empty?
 
       begin
-        producer = @kafka.topic_producer(topic, @producer_opts)
+        producer = @kafka.topic_producer(topic, **@producer_opts)
         chunk.msgpack_each { |time, record|
           begin
             record = inject_values_to_record(tag, time, record)
@@ -251,6 +257,12 @@ DESC
               end
             else
               headers = base_headers
+            end
+
+            unless @exclude_fields.empty?
+              @exclude_field_accessors.each do |exclude_field_accessor|
+                exclude_field_accessor.delete(record)
+              end
             end
 
             record_buf = @formatter_proc.call(tag, time, record)
