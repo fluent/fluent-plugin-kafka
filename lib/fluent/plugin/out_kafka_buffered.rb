@@ -107,6 +107,7 @@ DESC
     @kafka = nil
     @producers = {}
     @producers_mutex = Mutex.new
+    @field_separator = nil
   end
 
   def multi_workers_ready?

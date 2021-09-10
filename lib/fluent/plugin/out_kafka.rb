@@ -88,6 +88,7 @@ DESC
     require 'kafka'
 
     @kafka = nil
+    @field_separator = nil
   end
 
   def refresh_client
