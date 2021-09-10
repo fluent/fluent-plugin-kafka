@@ -112,23 +112,29 @@ DESC
     def configure(conf)
       super
       log.instance_eval {
-        def add(level, &block)
-          return unless block
+        def add(level, message = nil)
+          if message.nil?
+            if block_given?
+              message = yield
+            else
+              return
+            end
+          end
 
           # Follow rdkakfa's log level. See also rdkafka-ruby's bindings.rb: https://github.com/appsignal/rdkafka-ruby/blob/e5c7261e3f2637554a5c12b924be297d7dca1328/lib/rdkafka/bindings.rb#L117
           case level
           when Logger::FATAL
-            self.fatal(block.call)
+            self.fatal(message)
           when Logger::ERROR
-            self.error(block.call)
+            self.error(message)
           when Logger::WARN
-            self.warn(block.call)
+            self.warn(message)
           when Logger::INFO
-            self.info(block.call)
+            self.info(message)
           when Logger::DEBUG
-            self.debug(block.call)
+            self.debug(message)
           else
-            self.trace(block.call)
+            self.trace(message)
           end
         end
       }
