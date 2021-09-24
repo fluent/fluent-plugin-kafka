@@ -1,3 +1,8 @@
+Release 0.17.1 - 2021/09/24
+	* out_rdkafka/out_rdkafka2: Support rdkafka 0.9.0 or later
+	* out_rdkafka/out_rdkafka2: Add `exclude_fields` parameter
+	* out_kafka2.rb: Fix one more Ruby 3.0 keyword arguments issue
+
 Release 0.17.0 - 2021/08/30
 	* out_kafka/out_kafka_buffered/out_kafka2: Provide murmur2 partitioner hash function choice
 	* in_kafka/in_kafka_group/out_kafka/out_kafka_buffered/out_kafka2: Use Ruby Kafka's ssl_ca_cert_file_path parameter to feed the CA certs
