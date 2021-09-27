@@ -86,6 +86,7 @@ DESC
 
     config_param :max_enqueue_retries, :integer, :default => 3
     config_param :enqueue_retry_backoff, :integer, :default => 3
+    config_param :max_enqueue_bytes_per_second, :size, :default => nil, :desc => 'The maximum number of enqueueing bytes per second'
 
     config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
     config_param :ssl_client_cert_key_password, :string, :default => nil, :desc => 'Used for ssl.key.password'
@@ -101,12 +102,47 @@ DESC
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::SaslSettings
 
+    class EnqueueRate
+      class LimitExceeded < StandardError
+        attr_reader :next_retry_clock
+        def initialize(next_retry_clock)
+          @next_retry_clock = next_retry_clock
+        end
+      end
+
+      def initialize(limit_bytes_per_second)
+        @mutex = Mutex.new
+        @start_clock = Fluent::Clock.now
+        @bytes_per_second = 0
+        @limit_bytes_per_second = limit_bytes_per_second
+      end
+
+      def raise_if_limit_exceeded(bytes_to_enqueue)
+        return if @limit_bytes_per_second.nil?
+
+        @mutex.synchronize do
+          @bytes_per_second += bytes_to_enqueue
+          duration = Fluent::Clock.now - @start_clock
+
+          if duration < 1.0
+            if @bytes_per_second > @limit_bytes_per_second
+              raise LimitExceeded.new(@start_clock + 1.0)
+            end
+          else
+            @start_clock = Fluent::Clock.now
+            @bytes_per_second = bytes_to_enqueue
+          end
+        end
+      end
+    end
+
     def initialize
       super
 
       @producers = nil
       @producers_mutex = nil
       @shared_producer = nil
+      @enqueue_rate = nil
     end
 
     def configure(conf)
@@ -170,6 +206,8 @@ DESC
       @exclude_field_accessors = @exclude_fields.map do |field|
         record_accessor_create(field)
       end
+
+      @enqueue_rate = EnqueueRate.new(@max_enqueue_bytes_per_second) unless @max_enqueue_bytes_per_second.nil?
     end
 
     def build_config
@@ -357,7 +395,11 @@ DESC
       attempt = 0
       loop do
         begin
+          @enqueue_rate.raise_if_limit_exceeded(record_buf.bytesize) if @enqueue_rate
           return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers)
+        rescue EnqueueRate::LimitExceeded => e
+          duration = e.next_retry_clock - Fluent::Clock.now
+          sleep(duration) if duration > 0.0
         rescue Exception => e
           if e.respond_to?(:code) && e.code == :queue_full
             if attempt <= @max_enqueue_retries
