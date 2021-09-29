@@ -115,23 +115,42 @@ DESC
         @start_clock = Fluent::Clock.now
         @bytes_per_second = 0
         @limit_bytes_per_second = limit_bytes_per_second
+        @commits = {}
       end
 
       def raise_if_limit_exceeded(bytes_to_enqueue)
         return if @limit_bytes_per_second.nil?
 
         @mutex.synchronize do
-          @bytes_per_second += bytes_to_enqueue
-          duration = Fluent::Clock.now - @start_clock
+          @commits[Thread.current] = {
+            clock: Fluent::Clock.now,
+            bytesize: bytes_to_enqueue,
+          }
+
+          @bytes_per_second += @commits[Thread.current][:bytesize]
+          duration = @commits[Thread.current][:clock] - @start_clock
 
           if duration < 1.0
             if @bytes_per_second > @limit_bytes_per_second
               raise LimitExceeded.new(@start_clock + 1.0)
             end
           else
-            @start_clock = Fluent::Clock.now
-            @bytes_per_second = bytes_to_enqueue
+            @start_clock = @commits[Thread.current][:clock]
+            @bytes_per_second = @commits[Thread.current][:bytesize]
           end
+        end
+      end
+
+      def revert
+        return if @limit_bytes_per_second.nil?
+
+        @mutex.synchronize do
+          return unless @commits[Thread.current]
+          return unless @commits[Thread.current][:clock]
+          if @commits[Thread.current][:clock] >= @start_clock
+            @bytes_per_second -= @commits[Thread.current][:bytesize]
+          end
+          @commits[Thread.current] = nil
         end
       end
     end
@@ -401,6 +420,7 @@ DESC
           duration = e.next_retry_clock - Fluent::Clock.now
           sleep(duration) if duration > 0.0
         rescue Exception => e
+          @enqueue_rate.revert
           if e.respond_to?(:code) && e.code == :queue_full
             if attempt <= @max_enqueue_retries
               log.warn "Failed to enqueue message; attempting retry #{attempt} of #{@max_enqueue_retries} after #{@enqueue_retry_backoff}s"
