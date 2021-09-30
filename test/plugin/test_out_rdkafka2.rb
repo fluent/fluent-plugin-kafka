@@ -119,8 +119,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
 
     def test_max_enqueue_bytes_per_second
       conf = config(default_topic: TOPIC_NAME) +
-             config_element('ROOT', '', {"max_enqueue_bytes_per_second" => 32 * 3,
-                                         "rdkafka_delivery_handle_poll_timeout" => 0}, [])
+             config_element('ROOT', '', {"max_enqueue_bytes_per_second" => 32 * 3}, [])
       target_driver = create_target_driver
       expected_messages = []
       target_driver.run(expect_records: 9, timeout: 10) do
@@ -134,7 +133,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
             expected_messages << message
           end
         end
-        assert_in_delta(3.0, Fluent::Clock.now - start_time, 0.5)
+        assert_in_delta(2.0, Fluent::Clock.now - start_time, 0.5)
       end
       actual_messages = target_driver.events.collect { |event| event[2] }
       assert_equal(expected_messages, actual_messages)
