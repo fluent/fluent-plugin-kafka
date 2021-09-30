@@ -162,6 +162,8 @@ DESC
       @producers_mutex = nil
       @shared_producer = nil
       @enqueue_rate = nil
+      @writing_threads_mutex = Mutex.new
+      @writing_threads = Set.new
     end
 
     def configure(conf)
@@ -290,8 +292,19 @@ DESC
       true
     end
 
+    def wait_writing_threads
+      done = false
+      until done do
+        @writing_threads_mutex.synchronize do
+          done = true if @writing_threads.empty?
+        end
+        sleep(1) unless done
+      end
+    end
+
     def shutdown
       super
+      wait_writing_threads
       shutdown_producers
     end
 
@@ -348,6 +361,7 @@ DESC
     end
 
     def write(chunk)
+      @writing_threads_mutex.synchronize { @writing_threads.add(Thread.current) }
       tag = chunk.metadata.tag
       topic = if @topic
                 extract_placeholders(@topic, chunk)
@@ -408,6 +422,8 @@ DESC
         # Raise exception to retry sendind messages
         raise e
       end
+    ensure
+      @writing_threads_mutex.synchronize { @writing_threads.delete(Thread.current) }
     end
 
     def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
