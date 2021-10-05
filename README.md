@@ -486,6 +486,10 @@ You need to install rdkafka gem.
       rdkafka_delivery_handle_poll_timeout (integer) :default => 30
       # If the record size is larger than this value, such records are ignored. Default is no limit
       max_send_limit_bytes (integer) :default => nil
+      # The maximum number of enqueueing bytes per second. It can reduce the
+      # load of both Fluentd and Kafka when excessive messages are attempted
+      # to send. Default is no limit.
+      max_enqueue_bytes_per_second (integer) :default => nil
     </match>
 
 If you use v0.12, use `rdkafka` instead.
