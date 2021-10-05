@@ -433,6 +433,7 @@ DESC
           @enqueue_rate.raise_if_limit_exceeded(record_buf.bytesize) if @enqueue_rate
           return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers)
         rescue EnqueueRate::LimitExceeded => e
+          @enqueue_rate.revert
           duration = e.next_retry_clock - Fluent::Clock.now
           sleep(duration) if duration > 0.0
         rescue Exception => e
