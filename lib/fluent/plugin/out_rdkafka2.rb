@@ -433,11 +433,11 @@ DESC
           @enqueue_rate.raise_if_limit_exceeded(record_buf.bytesize) if @enqueue_rate
           return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers)
         rescue EnqueueRate::LimitExceeded => e
-          @enqueue_rate.revert
+          @enqueue_rate.revert if @enqueue_rate
           duration = e.next_retry_clock - Fluent::Clock.now
           sleep(duration) if duration > 0.0
         rescue Exception => e
-          @enqueue_rate.revert
+          @enqueue_rate.revert if @enqueue_rate
           if e.respond_to?(:code) && e.code == :queue_full
             if attempt <= @max_enqueue_retries
               log.warn "Failed to enqueue message; attempting retry #{attempt} of #{@max_enqueue_retries} after #{@enqueue_retry_backoff}s"
