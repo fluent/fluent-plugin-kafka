@@ -74,6 +74,7 @@ DESC
 The codec the producer uses to compress messages. Used for compression.codec
 Supported codecs: (gzip|snappy)
 DESC
+    config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for rdkafka timestamp'
     config_param :max_send_limit_bytes, :size, :default => nil
     config_param :discard_kafka_delivery_failed, :bool, :default => false
     config_param :rdkafka_buffering_max_ms, :integer, :default => nil, :desc => 'Used for queue.buffering.max.ms'
@@ -405,7 +406,7 @@ DESC
             next
           end
 
-          handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
+          handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers, time)
           if @rdkafka_delivery_handle_poll_timeout != 0
             handlers << handler
           end
@@ -426,12 +427,12 @@ DESC
       @writing_threads_mutex.synchronize { @writing_threads.delete(Thread.current) }
     end
 
-    def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)
+    def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers, time)
       attempt = 0
       loop do
         begin
           @enqueue_rate.raise_if_limit_exceeded(record_buf.bytesize) if @enqueue_rate
-          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers)
+          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers, timestamp: @use_event_time ? Time.at(time) : nil)
         rescue EnqueueRate::LimitExceeded => e
           @enqueue_rate.revert if @enqueue_rate
           duration = e.next_retry_clock - Fluent::Clock.now
