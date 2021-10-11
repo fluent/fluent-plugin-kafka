@@ -200,6 +200,7 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
       get_kafka_client_log  (bool)   :default => false
       headers               (hash)   :default => {}
       headers_from_record   (hash)   :default => {}
+      use_event_time        (bool)   :default => false
       use_default_for_unknown_topic (bool) :default => false
       discard_kafka_delivery_failed (bool) :default => false (No discard)
       partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
@@ -363,6 +364,7 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       get_kafka_client_log  (bool) :default => false
+      use_event_time        (bool) :default => false
       partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
 
       # See fluentd document for buffer related parameters: https://docs.fluentd.org/v/0.12/buffer
@@ -452,6 +454,7 @@ You need to install rdkafka gem.
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       discard_kafka_delivery_failed (bool) :default => false (No discard)
+      use_event_time        (bool) :default => false
 
       # same with kafka2
       headers               (hash) :default => {}
