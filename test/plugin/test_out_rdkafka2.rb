@@ -102,6 +102,31 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
       assert_equal([expected_message], actual_messages)
     end
 
+    def test_write_with_use_event_time
+      input_config = %[
+        @type kafka
+        brokers localhost:9092
+        format json
+        @label @kafka
+        topics #{TOPIC_NAME}
+        time_source kafka
+      ]
+      target_driver = create_target_driver(input_config)
+      expected_message = {"a" => 2}
+      now = event_time
+      target_driver.run(expect_records: 1, timeout: 5) do
+        sleep 2
+        d = create_driver(config(default_topic: TOPIC_NAME) + config_element('ROOT', '', {"use_event_time" => true}))
+        d.run do
+          d.feed("test", now, expected_message)
+        end
+      end
+      actual_time = target_driver.events.collect { |event| event[1] }.last
+      assert_in_delta(actual_time, now, 0.001) # expects millseconds precision
+      actual_messages = target_driver.events.collect { |event| event[2] }
+      assert_equal([expected_message], actual_messages)
+    end
+
     def test_exclude_fields
       conf = config(default_topic: TOPIC_NAME) +
              config_element('ROOT', '', {"exclude_fields" => "$.foo"}, [])

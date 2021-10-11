@@ -65,6 +65,7 @@ DESC
 The codec the producer uses to compress messages.
 Supported codecs: (gzip|snappy)
 DESC
+  config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for rdkafka timestamp'
   config_param :max_send_limit_bytes, :size, :default => nil
   config_param :rdkafka_buffering_max_ms, :integer, :default => nil
   config_param :rdkafka_buffering_max_messages, :integer, :default => nil
@@ -286,7 +287,7 @@ DESC
         end
 
         producer = get_producer
-        handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+        handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
         handler
       }.each { |handler|
         handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout) if @rdkafka_delivery_handle_poll_timeout != 0
@@ -298,11 +299,11 @@ DESC
     raise e
   end
 
-  def enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+  def enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
     attempt = 0
     loop do
       begin
-        handler = producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition)
+        handler = producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, timestamp: @use_event_time ? Time.at(time) : nil)
         return handler
       rescue Exception => e
         if e.respond_to?(:code) && e.code == :queue_full
