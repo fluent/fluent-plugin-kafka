@@ -332,7 +332,8 @@ DESC
           record_buf = @formatter_proc.call(tag, time, record)
           record_buf_bytes = record_buf.bytesize
           if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
-            log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record => record
+            log.warn "record size exceeds max_send_limit_bytes. Skip event:", :time => time, :record_size => record_buf_bytes
+            log.debug "Skipped event:", :record => record
             next
           end
         rescue StandardError => e
