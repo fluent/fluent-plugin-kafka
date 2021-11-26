@@ -1,3 +1,6 @@
+Release 0.17.3 - 2021/11/26
+	* output: Suppress large warning logs for events skipped by `max_send_limit_bytes`
+
 Release 0.17.2 - 2021/10/14
 	* out_rdkafka2: Add `max_enqueue_bytes_per_second` parameter
 	* out_rdkafka2: Support `use_event_time` parameter
