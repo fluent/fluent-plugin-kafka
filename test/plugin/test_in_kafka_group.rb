@@ -14,6 +14,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     brokers localhost:9092
     consumer_group fluentd
     format text
+    refresh_topic_interval 0
     @label @kafka
     topics #{TOPIC_NAME}
   ]
@@ -52,6 +53,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
         brokers localhost:9092
         format text
         @label @kafka
+        refresh_topic_interval 0
         topics #{TOPIC_NAME}
       ]
       d = create_driver
