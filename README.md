@@ -135,6 +135,7 @@ Consume events by kafka consumer group features..
       offset_commit_interval  (integer) :default => nil (Use default of ruby-kafka)
       offset_commit_threshold (integer) :default => nil (Use default of ruby-kafka)
       fetcher_max_queue_size  (integer) :default => nil (Use default of ruby-kafka)
+      refresh_topic_interval  (integer) :default => nil (Use default of ruby-kafka)
       start_from_beginning    (bool)    :default => true
     </source>
 
