@@ -67,6 +67,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "The number of messages that can be processed before their offsets are committed"
   config_param :fetcher_max_queue_size, :integer, :default => nil,
                :desc => "The number of fetched messages per partition that are queued in fetcher queue"
+  config_param :refresh_topic_interval, :integer, :default => nil,
+               :desc => "The interval of refreshing the topic list in seconds. Zero or unset disables this"
   config_param :start_from_beginning, :bool, :default => true,
                :desc => "Whether to start from the beginning of the topic or just subscribe to new messages being produced"
 
@@ -128,6 +130,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @consumer_opts[:offset_commit_interval] = @offset_commit_interval if @offset_commit_interval
     @consumer_opts[:offset_commit_threshold] = @offset_commit_threshold if @offset_commit_threshold
     @consumer_opts[:fetcher_max_queue_size] = @fetcher_max_queue_size if @fetcher_max_queue_size
+    @consumer_opts[:refresh_topic_interval] = @refresh_topic_interval if @refresh_topic_interval
 
     @fetch_opts = {}
     @fetch_opts[:max_wait_time] = @max_wait_time if @max_wait_time
