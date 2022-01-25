@@ -1,3 +1,6 @@
+Release 0.17.4 - 2022/01/25
+	* in_kafka_group: Add `refresh_topic_interval` parameter
+
 Release 0.17.3 - 2021/11/26
 	* output: Suppress large warning logs for events skipped by `max_send_limit_bytes`
 
