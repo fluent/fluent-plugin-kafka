@@ -60,6 +60,13 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal true, d.instance.multi_workers_ready?
   end
 
+  def test_resolve_seed_brokers
+    d = create_driver(config + config_element('ROOT', '', {"resolve_seed_brokers" => true}))
+    assert_nothing_raised do
+      d.instance.refresh_client
+    end
+  end
+
   class WriteTest < self
     TOPIC_NAME = "kafka-output-#{SecureRandom.uuid}"
 
