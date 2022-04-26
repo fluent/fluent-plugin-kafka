@@ -27,6 +27,11 @@ DESC
     config_param :partitioner_hash_function, :enum, list: [:crc32, :murmur2], :default => :crc32,
                  :desc => "Specify kafka patrtitioner hash algorithm"
     config_param :default_partition, :integer, :default => nil
+    config_param :record_key, :string, :default => nil,
+                 :desc => <<-DESC
+A jsonpath to a record value pointing to the field which will be passed to the formatter and sent as the Kafka message payload.
+If defined, only this field in the record will be sent to Kafka as the message payload.
+DESC
     config_param :use_default_for_unknown_topic, :bool, :default => false, :desc => "If true, default_topic is used when topic not found"
     config_param :client_id, :string, :default => 'fluentd'
     config_param :idempotent, :bool, :default => false, :desc => 'Enable idempotent producer'
@@ -185,6 +190,9 @@ DESC
       @exclude_field_accessors = @exclude_fields.map do |field|
         record_accessor_create(field)
       end
+
+      @record_field_accessor = nil
+      @record_field_accessor = record_accessor_create(@record_key) unless @record_key.nil?
     end
 
     def multi_workers_ready?
@@ -267,6 +275,7 @@ DESC
               end
             end
 
+            record = @record_field_accessor.call(record) unless @record_field_accessor.nil?
             record_buf = @formatter_proc.call(tag, time, record)
             record_buf_bytes = record_buf.bytesize
             if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
