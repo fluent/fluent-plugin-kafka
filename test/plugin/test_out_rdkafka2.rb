@@ -163,5 +163,20 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
       actual_messages = target_driver.events.collect { |event| event[2] }
       assert_equal(expected_messages, actual_messages)
     end
+
+    def test_record_key
+      conf = config(default_topic: TOPIC_NAME) +
+             config_element('ROOT', '', {"record_key" => "$.data"}, [])
+      target_driver = create_target_driver
+      target_driver.run(expect_records: 1, timeout: 5) do
+        sleep 2
+        d = create_driver(conf)
+        d.run do
+          d.feed('test', event_time, {'data' => {'a' => 'b', 'foo' => 'bar', 'message' => 'test'}, 'message_key' => '123456'})
+        end
+      end
+      actual_messages = target_driver.events.collect { |event| event[2] }
+      assert_equal([{'a' => 'b', 'foo' => 'bar', 'message' => 'test'}], actual_messages)
+    end
   end
 end

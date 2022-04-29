@@ -74,6 +74,11 @@ DESC
 The codec the producer uses to compress messages. Used for compression.codec
 Supported codecs: (gzip|snappy)
 DESC
+    config_param :record_key, :string, :default => nil,
+                 :desc => <<-DESC
+A jsonpath to a record value pointing to the field which will be passed to the formatter and sent as the Kafka message payload.
+If defined, only this field in the record will be sent to Kafka as the message payload.
+DESC
     config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for rdkafka timestamp'
     config_param :max_send_limit_bytes, :size, :default => nil
     config_param :discard_kafka_delivery_failed, :bool, :default => false
@@ -230,6 +235,9 @@ DESC
       end
 
       @enqueue_rate = EnqueueRate.new(@max_enqueue_bytes_per_second) unless @max_enqueue_bytes_per_second.nil?
+
+      @record_field_accessor = nil
+      @record_field_accessor = record_accessor_create(@record_key) unless @record_key.nil?
     end
 
     def build_config
@@ -371,8 +379,6 @@ DESC
               end
 
       handlers = []
-      record_buf = nil
-      record_buf_bytes = nil
 
       headers = @headers.clone
 
@@ -395,6 +401,7 @@ DESC
               end
             end
 
+            record = @record_field_accessor.call(record) unless @record_field_accessor.nil?
             record_buf = @formatter_proc.call(tag, time, record)
             record_buf_bytes = record_buf.bytesize
             if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
