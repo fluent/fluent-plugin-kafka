@@ -205,6 +205,7 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
       use_default_for_unknown_topic (bool) :default => false
       discard_kafka_delivery_failed (bool) :default => false (No discard)
       partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
+      share_producer        (bool)   :default => false
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
