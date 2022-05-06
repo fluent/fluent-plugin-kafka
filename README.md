@@ -458,8 +458,14 @@ You need to install rdkafka gem.
       use_event_time        (bool) :default => false
 
       # same with kafka2
-      headers               (hash) :default => {}
-      headers_from_record   (hash) :default => {}
+      headers               (hash)   :default => {}
+      headers_from_record   (hash)   :default => {}
+
+      # SASL credentials
+      username              (string) :default => nil
+      # Recommend setting SASL password via this setting over `rdkafka_options` as this value
+      # will be properly masked on fluentd start up with logging level set to `info`
+      password              (string) :default => nil
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
