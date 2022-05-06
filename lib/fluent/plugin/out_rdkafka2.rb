@@ -270,6 +270,8 @@ DESC
       config[:"queue.buffering.max.messages"] = @rdkafka_buffering_max_messages if @rdkafka_buffering_max_messages
       config[:"message.max.bytes"] = @rdkafka_message_max_bytes if @rdkafka_message_max_bytes
       config[:"batch.num.messages"] = @rdkafka_message_max_num if @rdkafka_message_max_num
+      config[:"sasl.username"] = @username if @username
+      config[:"sasl.password"] = @password if @password
 
       @rdkafka_options.each { |k, v|
         config[k.to_sym] = v
