@@ -81,6 +81,7 @@ DESC
 Add a regular expression to capture ActiveSupport notifications from the Kafka client
 requires activesupport gem - records will be generated under fluent_kafka_stats.**
 DESC
+    config_param :share_producer, :bool, :default => false, :desc => 'share kafka producer between flush threads'
 
     config_section :buffer do
       config_set_default :chunk_keys, ["topic"]
@@ -96,6 +97,12 @@ DESC
       super
 
       @kafka = nil
+      @producers = nil
+      @producers_mutex = nil
+      @shared_producer = nil
+
+      @writing_threads_mutex = Mutex.new
+      @writing_threads = Set.new
     end
 
     def refresh_client(raise_error = true)
@@ -191,9 +198,20 @@ DESC
       true
     end
 
+    def create_producer
+      @kafka.producer(**@producer_opts)
+    end
+
     def start
       super
       refresh_client
+
+      if @share_producer
+        @shared_producer = create_producer
+      else
+        @producers = {}
+        @producers_mutex = Mutex.new
+      end
     end
 
     def close
@@ -204,6 +222,56 @@ DESC
     def terminate
       super
       @kafka = nil
+    end
+
+    def wait_writing_threads
+      done = false
+      until done do
+        @writing_threads_mutex.synchronize do
+          done = true if @writing_threads.empty?
+        end
+        sleep(1) unless done
+      end
+    end
+
+    def shutdown
+      super
+      wait_writing_threads
+      shutdown_producers
+    end
+
+    def shutdown_producers
+      if @share_producer
+        @shared_producer.shutdown
+        @shared_producer = nil
+      else
+        @producers_mutex.synchronize {
+          shutdown_threads = @producers.map { |key, producer|
+            th = Thread.new {
+              producer.shutdown
+            }
+            th.abort_on_exception = true
+            th
+          }
+          shutdown_threads.each { |th| th.join }
+          @producers = {}
+        }
+      end
+    end
+
+    def get_producer
+      if @share_producer
+        @shared_producer
+      else
+        @producers_mutex.synchronize {
+          producer = @producers[Thread.current.object_id]
+          unless producer
+            producer = create_producer
+            @producers[Thread.current.object_id] = producer
+          end
+          producer
+        }
+      end
     end
 
     def setup_formatter(conf)
@@ -229,6 +297,8 @@ DESC
 
     # TODO: optimize write performance
     def write(chunk)
+      @writing_threads_mutex.synchronize { @writing_threads.add(Thread.current) }
+
       tag = chunk.metadata.tag
       topic = if @topic
                 extract_placeholders(@topic, chunk)
@@ -237,13 +307,12 @@ DESC
               end
 
       messages = 0
-      record_buf = nil
 
       base_headers = @headers
       mutate_headers = !@headers_from_record_accessors.empty?
 
       begin
-        producer = @kafka.topic_producer(topic, **@producer_opts)
+        producer = get_producer
         chunk.msgpack_each { |time, record|
           begin
             record = inject_values_to_record(tag, time, record)
@@ -283,7 +352,7 @@ DESC
           messages += 1
 
           producer.produce(record_buf, key: message_key, partition_key: partition_key, partition: partition, headers: headers,
-                           create_time: @use_event_time ? Time.at(time) : Time.now)
+                           create_time: @use_event_time ? Time.at(time) : Time.now, topic: topic)
         }
 
         if messages > 0
@@ -301,7 +370,6 @@ DESC
         end
       rescue Kafka::UnknownTopicOrPartition
         if @use_default_for_unknown_topic && topic != @default_topic
-          producer.shutdown if producer
           log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
           topic = @default_topic
           retry
@@ -321,7 +389,7 @@ DESC
       # Raise exception to retry sendind messages
       raise e unless ignore
     ensure
-      producer.shutdown if producer
+      @writing_threads_mutex.synchronize { @writing_threads.delete(Thread.current) }
     end
   end
 end
