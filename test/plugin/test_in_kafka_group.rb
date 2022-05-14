@@ -11,7 +11,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
 
   CONFIG = %[
     @type kafka
-    brokers localhost:9092
+    brokers #{ENV['BOOTSTRAP_SERVERS']}
     consumer_group fluentd
     format text
     refresh_topic_interval 0
@@ -28,7 +28,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     d = create_driver
     assert_equal [TOPIC_NAME], d.instance.topics
     assert_equal 'text', d.instance.format
-    assert_equal 'localhost:9092', d.instance.brokers
+    assert_equal ENV['BOOTSTRAP_SERVERS'], d.instance.brokers
   end
 
   def test_multi_worker_support
@@ -38,7 +38,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
 
   class ConsumeTest < self
     def setup
-      @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
+      @kafka = Kafka.new(ENV['BOOTSTRAP_SERVERS'].split(','), client_id: 'kafka')
       @producer = @kafka.producer
     end
 
@@ -50,7 +50,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     def test_consume
       conf = %[
         @type kafka
-        brokers localhost:9092
+        brokers #{ENV['BOOTSTRAP_SERVERS']}
         format text
         @label @kafka
         refresh_topic_interval 0

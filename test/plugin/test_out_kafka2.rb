@@ -19,7 +19,7 @@ class Kafka2OutputTest < Test::Unit::TestCase
 
   def config(default_topic: "kitagawakeiko")
     base_config + config_element('ROOT', '', {"default_topic" => default_topic,
-                                              "brokers" => "localhost:9092"}, [
+                                              "brokers" => ENV['BOOTSTRAP_SERVERS']}, [
                                  ])
   end
 
@@ -42,7 +42,7 @@ class Kafka2OutputTest < Test::Unit::TestCase
 
     d = create_driver
     assert_equal 'kitagawakeiko', d.instance.default_topic
-    assert_equal ['localhost:9092'], d.instance.brokers
+    assert_equal ENV['BOOTSTRAP_SERVERS'].split(','), d.instance.brokers
   end
 
   data("crc32" => "crc32",
@@ -72,7 +72,7 @@ class Kafka2OutputTest < Test::Unit::TestCase
 
     INPUT_CONFIG = %[
       @type kafka
-      brokers localhost:9092
+      brokers #{ENV['BOOTSTRAP_SERVERS']}
       format json
       @label @kafka
       topics #{TOPIC_NAME}
@@ -83,7 +83,7 @@ class Kafka2OutputTest < Test::Unit::TestCase
     end
 
     def setup
-      @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
+      @kafka = Kafka.new(ENV['BOOTSTRAP_SERVERS'].split(','), client_id: 'kafka')
     end
 
     def teardown

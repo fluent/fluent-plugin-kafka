@@ -29,7 +29,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
 
   def config(default_topic: "kitagawakeiko")
     base_config + config_element('ROOT', '', {"default_topic" => default_topic,
-                                              "brokers" => "localhost:9092"}, [
+                                              "brokers" => ENV['BOOTSTRAP_SERVERS']}, [
                                  ])
   end
 
@@ -52,7 +52,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
 
     d = create_driver
     assert_equal 'kitagawakeiko', d.instance.default_topic
-    assert_equal 'localhost:9092', d.instance.brokers
+    assert_equal ENV['BOOTSTRAP_SERVERS'], d.instance.brokers
   end
 
   def test_mutli_worker_support
@@ -65,7 +65,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
 
     INPUT_CONFIG = %[
       @type kafka
-      brokers localhost:9092
+      brokers #{ENV['BOOTSTRAP_SERVERS']}
       format json
       @label @kafka
       topics #{TOPIC_NAME}
@@ -78,7 +78,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     def setup
       @kafka = nil
       omit_unless(have_rdkafka, "rdkafka isn't installed")
-      @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
+      @kafka = Kafka.new(ENV['BOOTSTRAP_SERVERS'].split(','), client_id: 'kafka')
     end
 
     def teardown
@@ -105,7 +105,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     def test_write_with_use_event_time
       input_config = %[
         @type kafka
-        brokers localhost:9092
+        brokers #{ENV['BOOTSTRAP_SERVERS']}
         format json
         @label @kafka
         topics #{TOPIC_NAME}

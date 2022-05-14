@@ -12,7 +12,7 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
 
   CONFIG = BASE_CONFIG + %[
     default_topic kitagawakeiko
-    brokers localhost:9092
+    brokers #{ENV['BOOTSTRAP_SERVERS']}
   ]
 
   def create_driver(conf = CONFIG, tag='test')
@@ -36,7 +36,7 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
 
     d = create_driver
     assert_equal 'kitagawakeiko', d.instance.default_topic
-    assert_equal 'localhost:9092', d.instance.brokers
+    assert_equal ENV['BOOTSTRAP_SERVERS'], d.instance.brokers
   end
 
   def test_format
