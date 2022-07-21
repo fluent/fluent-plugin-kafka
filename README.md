@@ -193,6 +193,7 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
       message_key_key       (string) :default => 'message_key'
       default_topic         (string) :default => nil
       default_partition_key (string) :default => nil
+      record_key            (string) :default => nil
       default_message_key   (string) :default => nil
       exclude_topic_key     (bool)   :default => false
       exclude_partition_key (bool)   :default => false
