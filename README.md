@@ -462,6 +462,7 @@ You need to install rdkafka gem.
       # same with kafka2
       headers               (hash) :default => {}
       headers_from_record   (hash) :default => {}
+      record_key            (string) :default => nil
 
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
