@@ -337,6 +337,40 @@ For example, `$.source.ip` can be extracted with config `headers_from_record` an
 
 > Using this config to remove unused fields is discouraged. A [filter plugin](https://docs.fluentd.org/v/0.12/filter) can be used for this purpose.
 
+#### Send only a sub field as a message payload
+
+If `record_key` is provided, the plugin sends only a sub field given by that key.
+The configuration format is jsonpath.
+
+e.g. When the following configuration and the incoming record are given:
+
+configuration:
+
+    <match **>
+      @type kafka2
+      [...]
+      record_key '$.data'
+    </match>
+
+record:
+
+    {
+        "specversion" : "1.0",
+        "type" : "com.example.someevent",
+        "id" : "C234-1234-1234",
+        "time" : "2018-04-05T17:31:00Z",
+        "datacontenttype" : "application/json",
+        "data" : {
+            "appinfoA" : "abc",
+            "appinfoB" : 123,
+            "appinfoC" : true
+        },
+        ...
+    }
+
+only the `data` field will be serialized by the formatter and sent to Kafka.
+The toplevel `data` key will be removed.
+
 ### Buffered output plugin
 
 This plugin uses ruby-kafka producer for writing data. This plugin is for v0.12. If you use v1, see `kafka2`.
