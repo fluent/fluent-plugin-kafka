@@ -206,6 +206,16 @@ class Fluent::KafkaGroupInput < Fluent::Input
     @thread = Thread.new(&method(:run))
   end
 
+  def trigger_heartbeat_if_necessary
+    @consumer.trigger_heartbeat
+    # rubocop:disable Style/RescueStandardError
+  rescue
+    # We need to rescue all errors because we aren't properly
+    # handling exceptions that are typically handled by
+    # Kafka::Consumer#consumer_loop.
+    # rubocop:enable Style/RescueStandardError
+  end
+
   def shutdown
     # This nil assignment should be guarded by mutex in multithread programming manner.
     # But the situation is very low contention, so we don't use mutex for now.
@@ -256,7 +266,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def process_batch_with_record_tag(batch)
-    es = {} 
+    es = {}
     batch.messages.each { |msg|
       begin
         record = @parser_proc.call(msg)
@@ -352,8 +362,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
           if @tag_source == :record
             process_batch_with_record_tag(batch)
           else
-            process_batch(batch) 
+            process_batch(batch)
           end
+
+          trigger_heartbeat_if_necessary
         }
       rescue ForShutdown
       rescue => e
