@@ -1,3 +1,6 @@
+Release 0.18.1 - 2022/08/17
+	* out_kafka2: Fix a bug that it doesn't respect `chunk_limit_records` and `chunk_limit_size`
+
 Release 0.18.0 - 2022/07/21
 	* out_kafka2: Keep alive Kafka connections between flushes
 	* out_rdkafka2: Enable to set SASL credentials via `username` and `password` parameters
