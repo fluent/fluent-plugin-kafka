@@ -207,7 +207,7 @@ DESC
     end
 
     def create_producer
-      @kafka.producer(**@producer_opts)
+      @kafka.custom_producer(**@producer_opts)
     end
 
     def start
