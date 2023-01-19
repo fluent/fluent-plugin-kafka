@@ -36,6 +36,7 @@ If you want to use zookeeper related parameters, you also need to install zookee
 - ssl_ca_cert
 - ssl_client_cert
 - ssl_client_cert_key
+- ssl_client_cert_key_password
 - ssl_ca_certs_from_system
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
