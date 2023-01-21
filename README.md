@@ -212,6 +212,16 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
       partitioner_hash_function (enum) (crc32|murmur2) :default => 'crc32'
       share_producer        (bool)   :default => false
 
+      # If you intend to rely on AWS IAM auth to MSK with long lived credentials
+      # https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html
+      #
+      # For AWS STS support, see status in
+      # - https://github.com/zendesk/ruby-kafka/issues/944
+      # - https://github.com/zendesk/ruby-kafka/pull/951
+      sasl_aws_msk_iam_access_key_id (string) :default => nil
+      sasl_aws_msk_iam_secret_key_id (string) :default => nil
+      sasl_aws_msk_iam_aws_region    (string) :default => nil
+
       <format>
         @type (json|ltsv|msgpack|attr:<record name>|<formatter name>) :default => json
       </format>
