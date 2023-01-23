@@ -1,5 +1,18 @@
 module Fluent
   module KafkaPluginUtil
+    module AwsIamSettings
+      def self.included(klass)
+        klass.instance_eval do
+          config_param :sasl_aws_msk_iam_access_key_id, :string, :default => nil, secret: true,
+                       desc: "AWS access key Id for IAM authentication to MSK."
+          config_param :sasl_aws_msk_iam_secret_key_id, :string, :default => nil, secret: true,
+                       desc: "AWS access key secret for IAM authentication to MSK."
+          config_param :sasl_aws_msk_iam_aws_region, :string, :default => nil,
+                       desc: "AWS region for IAM authentication to MSK."
+        end
+      end
+    end
+
     module SSLSettings
       def self.included(klass)
         klass.instance_eval {

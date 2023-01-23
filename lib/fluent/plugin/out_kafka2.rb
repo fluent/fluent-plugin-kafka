@@ -95,6 +95,7 @@ DESC
       config_set_default :@type, 'json'
     end
 
+    include Fluent::KafkaPluginUtil::AwsIamSettings
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::SaslSettings
 
@@ -113,6 +114,7 @@ DESC
     def refresh_client(raise_error = true)
       begin
         logger = @get_kafka_client_log ? log : nil
+        use_long_lived_aws_credentials = @sasl_aws_msk_iam_access_key_id != nil && @sasl_aws_msk_iam_secret_key_id != nil
         if @scram_mechanism != nil && @username != nil && @password != nil
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
@@ -125,6 +127,26 @@ DESC
                              ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password, sasl_over_ssl: @sasl_over_ssl,
                              ssl_verify_hostname: @ssl_verify_hostname, resolve_seed_brokers: @resolve_seed_brokers,
                              partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function))
+        elsif use_long_lived_aws_credentials
+          @kafka = Kafka.new(
+            seed_brokers: @seed_brokers,
+            client_id: @client_id,
+            logger: logger,
+            connect_timeout: @connect_timeout,
+            socket_timeout: @socket_timeout,
+            ssl_ca_cert_file_path: @ssl_ca_cert,
+            ssl_client_cert: read_ssl_file(@ssl_client_cert),
+            ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+            ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
+            ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
+            sasl_over_ssl: @sasl_over_ssl,
+            ssl_verify_hostname: @ssl_verify_hostname,
+            resolve_seed_brokers: @resolve_seed_brokers,
+            sasl_aws_msk_iam_access_key_id: @sasl_aws_msk_iam_access_key_id,
+            sasl_aws_msk_iam_secret_key_id: @sasl_aws_msk_iam_secret_key_id,
+            sasl_aws_msk_iam_aws_region: @sasl_aws_msk_iam_aws_region,
+            partitioner: Kafka::Partitioner.new(hash_function: @partitioner_hash_function)
+          )
         else
           @kafka = Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                              ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key), ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
