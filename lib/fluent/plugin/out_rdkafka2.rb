@@ -95,7 +95,6 @@ DESC
     config_param :max_enqueue_bytes_per_second, :size, :default => nil, :desc => 'The maximum number of enqueueing bytes per second'
 
     config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
-    config_param :ssl_client_cert_key_password, :string, :default => nil, :desc => 'Used for ssl.key.password'
 
     config_section :buffer do
       config_set_default :chunk_keys, ["topic"]
