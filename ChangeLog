@@ -1,3 +1,9 @@
+Release 0.19.0 - 2023/04/26
+	* out_kafka2: Add support for AWS IAM authentication
+	* in_kafka, in_kafka_group, out_kafka2: Add support for ssl client cert key password
+	* out_rdkafka2: Mask `ssl_client_cert_key_password` on dumping it to log
+	* out_rdkafka2: Support rdkafka-ruby 0.12
+
 Release 0.18.1 - 2022/08/17
 	* out_kafka2: Fix a bug that it doesn't respect `chunk_limit_records` and `chunk_limit_size`
 
