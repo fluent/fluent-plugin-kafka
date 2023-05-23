@@ -65,6 +65,7 @@ DESC
     config_param :topic_key, :string, :default => 'topic', :desc => "Field for kafka topic"
     config_param :default_topic, :string, :default => nil,
                  :desc => "Default output topic when record doesn't have topic field"
+    config_param :use_default_for_unknown_topic, :bool, :default => false, :desc => "If true, default_topic is used when topic not found"
     config_param :message_key_key, :string, :default => 'message_key', :desc => "Field for kafka message key"
     config_param :default_message_key, :string, :default => nil
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
@@ -233,6 +234,9 @@ DESC
       @rdkafka = Rdkafka::Config.new(config)
 
       if @default_topic.nil?
+        if @use_default_for_unknown_topic
+          raise Fluent::ConfigError, "default_topic must be set when use_default_for_unknown_topic is true"
+        end
         if @chunk_keys.include?(@topic_key) && !@chunk_key_tag
           log.warn "Use '#{@topic_key}' field of event record for topic but no fallback. Recommend to set default_topic or set 'tag' in buffer chunk keys like <buffer #{@topic_key},tag>"
         end
@@ -466,17 +470,25 @@ DESC
 
     def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers, time)
       attempt = 0
+      actual_topic = topic
+
       loop do
         begin
           @enqueue_rate.raise_if_limit_exceeded(record_buf.bytesize) if @enqueue_rate
-          return producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, headers: headers, timestamp: @use_event_time ? Time.at(time) : nil)
+          return producer.produce(topic: actual_topic, payload: record_buf, key: message_key, partition: partition, headers: headers, timestamp: @use_event_time ? Time.at(time) : nil)
         rescue EnqueueRate::LimitExceeded => e
           @enqueue_rate.revert if @enqueue_rate
           duration = e.next_retry_clock - Fluent::Clock.now
           sleep(duration) if duration > 0.0
         rescue Exception => e
           @enqueue_rate.revert if @enqueue_rate
-          if e.respond_to?(:code) && e.code == :queue_full
+
+          if !e.respond_to?(:code)
+            raise e
+          end
+
+          case e.code
+          when :queue_full
             if attempt <= @max_enqueue_retries
               log.warn "Failed to enqueue message; attempting retry #{attempt} of #{@max_enqueue_retries} after #{@enqueue_retry_backoff}s"
               sleep @enqueue_retry_backoff
@@ -484,6 +496,15 @@ DESC
             else
               raise "Failed to enqueue message although tried retry #{@max_enqueue_retries} times"
             end
+          # https://github.com/confluentinc/librdkafka/blob/c282ba2423b2694052393c8edb0399a5ef471b3f/src/rdkafka.h#LL309C9-L309C41
+          # RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC
+          when :unknown_topic
+            if @use_default_for_unknown_topic && actual_topic != @default_topic
+              log.debug "'#{actual_topic}' topic not found. Retry with '#{@default_topic}' topic"
+              actual_topic = @default_topic
+              retry
+            end
+            raise e
           else
             raise e
           end
