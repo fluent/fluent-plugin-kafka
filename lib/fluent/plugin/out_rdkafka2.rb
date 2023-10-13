@@ -112,6 +112,7 @@ DESC
     config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for rdkafka timestamp'
     config_param :max_send_limit_bytes, :size, :default => nil
     config_param :discard_kafka_delivery_failed, :bool, :default => false
+    config_param :discard_kafka_delivery_failed_regex, :regexp, :default => nil
     config_param :rdkafka_buffering_max_ms, :integer, :default => nil, :desc => 'Used for queue.buffering.max.ms'
     config_param :rdkafka_buffering_max_messages, :integer, :default => nil, :desc => 'Used for queue.buffering.max.messages'
     config_param :rdkafka_message_max_bytes, :integer, :default => nil, :desc => 'Used for message.max.bytes'
@@ -461,9 +462,13 @@ DESC
       if @discard_kafka_delivery_failed
         log.warn "Delivery failed. Discard events:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
       else
-        log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
-        # Raise exception to retry sendind messages
-        raise e
+	if @discard_kafka_delivery_failed_regex != nil && @discard_kafka_delivery_failed_regex.match?(e.to_s)
+          log.warn "Delivery failed and matched regexp pattern #{@discard_kafka_delivery_failed_regex}. Discard events:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+	else
+	  log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
+          # Raise exception to retry sendind messages
+          raise e
+	end
       end
     ensure
       @writing_threads_mutex.synchronize { @writing_threads.delete(Thread.current) }

@@ -517,6 +517,7 @@ You need to install rdkafka gem.
       exclude_topic_key     (bool) :default => false
       exclude_partition_key (bool) :default => false
       discard_kafka_delivery_failed (bool) :default => false (No discard)
+      discard_kafka_delivery_failed_regex (regexp) :default => nil (No discard)
       use_event_time        (bool) :default => false
 
       # same with kafka2
@@ -558,6 +559,9 @@ You need to install rdkafka gem.
       # to send. Default is no limit.
       max_enqueue_bytes_per_second (integer) :default => nil
     </match>
+
+`rdkafka2` supports `discard_kafka_delivery_failed_regex` parameter:
+- `discard_kafka_delivery_failed_regex` - default: nil - discard the record where the Kafka::DeliveryFailed occurred and the emitted message matches the given regex pattern, such as `/unknown_topic/`. 
 
 If you use v0.12, use `rdkafka` instead.
 
