@@ -20,6 +20,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "For 'text' format only."
   config_param :add_headers, :bool, :default => false,
                :desc => "Add kafka's message headers to event record"
+  config_param :headers_key, :string, :default => nil,
+               :desc => "Record key to store kafka's message headers"
   config_param :add_prefix, :string, :default => nil,
                :desc => "Tag prefix (Optional)"
   config_param :add_suffix, :string, :default => nil,
@@ -259,7 +261,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def process_batch_with_record_tag(batch)
-    es = {} 
+    es = {}
     batch.messages.each { |msg|
       begin
         record = @parser_proc.call(msg)
@@ -285,8 +287,13 @@ class Fluent::KafkaGroupInput < Fluent::Input
           record[@kafka_message_key] = msg.key
         end
         if @add_headers
+          if @headers_key
+            headers_record = record[@headers_key] = {}
+          else
+            headers_record = record
+          end
           msg.headers.each_pair { |k, v|
-            record[k] = v
+            headers_record[k] = v
           }
         end
         es[tag].add(record_time, record)
@@ -332,8 +339,13 @@ class Fluent::KafkaGroupInput < Fluent::Input
           record[@kafka_message_key] = msg.key
         end
         if @add_headers
+          if @headers_key
+            headers_record = record[@headers_key] = {}
+          else
+            headers_record = record
+          end
           msg.headers.each_pair { |k, v|
-            record[k] = v
+            headers_record[k] = v
           }
         end
         es.add(record_time, record)
@@ -355,7 +367,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
           if @tag_source == :record
             process_batch_with_record_tag(batch)
           else
-            process_batch(batch) 
+            process_batch(batch)
           end
         }
       rescue ForShutdown

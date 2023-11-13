@@ -51,6 +51,11 @@ class Fluent::KafkaInput < Fluent::Input
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
 
+  config_param :add_headers, :bool, :default => false,
+               :desc => "Add kafka's message headers to event record"
+  config_param :headers_key, :string, :default => nil,
+               :desc => "Record key to store kafka's message headers"
+
   # Kafka#fetch_messages options
   config_param :max_bytes, :integer, :default => nil,
                :desc => "Maximum number of bytes to fetch."
@@ -235,6 +240,8 @@ class Fluent::KafkaInput < Fluent::Input
         @record_time_key,
         @tag_source,
         @record_tag_key,
+        @add_headers,
+        @headers_key,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -259,7 +266,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, tag_source, record_tag_key, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, tag_source, record_tag_key, add_headers, headers_key, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -274,6 +281,8 @@ class Fluent::KafkaInput < Fluent::Input
       @record_time_key = record_time_key
       @tag_source = tag_source
       @record_tag_key = record_tag_key
+      @add_headers = add_headers
+      @headers_key = headers_key
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
@@ -331,6 +340,16 @@ class Fluent::KafkaInput < Fluent::Input
           end
           if @kafka_message_key
             record[@kafka_message_key] = msg.key
+          end
+          if @add_headers
+            if @headers_key
+              headers_record = record[@headers_key] = {}
+            else
+              headers_record = record
+            end
+            msg.headers.each_pair { |k, v|
+              headers_record[k] = v
+            }
           end
           es.add(record_time, record)
         rescue => e
