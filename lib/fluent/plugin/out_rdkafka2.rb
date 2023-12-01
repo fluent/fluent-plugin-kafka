@@ -71,6 +71,7 @@ DESC
     config_param :default_message_key, :string, :default => nil
     config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
     config_param :default_partition, :integer, :default => nil
+    config_param :idempotent, :bool, :default => false, :desc => 'Enable idempotent producer'
     config_param :output_data_type, :string, :default => 'json', :obsoleted => "Use <format> section instead"
     config_param :output_include_tag, :bool, :default => false, :obsoleted => "Use <inject> section instead"
     config_param :output_include_time, :bool, :default => false, :obsoleted => "Use <inject> section instead"
@@ -313,6 +314,7 @@ DESC
       config[:"batch.num.messages"] = @rdkafka_message_max_num if @rdkafka_message_max_num
       config[:"sasl.username"] = @username if @username
       config[:"sasl.password"] = @password if @password
+      config[:"enable.idempotence"] = @idempotent if @idempotent
 
       @rdkafka_options.each { |k, v|
         config[k.to_sym] = v
