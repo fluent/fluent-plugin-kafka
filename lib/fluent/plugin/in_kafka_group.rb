@@ -239,6 +239,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
   def reconnect_consumer
     log.warn "Stopping Consumer"
+    # Following line is causing a memory leak, in scenario, where kafka is not reachable and disable_retry_limit is true.
     consumer = @consumer
     @consumer = nil
     if consumer
@@ -254,6 +255,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
     log.error "unexpected error during re-starting consumer object access", :error => e.to_s
     log.error_backtrace
     if @retry_count <= @retry_limit or disable_retry_limit
+      # Adding the following line to ensure, consumer object is cleaned before recursively calling reconnect_consumer.
+      # This ensures no memory leak.
+      consumer = nil
       reconnect_consumer
     end
   end
