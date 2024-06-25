@@ -126,6 +126,8 @@ DESC
     config_param :max_enqueue_bytes_per_second, :size, :default => nil, :desc => 'The maximum number of enqueueing bytes per second'
 
     config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
+    config_param :unrecoverable_error_codes, :array, :default => ["topic_authorization_failed", "msg_size_too_large"],
+                 :desc => 'Handle some of the error codes should be unrecoverable if specified'
 
     config_section :buffer do
       config_set_default :chunk_keys, ["topic"]
@@ -522,7 +524,12 @@ DESC
 
             raise e
           else
-            raise e
+            if unrecoverable_error_codes.include?(e.code.to_s)
+              # some of the errors should be handled as an unrecoverable error
+              raise Fluent::UnrecoverableError, "Rejected due to #{e}"
+            else
+              raise e
+            end
           end
         end
       end
