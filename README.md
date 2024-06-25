@@ -558,6 +558,8 @@ You need to install rdkafka gem.
       # load of both Fluentd and Kafka when excessive messages are attempted
       # to send. Default is no limit.
       max_enqueue_bytes_per_second (integer) :default => nil
+      unrecoverable_error_codes (array) :default => ["topic_authorization_failed", "msg_size_too_large"]
+
     </match>
 
 `rdkafka2` supports `discard_kafka_delivery_failed_regex` parameter:
