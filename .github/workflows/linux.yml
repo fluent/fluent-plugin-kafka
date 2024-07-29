@@ -12,12 +12,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: [ '3.2', '3.1', '3.0', '2.7' ]
+        ruby: [ '3.2', '3.1', '3.0' ]
         os:
           - ubuntu-latest
         rdkafka_versions:
           - { min: '>= 0.6.0', max: '< 0.12.0' }
           - { min: '>= 0.12.0', max: '>= 0.12.0' }
+        bundler_version:
+          - '2.5.16'
+        # rdkafka 0.15.2 is the last version which supports Ruby 2.7
+        include:
+          - ruby: '2.7'
+            os: ubuntu-latest
+            rdkafka_versions: { min: '>= 0.6.0', max: '< 0.12.0' }
+            bundler_version: '2.4.22'
+          - ruby: '2.7'
+            os: ubuntu-latest
+            rdkafka_versions: { min: '>= 0.12.0', max: '= 0.15.2' }
+            bundler_version: '2.4.22'
     name: Ruby ${{ matrix.ruby }} unit testing on ${{ matrix.os }} with rdkafka gem version (min ${{ matrix.rdkafka_versions.min }} max ${{ matrix.rdkafka_versions.max }})
     steps:
     - uses: actions/checkout@v4
@@ -40,6 +52,7 @@ jobs:
         RDKAFKA_VERSION_MAX_RANGE: ${{ matrix.rdkafka_versions.max }}
       run: |
         sudo ./ci/prepare-kafka-server.sh
-        gem install bundler rake
-        bundle install --jobs 4 --retry 3
-        bundle exec rake test
+        gem install bundler -v ${{ matrix.bundler_version }}
+        gem install rake
+        bundle _${{ matrix.bundler_version }}_ install --jobs 4 --retry 3
+        bundle _${{ matrix.bundler_version }}_ exec rake test
