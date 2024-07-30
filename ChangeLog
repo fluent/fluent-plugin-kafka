@@ -1,3 +1,13 @@
+Release 0.19.3 - 2024/08/02
+	* out_rdkafka2: Add `unrecoverable_error_codes` parameter to handle
+			specific error code as unrecoverable errors. `topic_authorization_failed`
+			and `msg_size_too_large` are treated as such unrecoverable error by default. (#510)
+	* out_rdkafka2: Add missing closing timeout feature to keep compatibility with
+			rdkafka-ruby 0.12.x or later. (#505)
+	* out_rdkafka2: Add `idempotent` parameter to enable idempotence in Kafka producer. (#501)
+	* out_kafka2: Fix errors while sending data to EventHub by adding
+		      broker pool to take care of fetching metadata (#503)
+
 Release 0.19.2 - 2023/10/13
 	* out_rdkafka2: Add `discard_kafka_delivery_failed_regex`
 
