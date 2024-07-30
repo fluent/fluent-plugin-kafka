@@ -30,7 +30,10 @@ class Rdkafka::Producer
   def close(timeout = nil)
     rdkafka_version = Rdkafka::VERSION || '0.0.0'
     # Rdkafka version >= 0.12.0 changed its internals
-    if Gem::Version::create(rdkafka_version) >= Gem::Version.create('0.12.0')
+    # but reverted in >= 0.13.0
+    gem_version = Gem::Version::create(rdkafka_version)
+    if gem_version >= Gem::Version.create('0.12.0') and
+      gem_version <= Gem::Version.create('0.12.1')
       ObjectSpace.undefine_finalizer(self)
 
       return @client.close(timeout)
