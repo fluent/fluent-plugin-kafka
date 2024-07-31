@@ -509,7 +509,6 @@ You need to install rdkafka gem.
       partition_key         (string) :default => 'partition'
       partition_key_key     (string) :default => 'partition_key'
       message_key_key       (string) :default => 'message_key'
-      default_topic         (string) :default => nil
       use_default_for_unknown_topic           (bool) :default => false
       use_default_for_unknown_partition_error (bool) :default => false
       default_partition_key (string) :default => nil
