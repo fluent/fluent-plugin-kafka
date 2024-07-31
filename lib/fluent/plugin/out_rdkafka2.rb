@@ -5,48 +5,19 @@ require 'fluent/plugin/kafka_plugin_util'
 
 require 'rdkafka'
 
-# This is required for `rdkafka` version >= 0.12.0
-# Overriding the close method in order to provide a time limit for when it should be forcibly closed
-class Rdkafka::Producer::Client
-  # return false if producer is forcefully closed, otherwise return true
-  def close(timeout=nil)
-    return unless @native
-
-    # Indicate to polling thread that we're closing
-    @polling_thread[:closing] = true
-    # Wait for the polling thread to finish up
-    thread = @polling_thread.join(timeout)
-
-    Rdkafka::Bindings.rd_kafka_destroy(@native)
-
-    @native = nil
-
-    return !thread.nil?
+begin
+  rdkafka_version = Gem::Version::create(Rdkafka::VERSION)
+  if rdkafka_version < Gem::Version.create('0.12.0')
+    require_relative 'rdkafka_patch/0_11_0'
+  elsif rdkafka_version == Gem::Version.create('0.12.0')
+    require_relative 'rdkafka_patch/0_12_0'
+  elsif rdkafka_version >= Gem::Version.create('0.14.0')
+    require_relative 'rdkafka_patch/0_14_0'
+  elsif rdkafka_version >= Gem::Version.create('0.16.0')
+    require_relative 'rdkafka_patch/0_16_0'
   end
-end
-
-class Rdkafka::Producer
-  # return false if producer is forcefully closed, otherwise return true
-  def close(timeout = nil)
-    rdkafka_version = Rdkafka::VERSION || '0.0.0'
-    # Rdkafka version >= 0.12.0 changed its internals
-    if Gem::Version::create(rdkafka_version) >= Gem::Version.create('0.12.0')
-      ObjectSpace.undefine_finalizer(self)
-
-      return @client.close(timeout)
-    end
-
-    @closing = true
-    # Wait for the polling thread to finish up
-    # If the broker isn't alive, the thread doesn't exit
-    if timeout
-      thr = @polling_thread.join(timeout)
-      return !!thr
-    else
-      @polling_thread.join
-      return true
-    end
-  end
+rescue LoadError, NameError
+  raise "unable to patch rdkafka."
 end
 
 module Fluent::Plugin
