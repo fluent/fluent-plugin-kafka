@@ -13,6 +13,8 @@ begin
     require_relative 'rdkafka_patch/0_12_0'
   elsif rdkafka_version >= Gem::Version.create('0.14.0')
     require_relative 'rdkafka_patch/0_14_0'
+  elsif rdkafka_version >= Gem::Version.create('0.16.0')
+    require_relative 'rdkafka_patch/0_16_0'
   end
 rescue LoadError, NameError
   raise "unable to patch rdkafka."
