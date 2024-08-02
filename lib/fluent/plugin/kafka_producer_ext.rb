@@ -93,6 +93,10 @@ module Kafka
       @max_buffer_bytesize = max_buffer_bytesize
       @compressor = compressor
       @partitioner = partitioner
+
+      # The set of topics that are produced to.
+      @target_topics = Set.new
+
       # A buffer organized by topic/partition.
       @buffer = MessageBuffer.new
 
@@ -116,7 +120,8 @@ module Kafka
       if @transaction_manager.transactional? && !@transaction_manager.in_transaction?
         raise 'You must trigger begin_transaction before producing messages'
       end
-
+      
+      @target_topics.add(topic)
       @pending_message_queue.write(message)
 
       nil
@@ -187,7 +192,7 @@ module Kafka
     def deliver_messages_with_retries
       attempt = 0
 
-      #@cluster.add_target_topics(@target_topics)
+      @cluster.add_target_topics(@target_topics)
 
       operation = ProduceOperation.new(
         cluster: @cluster,
