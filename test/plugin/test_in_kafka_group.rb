@@ -23,7 +23,6 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     Fluent::Test::Driver::Input.new(Fluent::KafkaGroupInput).configure(conf)
   end
 
-
   def test_configure
     d = create_driver
     assert_equal [TOPIC_NAME], d.instance.topics
@@ -48,14 +47,6 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     end
 
     def test_consume
-      conf = %[
-        @type kafka
-        brokers localhost:9092
-        format text
-        @label @kafka
-        refresh_topic_interval 0
-        topics #{TOPIC_NAME}
-      ]
       d = create_driver
 
       d.run(expect_records: 1, timeout: 10) do
@@ -64,6 +55,67 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       end
       expected = {'message'  => 'Hello, fluent-plugin-kafka!'}
       assert_equal expected, d.events[0][2]
+    end
+  end
+
+  class ConsumeWithHeadersTest < self
+    CONFIG_TEMPLATE = %(
+    @type kafka
+    brokers localhost:9092
+    consumer_group fluentd
+    format text
+    refresh_topic_interval 0
+    @label @kafka
+    topics %<topic>s
+    %<conf_adds>s
+  ).freeze
+
+    def topic_random
+      "kafka-input-#{SecureRandom.uuid}"
+    end
+
+    def kafka_test_context(conf_adds: '', topic: topic_random, conf_template: CONFIG_TEMPLATE)
+      kafka = Kafka.new(['localhost:9092'], client_id: 'kafka')
+      producer = kafka.producer(required_acks: 1)
+
+      config = format(conf_template, topic: topic, conf_adds: conf_adds)
+      driver = create_driver(config)
+
+      yield topic, producer, driver
+    ensure
+      kafka.delete_topic(topic)
+      kafka.close
+    end
+
+    def test_with_headers_content_merged_into_record
+      conf_adds = 'add_headers true'
+      kafka_test_context(conf_adds: conf_adds) do |topic, producer, driver|
+        driver.run(expect_records: 1, timeout: 5) do
+          producer.produce('Hello, fluent-plugin-kafka!', topic: topic, headers: { header1: 'content1' })
+          producer.deliver_messages
+        end
+
+        expected = { 'message' => 'Hello, fluent-plugin-kafka!',
+                     'header1' => 'content1' }
+        assert_equal expected, driver.events[0][2]
+      end
+    end
+
+    def test_with_headers_content_merged_under_dedicated_key
+      conf_adds = %(
+        add_headers true
+        headers_key kafka_headers
+      )
+      kafka_test_context(conf_adds: conf_adds) do |topic, producer, driver|
+        driver.run(expect_records: 1, timeout: 5) do
+          producer.produce('Hello, fluent-plugin-kafka!', topic: topic, headers: { header1: 'content1' })
+          producer.deliver_messages
+        end
+
+        expected = { 'message' => 'Hello, fluent-plugin-kafka!',
+                     'kafka_headers' => { 'header1' => 'content1' } }
+        assert_equal expected, driver.events[0][2]
+      end
     end
   end
 end
