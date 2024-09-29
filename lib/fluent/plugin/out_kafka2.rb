@@ -403,6 +403,7 @@ DESC
       rescue Kafka::UnknownTopicOrPartition
         if @use_default_for_unknown_topic && topic != @default_topic
           log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+          producer.clear_buffer
           topic = @default_topic
           retry
         end
