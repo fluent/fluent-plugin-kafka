@@ -21,7 +21,6 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'ruby-kafka', '>= 1.5.0', '< 2'
   gem.add_dependency 'rdkafka'
   gem.add_dependency 'aws-msk-iam-sasl-signer'
-  gem.add_dependency 'json', '2.7.3'
   gem.add_development_dependency "rake", ">= 0.9.2"
   gem.add_development_dependency "test-unit", ">= 3.0.8"
   gem.add_development_dependency "test-unit-rr", "~> 1.0"

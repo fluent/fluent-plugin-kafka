@@ -4,6 +4,7 @@ require 'fluent/plugin/output'
 require 'fluent/plugin/kafka_plugin_util'
 
 require 'rdkafka'
+require 'aws_msk_iam_sasl_signer'
 
 begin
   rdkafka_version = Gem::Version::create(Rdkafka::VERSION)
@@ -307,8 +308,14 @@ DESC
     end
 
     def refresh_token(_config, _client_name)
-      print "refreshing token\n"
+      log.info("+--- Refreshing token")
       client = get_producer
+      # This will happen once upon initialization and is expected to fail, as the producer isnt set yet
+      # We will set the token manually after creation and after that this refresh method will work
+      unless client
+        log.info("Could not get shared client handle, unable to set/refresh token (this is expected one time on startup)")
+        return
+      end
       signer = AwsMskIamSaslSigner::MSKTokenProvider.new(region: @aws_msk_region)
       token = signer.generate_auth_token
 
@@ -325,10 +332,14 @@ DESC
       end
     end
 
-    # HERE -----------------
     def start
       if @share_producer
         @shared_producer = @rdkafka.producer
+        log.info("Created shared producer")
+        if @aws_msk_region
+          refresh_token(nil, nil)
+          log.info("Set initial token for shared producer")
+        end
       else
         @producers = {}
         @producers_mutex = Mutex.new
@@ -336,7 +347,6 @@ DESC
 
       super
     end
-    # HERE -----------------
 
     def multi_workers_ready?
       true
