@@ -4,7 +4,6 @@ require 'fluent/plugin/output'
 require 'fluent/plugin/kafka_plugin_util'
 
 require 'rdkafka'
-require 'aws_msk_iam_sasl_signer'
 
 begin
   rdkafka_version = Gem::Version::create(Rdkafka::VERSION)
@@ -16,6 +15,7 @@ begin
     require_relative 'rdkafka_patch/0_14_0'
   elsif rdkafka_version >= Gem::Version.create('0.16.0')
     require_relative 'rdkafka_patch/0_16_0'
+    require 'aws_msk_iam_sasl_signer'
   end
 rescue LoadError, NameError
   raise "unable to patch rdkafka."
@@ -208,7 +208,6 @@ DESC
           end
         end
       }
-      # HERE -----------------
       Rdkafka::Config.logger = log
       config = build_config
       @rdkafka = Rdkafka::Config.new(config)
@@ -217,7 +216,6 @@ DESC
       if config[:"security.protocol"] == "sasl_ssl" && config[:"sasl.mechanisms"] == "OAUTHBEARER"
         Rdkafka::Config.oauthbearer_token_refresh_callback = method(:refresh_token)
       end
-      # HERE -----------------
 
       if @default_topic.nil?
         if @use_default_for_unknown_topic || @use_default_for_unknown_partition_error
