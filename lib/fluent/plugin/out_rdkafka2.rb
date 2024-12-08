@@ -16,9 +16,12 @@ begin
   elsif rdkafka_version >= Gem::Version.create('0.16.0')
     require_relative 'rdkafka_patch/0_16_0'
   end
-  require 'aws_msk_iam_sasl_signer' if rdkafka_version >= Gem::Version.create('0.16.0')
 rescue LoadError, NameError
   raise "unable to patch rdkafka."
+end
+
+if Gem::Version.create(RUBY_VERSION) >= Gem::Version.create('3.0')
+  require 'aws-msk-iam-sasl-signer'
 end
 
 module Fluent::Plugin
