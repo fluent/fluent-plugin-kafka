@@ -19,6 +19,12 @@ Gem::Specification.new do |gem|
   gem.add_dependency "fluentd", [">= 0.10.58", "< 2"]
   gem.add_dependency 'ltsv'
   gem.add_dependency 'ruby-kafka', '>= 1.5.0', '< 2'
+
+  if ENV['USE_RDKAFKA']
+    gem.add_dependency 'rdkafka', [ENV['RDKAFKA_VERSION_MIN_RANGE'], ENV['RDKAFKA_VERSION_MAX_RANGE']]
+    gem.add_dependency 'aws-msk-iam-sasl-signer', '~> 0.1.1'
+  end
+
   gem.add_development_dependency "rake", ">= 0.9.2"
   gem.add_development_dependency "test-unit", ">= 3.0.8"
   gem.add_development_dependency "test-unit-rr", "~> 1.0"

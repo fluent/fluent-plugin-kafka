@@ -15,8 +15,8 @@ begin
     require_relative 'rdkafka_patch/0_14_0'
   elsif rdkafka_version >= Gem::Version.create('0.16.0')
     require_relative 'rdkafka_patch/0_16_0'
-    require 'aws_msk_iam_sasl_signer'
   end
+  require 'aws_msk_iam_sasl_signer' if rdkafka_version >= Gem::Version.create('0.16.0')
 rescue LoadError, NameError
   raise "unable to patch rdkafka."
 end
