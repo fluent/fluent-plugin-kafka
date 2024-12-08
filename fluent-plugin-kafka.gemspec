@@ -22,7 +22,9 @@ Gem::Specification.new do |gem|
 
   if ENV['USE_RDKAFKA']
     gem.add_dependency 'rdkafka', [ENV['RDKAFKA_VERSION_MIN_RANGE'], ENV['RDKAFKA_VERSION_MAX_RANGE']]
-    gem.add_dependency 'aws-msk-iam-sasl-signer', '~> 0.1.1'
+    if Gem::Version.new('3.0' >= Gem::Version.new(RUBY_VERSION)
+      gem.add_dependency 'aws-msk-iam-sasl-signer', '~> 0.1.1'
+    end
   end
 
   gem.add_development_dependency "rake", ">= 0.9.2"
