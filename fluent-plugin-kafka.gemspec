@@ -22,7 +22,7 @@ Gem::Specification.new do |gem|
 
   if ENV['USE_RDKAFKA']
     gem.add_dependency 'rdkafka', [ENV['RDKAFKA_VERSION_MIN_RANGE'], ENV['RDKAFKA_VERSION_MAX_RANGE']]
-    if Gem::Version.new('3.0') >= Gem::Version.new(RUBY_VERSION)
+    if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.0')
       gem.add_dependency 'aws-msk-iam-sasl-signer', '~> 0.1.1'
     end
   end
