@@ -240,7 +240,7 @@ DESC
 
   def setup_consumer
     @config = build_config
-    consumer = Rdkafka::Config.new(config).consumer
+    consumer = Rdkafka::Config.new(@config).consumer
     consumer.subscribe(*@topics)
     consumer
   end
