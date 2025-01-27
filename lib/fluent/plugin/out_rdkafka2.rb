@@ -20,6 +20,10 @@ rescue LoadError, NameError
   raise "unable to patch rdkafka."
 end
 
+if Gem::Version.create(RUBY_VERSION) >= Gem::Version.create('3.0')
+  require 'aws-msk-iam-sasl-signer'
+end
+
 module Fluent::Plugin
   class Fluent::Rdkafka2Output < Output
     Fluent::Plugin.register_output('rdkafka2', self)
@@ -100,6 +104,8 @@ DESC
     config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
     config_param :unrecoverable_error_codes, :array, :default => ["topic_authorization_failed", "msg_size_too_large"],
                  :desc => 'Handle some of the error codes should be unrecoverable if specified'
+
+    config_param :aws_msk_region, :string, :default => nil, :desc => 'AWS region for MSK'
 
     config_section :buffer do
       config_set_default :chunk_keys, ["topic"]
@@ -209,6 +215,11 @@ DESC
       config = build_config
       @rdkafka = Rdkafka::Config.new(config)
 
+
+      if config[:"security.protocol"] == "sasl_ssl" && config[:"sasl.mechanisms"] == "OAUTHBEARER"
+        Rdkafka::Config.oauthbearer_token_refresh_callback = method(:refresh_token)
+      end
+
       if @default_topic.nil?
         if @use_default_for_unknown_topic || @use_default_for_unknown_partition_error
           raise Fluent::ConfigError, "default_topic must be set when use_default_for_unknown_topic or use_default_for_unknown_partition_error is true"
@@ -289,6 +300,7 @@ DESC
       config[:"sasl.password"] = @password if @password
       config[:"enable.idempotence"] = @idempotent if @idempotent
 
+      # sasl.mechnisms and security.protocol are set as rdkafka_options
       @rdkafka_options.each { |k, v|
         config[k.to_sym] = v
       }
@@ -296,9 +308,39 @@ DESC
       config
     end
 
+    def refresh_token(_config, _client_name)
+      log.info("+--- Refreshing token")
+      client = get_producer
+      # This will happen once upon initialization and is expected to fail, as the producer isnt set yet
+      # We will set the token manually after creation and after that this refresh method will work
+      unless client
+        log.info("Could not get shared client handle, unable to set/refresh token (this is expected one time on startup)")
+        return
+      end
+      signer = AwsMskIamSaslSigner::MSKTokenProvider.new(region: @aws_msk_region)
+      token = signer.generate_auth_token
+
+      if token
+        client.oauthbearer_set_token(
+          token: token.token,
+          lifetime_ms: token.expiration_time_ms,
+          principal_name: "kafka-cluster"
+        )
+      else
+        client.oauthbearer_set_token_failure(
+          "Failed to generate token."
+        )
+      end
+    end
+
     def start
       if @share_producer
         @shared_producer = @rdkafka.producer
+        log.info("Created shared producer")
+        if @aws_msk_region
+          refresh_token(nil, nil)
+          log.info("Set initial token for shared producer")
+        end
       else
         @producers = {}
         @producers_mutex = Mutex.new
