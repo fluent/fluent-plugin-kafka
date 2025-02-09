@@ -1,0 +1,8 @@
+version: "3"
+services:
+  kafka:
+    image: confluentinc/confluent-local:7.4.3
+    ports:
+      - "9092:9092"
+
+
