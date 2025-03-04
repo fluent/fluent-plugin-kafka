@@ -19,6 +19,10 @@ Gem::Specification.new do |gem|
   gem.add_dependency "fluentd", [">= 0.10.58", "< 2"]
   gem.add_dependency 'ltsv'
   gem.add_dependency 'ruby-kafka', '>= 1.5.0', '< 2'
+
+  # gems that aren't default gems as of Ruby 3.4
+  gem.add_dependency("bigdecimal", ["~> 3.1"])
+
   gem.add_development_dependency "rake", ">= 0.9.2"
   gem.add_development_dependency "test-unit", ">= 3.0.8"
   gem.add_development_dependency "test-unit-rr", "~> 1.0"
