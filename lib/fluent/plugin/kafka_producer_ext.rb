@@ -254,9 +254,8 @@ module Kafka
 
       @pending_message_queue.each do |message|
         partition = message.partition
-
+        partition_count = @cluster.partitions_for(message.topic).count
         begin
-          partition_count = @cluster.partitions_for(message.topic).count
 
           if partition.nil?
             partition = @partitioner.call(partition_count, message)
