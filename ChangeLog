@@ -1,3 +1,6 @@
+Release 0.19.4 - 2025/03/24
+	* Support Ruby 3.4. (#526)
+
 Release 0.19.3 - 2024/08/02
 	* out_rdkafka2: Add `unrecoverable_error_codes` parameter to handle
 			specific error code as unrecoverable errors. `topic_authorization_failed`
