@@ -74,6 +74,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
+  include Fluent::KafkaPluginUtil::AwsIamSettings
 
   class ForShutdown < StandardError
   end
@@ -185,6 +186,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     super
 
     logger = @get_kafka_client_log ? log : nil
+    use_aws_msk_iam = @sasl_aws_msk_iam_access_key_id != nil && @sasl_aws_msk_iam_secret_key_id != nil
     if @scram_mechanism != nil && @username != nil && @password != nil
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
@@ -197,6 +199,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
                          ssl_client_cert_key_password: @ssl_client_cert_key_password,
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password,
                          sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
+    elsif use_aws_msk_iam
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout,
+                         sasl_aws_msk_iam_secret_key_id: @sasl_aws_msk_iam_secret_key_id, sasl_aws_msk_iam_access_key_id: @sasl_aws_msk_iam_access_key_id, sasl_aws_msk_iam_aws_region: @sasl_aws_msk_iam_aws_region,
+                         ssl_ca_certs_from_system: @ssl_ca_certs_from_system)
     else
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
