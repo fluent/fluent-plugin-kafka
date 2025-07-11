@@ -1,3 +1,7 @@
+Release 0.19.5 - 2025/07/11
+	* in_kafka_group: Add `sasl_aws_msk_iam_access_key_id`, `sasl_aws_msk_iam_secret_access_key`
+			and `sasl_aws_msk_iam_aws_region` options (#531)
+
 Release 0.19.4 - 2025/03/24
 	* Support Ruby 3.4. (#526)
 
