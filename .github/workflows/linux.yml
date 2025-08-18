@@ -30,7 +30,7 @@ jobs:
             rdkafka_versions: { min: '>= 0.12.0', max: '= 0.15.2' }
     name: Ruby ${{ matrix.ruby }} unit testing on ${{ matrix.os }} with rdkafka gem version (min ${{ matrix.rdkafka_versions.min }} max ${{ matrix.rdkafka_versions.max }})
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby }}
