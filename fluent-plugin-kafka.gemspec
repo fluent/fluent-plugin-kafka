@@ -23,7 +23,6 @@ Gem::Specification.new do |gem|
   # gems that aren't default gems as of Ruby 3.4
   gem.add_dependency("bigdecimal", ["~> 3.1"])
 
-
   if ENV['USE_RDKAFKA']
     gem.add_dependency 'rdkafka', [ENV['RDKAFKA_VERSION_MIN_RANGE'], ENV['RDKAFKA_VERSION_MAX_RANGE']]
     if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.0')
