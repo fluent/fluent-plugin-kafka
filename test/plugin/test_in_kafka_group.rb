@@ -39,6 +39,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
   class ConsumeTest < self
     def setup
       @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
+      @kafka.create_topic(TOPIC_NAME)
       @producer = @kafka.producer
     end
 
@@ -59,6 +60,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       d = create_driver
 
       d.run(expect_records: 1, timeout: 10) do
+        sleep 0.1
         @producer.produce("Hello, fluent-plugin-kafka!", topic: TOPIC_NAME)
         @producer.deliver_messages
       end
