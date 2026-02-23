@@ -174,6 +174,8 @@ DESC
       @enqueue_rate = nil
       @writing_threads_mutex = Mutex.new
       @writing_threads = Set.new
+
+      @use_max_wait_timeout_ms = Gem::Version.new(Rdkafka::VERSION) >= Gem::Version.new('0.25.0')
     end
 
     def configure(conf)
@@ -430,7 +432,11 @@ DESC
           end
         }
         handlers.each { |handler|
-          handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout)
+          if @use_max_wait_timeout_ms
+            handler.wait(max_wait_timeout_ms: @rdkafka_delivery_handle_poll_timeout * 1000)
+          else
+            handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout)
+          end
         }
       end
     rescue Exception => e

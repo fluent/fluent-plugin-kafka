@@ -87,6 +87,8 @@ DESC
     super
     @producers = {}
     @producers_mutex = Mutex.new
+
+    @use_max_wait_timeout_ms = Gem::Version.new(Rdkafka::VERSION) >= Gem::Version.new('0.25.0')
   end
 
   def configure(conf)
@@ -291,7 +293,13 @@ DESC
         handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
         handler
       }.each { |handler|
-        handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout) if @rdkafka_delivery_handle_poll_timeout != 0
+        if @rdkafka_delivery_handle_poll_timeout != 0
+          if @use_max_wait_timeout_ms
+            handler.wait(max_wait_timeout_ms: @rdkafka_delivery_handle_poll_timeout * 1000)
+          else
+            handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout)
+          end
+        end
       }
     end
   rescue Exception => e
