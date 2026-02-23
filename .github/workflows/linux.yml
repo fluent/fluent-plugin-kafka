@@ -19,7 +19,14 @@ jobs:
           - { min: '>= 0.6.0', max: '< 0.12.0' }
           - { min: '>= 0.12.0', max: '< 0.14.0' }
           - { min: '>= 0.14.0', max: '< 0.16.0' }
-          - { min: '>= 0.16.0', max: '>= 0.16.0' }
+          - { min: '>= 0.16.0', max: '< 0.25.0' }
+          - { min: '>= 0.25.0', max: '>= 0.25.0' }
+        # rdkafka 0.25.0 supports Ruby 3.2+, so we exclude it for Ruby 3.0 and 3.1
+        exclude:
+          - ruby: '3.1'
+            rdkafka_versions: { min: '>= 0.25.0', max: '>= 0.25.0' }
+          - ruby: '3.0'
+            rdkafka_versions: { min: '>= 0.25.0', max: '>= 0.25.0' }
         # rdkafka 0.15.2 is the last version which supports Ruby 2.7
         include:
           - ruby: '2.7'
