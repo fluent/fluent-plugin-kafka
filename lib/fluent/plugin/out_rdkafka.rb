@@ -78,7 +78,6 @@ DESC
   config_param :enqueue_retry_backoff, :integer, :default => 3
 
   config_param :service_name, :string, :default => nil
-  config_param :ssl_client_cert_key_password, :string, :default => nil
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
