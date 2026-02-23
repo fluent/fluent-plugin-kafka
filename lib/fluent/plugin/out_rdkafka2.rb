@@ -168,8 +168,8 @@ DESC
     def initialize
       super
 
-      @producers = nil
-      @producers_mutex = nil
+      @producers = {}
+      @producers_mutex = Mutex.new
       @shared_producer = nil
       @enqueue_rate = nil
       @writing_threads_mutex = Mutex.new
@@ -301,7 +301,6 @@ DESC
         @shared_producer = @rdkafka.producer
       else
         @producers = {}
-        @producers_mutex = Mutex.new
       end
 
       super
