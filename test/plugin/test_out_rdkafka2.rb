@@ -55,6 +55,18 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'localhost:9092', d.instance.brokers
   end
 
+  def test_configure_sasl_plain
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'PLAIN', config[:"sasl.mechanisms"]
+    assert_equal 'SASL_PLAINTEXT', config[:"security.protocol"]
+    assert_equal 'testuser', config[:"sasl.username"]
+    assert_equal 'testpass', config[:"sasl.password"]
+  end
+
   def test_mutli_worker_support
     d = create_driver
     assert_equal true, d.instance.multi_workers_ready?
