@@ -1,3 +1,9 @@
+Release 0.19.6 - 2026/03/04
+	* out_rdkafka2: Auto-configure SASL PLAIN when username and password are set (#547)
+	* out_rdkafka2: Fix NoMethodError during graceful reload (#546)
+	* out_rdkafka: Fix ArgumentError for ssl_client_cert_key_password (#545)
+	* out_rdkafka, out_rdkafka2: Fix deprecation warning for max_wait_timeout in rdkafka-ruby >= 0.25.0 (#544)
+
 Release 0.19.5 - 2025/07/11
 	* in_kafka_group: Add `sasl_aws_msk_iam_access_key_id`, `sasl_aws_msk_iam_secret_access_key`
 			and `sasl_aws_msk_iam_aws_region` options (#531)
