@@ -268,6 +268,11 @@ DESC
         config[:"sasl.kerberos.keytab"] = @keytab if @keytab
       end
 
+      if @username && @password
+        sasl = true
+        config[:"sasl.mechanisms"] = 'PLAIN'
+      end
+
       if ssl && sasl
         security_protocol = "SASL_SSL"
       elsif ssl && !sasl
