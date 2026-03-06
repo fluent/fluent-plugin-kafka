@@ -70,18 +70,28 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   end
 
   def _config_to_array(config)
-    config_array = config.split(',').map {|k| k.strip }
+    config_array = config.split(',').map {|k| _config_regex_pattern(k.strip) }
     if config_array.empty?
       raise Fluent::ConfigError, "kafka_group: '#{config}' is a required parameter"
     end
     config_array
   end
+  private :_config_to_array
+
+  def _config_regex_pattern(topic)
+    if (m = /^\/(.+)\/$/.match(topic))
+      # librdkafka recognizes string as regex pattern if the topic name starts with '^'.
+      # https://github.com/confluentinc/librdkafka/blob/570c785e9e35812db8f50254bd2f7e0cf47def39/src/rdkafka.h#L4148
+      # https://github.com/confluentinc/librdkafka/blob/e1db7eaa517f0a6438bc846a9c49ede73b9ea211/src/rdkafka_topic.c#L2064
+      return "^#{m[1]}"
+    end
+    topic
+  end
+  private :_config_regex_pattern
 
   def multi_workers_ready?
     true
   end
-
-  private :_config_to_array
 
   def configure(conf)
     compat_parameters_convert(conf, :parser)
