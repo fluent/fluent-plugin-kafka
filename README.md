@@ -177,6 +177,9 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
 
 See also [rdkafka-ruby](https://github.com/appsignal/rdkafka-ruby) and [librdkafka](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for more detailed documentation about Kafka consumer options.
 
+`topics` supports POSIX Extended Regular Expression pattern (not Ruby regex syntax) since v0.19.6. If you want to use regex pattern, use `/pattern/` like `/foo.*/`. <br>
+**Note**: A caret (`^`) is automatically added to the beginning of the pattern.
+
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
 ### Output plugin
