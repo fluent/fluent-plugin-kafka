@@ -72,6 +72,8 @@ Consume events by single consumer.
       topics <listening topics(separate with comma',')>
       format <input text type (text|json|ltsv|msgpack)> :default => json
       message_key <key (Optional, for text format only, default is message)>
+      add_headers <If true, add kafka's message headers to record>
+      headers_key <key dedicated to store headers content>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
 
@@ -122,6 +124,7 @@ Consume events by kafka consumer group features..
       message_key <key (Optional, for text format only, default is message)>
       kafka_message_key <key (Optional, If specified, set kafka's message key to this key)>
       add_headers <If true, add kafka's message headers to record>
+      headers_key <key dedicated to store headers content>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
       retry_emit_limit <Wait retry_emit_limit x 1s when BuffereQueueLimitError happens. The default is nil and it means waiting until BufferQueueLimitError is resolved>
@@ -159,6 +162,7 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
       message_key <key (Optional, for text format only, default is message)>
       kafka_message_key <key (Optional, If specified, set kafka's message key to this key)>
       add_headers <If true, add kafka's message headers to record>
+      headers_key <key dedicated to store headers content>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
       retry_emit_limit <Wait retry_emit_limit x 1s when BuffereQueueLimitError happens. The default is nil and it means waiting until BufferQueueLimitError is resolved>
