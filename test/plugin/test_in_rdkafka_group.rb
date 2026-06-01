@@ -83,6 +83,7 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   class ConsumeTopicWithRegexpTest < self
     TOPIC_NAME1       = "kafka-input-1-#{SecureRandom.uuid}"
     TOPIC_NAME2       = "kafka-input-22-#{SecureRandom.uuid}"
+    UNMATCHED_TOPIC   = "kafka-input-333-#{SecureRandom.uuid}"
 
     TOPIC_NAME_REGEXP = "/kafka-input-[0-9]{1,2}-.*/"
 
@@ -91,11 +92,13 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
       @producer = @kafka.producer
       @kafka.create_topic(TOPIC_NAME1)
       @kafka.create_topic(TOPIC_NAME2)
+      @kafka.create_topic(UNMATCHED_TOPIC)
     end
 
     def teardown
       @kafka.delete_topic(TOPIC_NAME1)
       @kafka.delete_topic(TOPIC_NAME2)
+      @kafka.delete_topic(UNMATCHED_TOPIC)
       @kafka.close
     end
 
@@ -113,6 +116,7 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
         sleep 0.1
         @producer.produce("Hello, fluent-plugin-kafka! in topic 1", topic: TOPIC_NAME1)
         @producer.produce("Hello, fluent-plugin-kafka! in topic 2", topic: TOPIC_NAME2)
+        @producer.produce("Should be ignored", topic: UNMATCHED_TOPIC)
         @producer.deliver_messages
       end
       expected_message_pattern = /Hello, fluent-plugin-kafka! in topic [12]/
