@@ -82,8 +82,9 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
 
   class ConsumeTopicWithRegexpTest < self
     TOPIC_NAME1       = "kafka-input-1-#{SecureRandom.uuid}"
-    TOPIC_NAME2       = "kafka-input-2-#{SecureRandom.uuid}"
-    TOPIC_NAME_REGEXP = "/kafka-input-(1|2)-.*/"
+    TOPIC_NAME2       = "kafka-input-22-#{SecureRandom.uuid}"
+
+    TOPIC_NAME_REGEXP = "/kafka-input-[0-9]{1,2}-.*/"
 
     def setup
       @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')

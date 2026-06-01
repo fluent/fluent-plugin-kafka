@@ -70,7 +70,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   end
 
   def _config_to_array(config)
-    config_array = config.split(',').map {|k| _config_regex_pattern(k.strip) }
+    config_array = config.split(',').map {|k| k.strip }
     if config_array.empty?
       raise Fluent::ConfigError, "kafka_group: '#{config}' is a required parameter"
     end
@@ -78,14 +78,16 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   end
   private :_config_to_array
 
+  def regex_pattern?(topic)
+    topic.start_with?('/') && topic.end_with?('/') ? true : false
+  end
+  private :regex_pattern?
+
   def _config_regex_pattern(topic)
-    if (m = /^\/(.+)\/$/.match(topic))
-      # librdkafka recognizes string as regex pattern if the topic name starts with '^'.
-      # https://github.com/confluentinc/librdkafka/blob/570c785e9e35812db8f50254bd2f7e0cf47def39/src/rdkafka.h#L4148
-      # https://github.com/confluentinc/librdkafka/blob/e1db7eaa517f0a6438bc846a9c49ede73b9ea211/src/rdkafka_topic.c#L2064
-      return "^#{m[1]}"
-    end
-    topic
+    # librdkafka recognizes string as regex pattern if the topic name starts with '^'.
+    # https://github.com/confluentinc/librdkafka/blob/570c785e9e35812db8f50254bd2f7e0cf47def39/src/rdkafka.h#L4148
+    # https://github.com/confluentinc/librdkafka/blob/e1db7eaa517f0a6438bc846a9c49ede73b9ea211/src/rdkafka_topic.c#L2064
+    [topic[1..-2].prepend('^')]
   end
   private :_config_regex_pattern
 
@@ -103,7 +105,12 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     log.info "Will watch for topics #{@topics} at brokers " \
               "#{@kafka_configs["bootstrap.servers"]} and '#{@kafka_configs["group.id"]}' group"
 
-    @topics = _config_to_array(@topics)
+    topics = @topics.strip
+    if regex_pattern?(topics)
+      @topics = _config_regex_pattern(topics)
+    else
+      @topics = _config_to_array(topics)
+    end
 
     parser_conf = conf.elements('parse').first
     unless parser_conf
