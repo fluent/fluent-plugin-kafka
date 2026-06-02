@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -x
+
 export KAFKA_OPTS=-Dzookeeper.4lw.commands.whitelist=ruok
 /usr/bin/zookeeper-server-start /etc/kafka/zookeeper.properties  &
 N_POLLING=30
@@ -30,4 +32,14 @@ while true ; do
 	exit 1
     fi
 done
-/usr/bin/kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+# kafka-topics --version fails to connect zookeeper here.
+case "$(java -cp "/usr/share/java/kafka/*" kafka.Kafka --version 2>/dev/null)" in
+    7.*)
+        /usr/bin/kafka-topics --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic test
+        ;;
+    *)
+        # Deprecated zookeeper
+        /usr/bin/kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+        ;;
+esac
+
