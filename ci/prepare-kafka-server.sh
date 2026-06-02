@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -x
+
 export KAFKA_OPTS=-Dzookeeper.4lw.commands.whitelist=ruok
 /usr/bin/zookeeper-server-start /etc/kafka/zookeeper.properties  &
 N_POLLING=30
