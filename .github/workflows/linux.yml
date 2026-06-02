@@ -53,10 +53,10 @@ jobs:
     - name: Install confluent-kafka
       run: |
         sudo apt install -V -y gnupg2 wget
-        wget https://packages.confluent.io/deb/7.8/archive.key
+        wget https://packages.confluent.io/deb/7.9/archive.key
         sudo gpg2 --homedir /tmp --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/confluent-archive-keyring.gpg --import archive.key
         sudo chmod 644 /usr/share/keyrings/confluent-archive-keyring.gpg
-        sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/confluent-archive-keyring.gpg] https://packages.confluent.io/deb/7.8 stable main" > /etc/apt/sources.list.d/confluent.list'
+        sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/confluent-archive-keyring.gpg] https://packages.confluent.io/deb/7.9 stable main" > /etc/apt/sources.list.d/confluent.list'
         sudo apt update
         sudo apt install -y confluent-community-2.13 openjdk-11-jre netcat-openbsd
     - name: unit testing
