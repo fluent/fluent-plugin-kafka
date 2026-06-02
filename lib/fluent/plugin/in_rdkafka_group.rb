@@ -76,12 +76,24 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     end
     config_array
   end
+  private :_config_to_array
+
+  def regex_pattern?(topic)
+    topic.start_with?('/') && topic.end_with?('/') ? true : false
+  end
+  private :regex_pattern?
+
+  def _config_regex_pattern(topic)
+    # librdkafka recognizes string as regex pattern if the topic name starts with '^'.
+    # https://github.com/confluentinc/librdkafka/blob/570c785e9e35812db8f50254bd2f7e0cf47def39/src/rdkafka.h#L4148
+    # https://github.com/confluentinc/librdkafka/blob/e1db7eaa517f0a6438bc846a9c49ede73b9ea211/src/rdkafka_topic.c#L2064
+    [topic[1..-2].prepend('^')]
+  end
+  private :_config_regex_pattern
 
   def multi_workers_ready?
     true
   end
-
-  private :_config_to_array
 
   def configure(conf)
     compat_parameters_convert(conf, :parser)
@@ -93,7 +105,12 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     log.info "Will watch for topics #{@topics} at brokers " \
               "#{@kafka_configs["bootstrap.servers"]} and '#{@kafka_configs["group.id"]}' group"
 
-    @topics = _config_to_array(@topics)
+    topics = @topics.strip
+    if regex_pattern?(topics)
+      @topics = _config_regex_pattern(topics)
+    else
+      @topics = _config_to_array(topics)
+    end
 
     parser_conf = conf.elements('parse').first
     unless parser_conf
