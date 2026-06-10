@@ -137,8 +137,8 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
         Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
         Proc.new { |msg| Oj.load(msg.payload) }
       rescue LoadError
-        require 'yajl'
-        Proc.new { |msg| Yajl::Parser.parse(msg.payload) }
+        require 'json'
+        Proc.new { |msg| JSON.parse(msg.payload) }
       end
     when 'ltsv'
       require 'ltsv'

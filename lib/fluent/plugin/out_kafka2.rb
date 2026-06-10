@@ -314,8 +314,8 @@ DESC
           Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
           Proc.new { |tag, time, record| Oj.dump(record) }
         rescue LoadError
-          require 'yajl'
-          Proc.new { |tag, time, record| Yajl::Encoder.encode(record) }
+          require 'json'
+          Proc.new { |tag, time, record| JSON.generate(record) }
         end
       when 'ltsv'
         require 'ltsv'

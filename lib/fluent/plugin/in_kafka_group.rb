@@ -160,8 +160,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
         Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
         Proc.new { |msg| Oj.load(msg.value) }
       rescue LoadError
-        require 'yajl'
-        Proc.new { |msg| Yajl::Parser.parse(msg.value) }
+        require 'json'
+        Proc.new { |msg| JSON.parse(msg.value) }
       end
     when 'ltsv'
       require 'ltsv'
@@ -265,7 +265,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def process_batch_with_record_tag(batch)
-    es = {} 
+    es = {}
     batch.messages.each { |msg|
       begin
         record = @parser_proc.call(msg)
@@ -361,7 +361,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
           if @tag_source == :record
             process_batch_with_record_tag(batch)
           else
-            process_batch(batch) 
+            process_batch(batch)
           end
         }
       rescue ForShutdown

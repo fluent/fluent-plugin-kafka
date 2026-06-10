@@ -143,9 +143,9 @@ class Fluent::KafkaInput < Fluent::Input
           r
         }
       rescue LoadError
-        require 'yajl'
+        require 'json'
         Proc.new { |msg, te|
-          r = Yajl::Parser.parse(msg.value)
+          r = JSON.parse(msg.value)
           add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
           r
         }

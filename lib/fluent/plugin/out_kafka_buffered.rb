@@ -119,7 +119,7 @@ DESC
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
       z.get_children(:path => @zookeeper_path)[:children].each do |id|
-        broker = Yajl.load(z.get(:path => @zookeeper_path + "/#{id}")[:data])
+        broker = JSON.parse(z.get(:path => @zookeeper_path + "/#{id}")[:data])
         if @ssl_client_cert
           @seed_brokers.push(pickup_ssl_endpoint(broker))
         else
@@ -259,8 +259,8 @@ DESC
         Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
         Proc.new { |tag, time, record| Oj.dump(record) }
       rescue LoadError
-        require 'yajl'
-        Proc.new { |tag, time, record| Yajl::Encoder.encode(record) }
+        require 'json'
+        Proc.new { |tag, time, record| JSON.generate(record) }
       end
     elsif @output_data_type == 'ltsv'
       require 'ltsv'
