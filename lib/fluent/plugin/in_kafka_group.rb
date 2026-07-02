@@ -161,7 +161,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
         Proc.new { |msg| Oj.load(msg.value) }
       rescue LoadError
         require 'json'
-        Proc.new { |msg| JSON.parse(msg.value) }
+        Proc.new { |msg| JSON.parse(msg.value, allow_duplicate_key: true) }
       end
     when 'ltsv'
       require 'ltsv'

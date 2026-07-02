@@ -96,7 +96,7 @@ DESC
       @seed_brokers = []
       z = Zookeeper.new(@zookeeper)
       z.get_children(:path => @zookeeper_path)[:children].each do |id|
-        broker = JSON.parse(z.get(:path => @zookeeper_path + "/#{id}")[:data])
+        broker = JSON.parse(z.get(:path => @zookeeper_path + "/#{id}")[:data], allow_duplicate_key: true)
         if @ssl_client_cert
           @seed_brokers.push(pickup_ssl_endpoint(broker))
         else
