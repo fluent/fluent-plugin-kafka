@@ -145,7 +145,7 @@ class Fluent::KafkaInput < Fluent::Input
       rescue LoadError
         require 'json'
         Proc.new { |msg, te|
-          r = JSON.parse(msg.value)
+          r = JSON.parse(msg.value, allow_duplicate_key: true)
           add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
           r
         }
