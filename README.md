@@ -523,7 +523,7 @@ You need to install rdkafka gem.
       discard_kafka_delivery_failed (bool) :default => false (No discard)
       discard_kafka_delivery_failed_regex (regexp) :default => nil (No discard)
       use_event_time        (bool) :default => false
-      # Set to false to allow sending SASL credentials over a plaintext connection
+      # When true, SASL authentication requires an SSL connection
       sasl_over_ssl         (bool) :default => true
 
       # same with kafka2
