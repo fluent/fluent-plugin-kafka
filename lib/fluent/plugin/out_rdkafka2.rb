@@ -99,7 +99,7 @@ DESC
 
     config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
     config_param :sasl_over_ssl, :bool, :default => true,
-                 :desc => 'Set to false to allow sending SASL credentials over a plaintext connection'
+                 :desc => 'When true, SASL authentication requires an SSL connection'
     config_param :unrecoverable_error_codes, :array, :default => ["topic_authorization_failed", "msg_size_too_large"],
                  :desc => 'Handle some of the error codes should be unrecoverable if specified'
 
