@@ -98,6 +98,8 @@ DESC
     config_param :max_enqueue_bytes_per_second, :size, :default => nil, :desc => 'The maximum number of enqueueing bytes per second'
 
     config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
+    config_param :sasl_over_ssl, :bool, :default => true,
+                 :desc => 'When true, SASL authentication requires an SSL connection'
     config_param :unrecoverable_error_codes, :array, :default => ["topic_authorization_failed", "msg_size_too_large"],
                  :desc => 'Handle some of the error codes should be unrecoverable if specified'
 
@@ -299,6 +301,10 @@ DESC
       @rdkafka_options.each { |k, v|
         config[k.to_sym] = v
       }
+
+      if @sasl_over_ssl && config[:"sasl.password"] && config[:"security.protocol"] == "SASL_PLAINTEXT"
+        raise Fluent::ConfigError, "SASL authentication requires that SSL is configured. Set 'sasl_over_ssl false' to send SASL credentials over a plaintext connection"
+      end
 
       config
     end

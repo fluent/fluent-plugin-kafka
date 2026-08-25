@@ -55,8 +55,30 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'localhost:9092', d.instance.brokers
   end
 
-  def test_configure_sasl_plain
+  def test_configure_sasl_plain_over_ssl
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass",
+                                                     "ssl_ca_cert" => "/path/to/ca_cert.pem"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'PLAIN', config[:"sasl.mechanisms"]
+    assert_equal 'SASL_SSL', config[:"security.protocol"]
+    assert_equal 'testuser', config[:"sasl.username"]
+    assert_equal 'testpass', config[:"sasl.password"]
+  end
+
+  def test_configure_sasl_plain_without_ssl
     conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass"}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
+  def test_configure_sasl_plain_without_ssl_allowed_by_sasl_over_ssl
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass",
+                                                     "sasl_over_ssl" => "false"}, [])
     d = create_driver(conf)
 
     config = d.instance.build_config
@@ -65,6 +87,16 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'SASL_PLAINTEXT', config[:"security.protocol"]
     assert_equal 'testuser', config[:"sasl.username"]
     assert_equal 'testpass', config[:"sasl.password"]
+  end
+
+  def test_configure_sasl_plain_with_security_protocol_from_rdkafka_options
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass",
+                                                     "rdkafka_options" => '{"security.protocol": "SASL_SSL"}'}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'SASL_SSL', config[:"security.protocol"]
   end
 
   def test_mutli_worker_support
