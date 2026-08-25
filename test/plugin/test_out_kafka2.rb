@@ -45,6 +45,47 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal ['localhost:9092'], d.instance.brokers
   end
 
+  def test_configure_ssl_client_cert_without_key
+    conf = config + config_element('ROOT', '', {"ssl_client_cert" => "/path/to/cert.pem"}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
+  def test_configure_ssl_client_cert_key_without_cert
+    conf = config + config_element('ROOT', '', {"ssl_client_cert_key" => "/path/to/key.pem"}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
+  def test_configure_ssl_client_cert_chain_without_cert
+    conf = config + config_element('ROOT', '', {"ssl_client_cert_chain" => "/path/to/chain.pem"}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
+  def test_configure_ssl_client_cert_key_password_without_key
+    conf = config + config_element('ROOT', '', {"ssl_client_cert_key_password" => "secret"}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
+  def test_configure_ssl_client_cert_with_key
+    conf = config + config_element('ROOT', '', {"ssl_client_cert" => "/path/to/cert.pem",
+                                                "ssl_client_cert_key" => "/path/to/key.pem"}, [])
+
+    assert_nothing_raised(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
   data("crc32" => "crc32",
        "murmur2" => "murmur2")
   def test_partitioner_hash_function(data)
