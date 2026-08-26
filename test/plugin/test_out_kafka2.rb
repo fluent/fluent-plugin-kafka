@@ -45,6 +45,27 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal ['localhost:9092'], d.instance.brokers
   end
 
+  data("cert without key" => {"ssl_client_cert" => "/path/to/cert.pem"},
+       "key without cert" => {"ssl_client_cert_key" => "/path/to/key.pem"},
+       "chain without cert" => {"ssl_client_cert_chain" => "/path/to/chain.pem"},
+       "key password without key" => {"ssl_client_cert_key_password" => "secret"})
+  def test_configure_incomplete_ssl_client_cert(params)
+    conf = config + config_element('ROOT', '', params, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
+  def test_configure_ssl_client_cert_with_key
+    conf = config + config_element('ROOT', '', {"ssl_client_cert" => "/path/to/cert.pem",
+                                                "ssl_client_cert_key" => "/path/to/key.pem"}, [])
+
+    assert_nothing_raised(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
   data("crc32" => "crc32",
        "murmur2" => "murmur2")
   def test_partitioner_hash_function(data)

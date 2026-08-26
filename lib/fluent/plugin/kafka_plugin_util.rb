@@ -36,6 +36,20 @@ module Fluent
 
       DummyFormatter = Object.new
 
+      def configure(conf)
+        super
+
+        if @ssl_client_cert && !@ssl_client_cert_key
+          raise Fluent::ConfigError, "ssl_client_cert is set but ssl_client_cert_key is not. Please provide both."
+        elsif !@ssl_client_cert && @ssl_client_cert_key
+          raise Fluent::ConfigError, "ssl_client_cert_key is set but ssl_client_cert is not. Please provide both."
+        elsif @ssl_client_cert_chain && !@ssl_client_cert
+          raise Fluent::ConfigError, "ssl_client_cert_chain is set but ssl_client_cert is not. Please provide cert, key and chain."
+        elsif @ssl_client_cert_key_password && !@ssl_client_cert_key
+          raise Fluent::ConfigError, "ssl_client_cert_key_password is set but ssl_client_cert_key is not. Please provide both."
+        end
+      end
+
       def start
         super
 
