@@ -45,32 +45,12 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal ['localhost:9092'], d.instance.brokers
   end
 
-  def test_configure_ssl_client_cert_without_key
-    conf = config + config_element('ROOT', '', {"ssl_client_cert" => "/path/to/cert.pem"}, [])
-
-    assert_raise(Fluent::ConfigError) {
-      create_driver(conf)
-    }
-  end
-
-  def test_configure_ssl_client_cert_key_without_cert
-    conf = config + config_element('ROOT', '', {"ssl_client_cert_key" => "/path/to/key.pem"}, [])
-
-    assert_raise(Fluent::ConfigError) {
-      create_driver(conf)
-    }
-  end
-
-  def test_configure_ssl_client_cert_chain_without_cert
-    conf = config + config_element('ROOT', '', {"ssl_client_cert_chain" => "/path/to/chain.pem"}, [])
-
-    assert_raise(Fluent::ConfigError) {
-      create_driver(conf)
-    }
-  end
-
-  def test_configure_ssl_client_cert_key_password_without_key
-    conf = config + config_element('ROOT', '', {"ssl_client_cert_key_password" => "secret"}, [])
+  data("cert without key" => {"ssl_client_cert" => "/path/to/cert.pem"},
+       "key without cert" => {"ssl_client_cert_key" => "/path/to/key.pem"},
+       "chain without cert" => {"ssl_client_cert_chain" => "/path/to/chain.pem"},
+       "key password without key" => {"ssl_client_cert_key_password" => "secret"})
+  def test_configure_incomplete_ssl_client_cert(params)
+    conf = config + config_element('ROOT', '', params, [])
 
     assert_raise(Fluent::ConfigError) {
       create_driver(conf)
