@@ -107,6 +107,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
 
     assert_equal 'SSL', config[:"security.protocol"]
     assert_equal 'https', config[:"ssl.endpoint.identification.algorithm"]
+    assert_equal true, config[:"enable.ssl.certificate.verification"]
   end
 
   def test_configure_ssl_verify_hostname_false
@@ -117,6 +118,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     config = d.instance.build_config
 
     assert_equal 'none', config[:"ssl.endpoint.identification.algorithm"]
+    assert_equal true, config[:"enable.ssl.certificate.verification"]
   end
 
   def test_configure_without_ssl_has_no_endpoint_identification
@@ -126,6 +128,7 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
 
     assert_equal 'PLAINTEXT', config[:"security.protocol"]
     assert_nil config[:"ssl.endpoint.identification.algorithm"]
+    assert_nil config[:"enable.ssl.certificate.verification"]
   end
 
   def test_mutli_worker_support

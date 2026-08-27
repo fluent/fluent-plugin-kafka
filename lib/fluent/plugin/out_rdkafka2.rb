@@ -261,6 +261,7 @@ DESC
         config[:"ssl.key.location"] = @ssl_client_cert_key if @ssl_client_cert_key
         config[:"ssl.key.password"] = @ssl_client_cert_key_password if @ssl_client_cert_key_password
         config[:"ssl.endpoint.identification.algorithm"] = @ssl_verify_hostname ? "https" : "none"
+        config[:"enable.ssl.certificate.verification"] = true
       end
 
       if @principal
