@@ -99,6 +99,35 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'SASL_SSL', config[:"security.protocol"]
   end
 
+  def test_configure_ssl_verify_hostname_default
+    conf = base_config + config_element('ROOT', '', {"ssl_ca_cert" => "/path/to/ca_cert.pem"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_equal 'https', config[:"ssl.endpoint.identification.algorithm"]
+  end
+
+  def test_configure_ssl_verify_hostname_false
+    conf = base_config + config_element('ROOT', '', {"ssl_ca_cert" => "/path/to/ca_cert.pem",
+                                                     "ssl_verify_hostname" => "false"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'none', config[:"ssl.endpoint.identification.algorithm"]
+  end
+
+  def test_configure_without_ssl_has_no_endpoint_identification
+    d = create_driver
+
+    config = d.instance.build_config
+
+    assert_equal 'PLAINTEXT', config[:"security.protocol"]
+    assert_nil config[:"ssl.endpoint.identification.algorithm"]
+  end
+
   def test_mutli_worker_support
     d = create_driver
     assert_equal true, d.instance.multi_workers_ready?
