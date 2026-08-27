@@ -21,8 +21,7 @@ class RdkafkaOutputTest < Test::Unit::TestCase
 
   def base_config(params = {})
     config_element('ROOT', '', {"@type" => "rdkafka",
-                                "brokers" => "localhost:9092",
-                                "default_topic" => "kitagawakeiko"}.merge(params), [])
+                                "brokers" => "localhost:9092"}.merge(params), [])
   end
 
   def create_driver(conf = base_config)
@@ -32,7 +31,6 @@ class RdkafkaOutputTest < Test::Unit::TestCase
   def test_configure
     d = create_driver
 
-    assert_equal 'kitagawakeiko', d.instance.default_topic
     assert_equal 'localhost:9092', d.instance.brokers
   end
 
