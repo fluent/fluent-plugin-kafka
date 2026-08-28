@@ -114,6 +114,11 @@ DESC
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::SaslSettings
 
+    SCRAM_MECHANISMS = {
+      "sha256" => "SCRAM-SHA-256",
+      "sha512" => "SCRAM-SHA-512",
+    }.freeze
+
     class EnqueueRate
       class LimitExceeded < StandardError
         attr_reader :next_retry_clock
@@ -274,7 +279,7 @@ DESC
 
       if @username && @password
         sasl = true
-        config[:"sasl.mechanisms"] = 'PLAIN'
+        config[:"sasl.mechanisms"] = SCRAM_MECHANISMS.fetch(@scram_mechanism, 'PLAIN')
       end
 
       if ssl && sasl
