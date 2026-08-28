@@ -254,9 +254,9 @@ DESC
     def build_config
       config = {:"bootstrap.servers" => @brokers}
 
-      if @ssl_ca_cert && @ssl_ca_cert[0]
+      if (@ssl_ca_cert && @ssl_ca_cert[0]) || @ssl_ca_certs_from_system || @ssl_client_cert || @ssl_client_cert_key
         ssl = true
-        config[:"ssl.ca.location"] = @ssl_ca_cert[0]
+        config[:"ssl.ca.location"] = @ssl_ca_cert[0] if @ssl_ca_cert && @ssl_ca_cert[0]
         config[:"ssl.certificate.location"] = @ssl_client_cert if @ssl_client_cert
         config[:"ssl.key.location"] = @ssl_client_cert_key if @ssl_client_cert_key
         config[:"ssl.key.password"] = @ssl_client_cert_key_password if @ssl_client_cert_key_password

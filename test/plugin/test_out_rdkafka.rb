@@ -34,6 +34,36 @@ class RdkafkaOutputTest < Test::Unit::TestCase
     assert_equal 'localhost:9092', d.instance.brokers
   end
 
+  def test_configure_ssl_ca_cert
+    d = create_driver(base_config("ssl_ca_cert" => "/path/to/ca_cert.pem"))
+
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_equal '/path/to/ca_cert.pem', config[:"ssl.ca.location"]
+  end
+
+  def test_configure_ssl_ca_certs_from_system
+    d = create_driver(base_config("ssl_ca_certs_from_system" => "true"))
+
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_nil config[:"ssl.ca.location"]
+  end
+
+  def test_configure_ssl_client_cert_without_ca_cert
+    d = create_driver(base_config("ssl_client_cert" => "/path/to/cert.pem",
+                                  "ssl_client_cert_key" => "/path/to/key.pem"))
+
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_equal '/path/to/cert.pem', config[:"ssl.certificate.location"]
+    assert_equal '/path/to/key.pem', config[:"ssl.key.location"]
+    assert_nil config[:"ssl.ca.location"]
+  end
+
   def test_configure_ssl_verify_hostname_default
     d = create_driver(base_config("ssl_ca_cert" => "/path/to/ca_cert.pem"))
 
@@ -60,5 +90,16 @@ class RdkafkaOutputTest < Test::Unit::TestCase
     assert_equal 'PLAINTEXT', config[:"security.protocol"]
     assert_nil config[:"ssl.endpoint.identification.algorithm"]
     assert_nil config[:"enable.ssl.certificate.verification"]
+  end
+
+  def test_configure_sasl_gssapi_over_ssl
+    d = create_driver(base_config("principal" => "testuser@EXAMPLE.COM",
+                                  "ssl_client_cert" => "/path/to/cert.pem",
+                                  "ssl_client_cert_key" => "/path/to/key.pem"))
+
+    config = d.instance.build_config
+
+    assert_equal 'SASL_SSL', config[:"security.protocol"]
+    assert_equal 'GSSAPI', config[:"sasl.mechanisms"]
   end
 end

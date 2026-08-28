@@ -99,6 +99,40 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'SASL_SSL', config[:"security.protocol"]
   end
 
+  def test_configure_ssl_ca_certs_from_system
+    conf = base_config + config_element('ROOT', '', {"ssl_ca_certs_from_system" => "true"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_nil config[:"ssl.ca.location"]
+  end
+
+  def test_configure_ssl_client_cert_without_ca_cert
+    conf = base_config + config_element('ROOT', '', {"ssl_client_cert" => "/path/to/cert.pem",
+                                                     "ssl_client_cert_key" => "/path/to/key.pem"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_equal '/path/to/cert.pem', config[:"ssl.certificate.location"]
+    assert_equal '/path/to/key.pem', config[:"ssl.key.location"]
+    assert_nil config[:"ssl.ca.location"]
+  end
+
+  def test_configure_sasl_plain_over_ssl_ca_certs_from_system
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass",
+                                                     "ssl_ca_certs_from_system" => "true"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal 'SASL_SSL', config[:"security.protocol"]
+    assert_equal 'testpass', config[:"sasl.password"]
+  end
+
   def test_configure_ssl_verify_hostname_default
     conf = base_config + config_element('ROOT', '', {"ssl_ca_cert" => "/path/to/ca_cert.pem"}, [])
     d = create_driver(conf)
