@@ -66,6 +66,32 @@ class Kafka2OutputTest < Test::Unit::TestCase
     }
   end
 
+  data("sha256" => "sha256",
+       "sha512" => "sha512")
+  def test_configure_scram_mechanism(mechanism)
+    conf = config + config_element('ROOT', '', {"username" => "testuser",
+                                                "password" => "testpass",
+                                                "scram_mechanism" => mechanism,
+                                                "ssl_ca_certs_from_system" => "true"}, [])
+    d = create_driver(conf)
+
+    assert_equal mechanism, d.instance.scram_mechanism
+
+    assert_nothing_raised {
+      d.instance.refresh_client
+    }
+  end
+
+  def test_configure_unsupported_scram_mechanism
+    conf = config + config_element('ROOT', '', {"username" => "testuser",
+                                                "password" => "testpass",
+                                                "scram_mechanism" => "sha1"}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
   data("crc32" => "crc32",
        "murmur2" => "murmur2")
   def test_partitioner_hash_function(data)
