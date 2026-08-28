@@ -89,9 +89,15 @@ module Fluent
                        :desc => "a username when using PLAIN/SCRAM SASL authentication"
           config_param :password, :string, :default => nil, secret: true,
                        :desc => "a password when using PLAIN/SCRAM SASL authentication"
-          config_param :scram_mechanism, :string, :default => nil,
+          config_param :scram_mechanism, :enum, :list => [:sha256, :sha512], :default => nil,
                        :desc => "if set, use SCRAM authentication with specified mechanism. When unset, default to PLAIN authentication"
         }
+      end
+
+      def configure(conf)
+        super
+
+        @scram_mechanism = @scram_mechanism.to_s if @scram_mechanism
       end
     end
   end
