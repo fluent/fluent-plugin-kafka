@@ -37,6 +37,40 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     Fluent::Test::Driver::Output.new(Fluent::Rdkafka2Output).configure(conf)
   end
 
+  class DummyDeliveryHandle
+    def wait(**)
+    end
+  end
+
+  class DummyProducer
+    attr_reader :produced
+
+    def initialize
+      @produced = []
+    end
+
+    # Raises what the rdkafka FFI binding raises: the partition must be an
+    # int32 and the key must respond to #bytesize
+    def produce(topic:, payload:, key:, partition:, headers:, timestamp:)
+      unless partition.nil?
+        raise TypeError, "no implicit conversion of #{partition.class} into Integer" unless partition.is_a?(Integer)
+        raise RangeError, "integer #{partition} too big to convert to 'int'" unless (-2**31..2**31 - 1).cover?(partition)
+      end
+      key.bytesize unless key.nil?
+
+      @produced << {payload: payload, key: key, partition: partition}
+      DummyDeliveryHandle.new
+    end
+  end
+
+  def create_chunk(records, tag: 'test')
+    metadata = Fluent::Plugin::Buffer::Metadata.new(nil, tag, nil)
+    chunk = Fluent::Plugin::Buffer::MemoryChunk.new(metadata)
+    chunk.extend(Fluent::ChunkMessagePackEventStreamer)
+    chunk.append(records.map { |record| [event_time, record].to_msgpack })
+    chunk
+  end
+
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(base_config)
@@ -180,6 +214,43 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'PLAINTEXT', config[:"security.protocol"]
     assert_nil config[:"ssl.endpoint.identification.algorithm"]
     assert_nil config[:"enable.ssl.certificate.verification"]
+  end
+
+  data("non numeric partition" => "not-a-number",
+       "hexadecimal partition" => "0x10",
+       "float partition" => 3.9,
+       "negative partition" => -2,
+       "out of int32 range" => 2**31)
+  def test_write_skips_event_with_invalid_partition(partition)
+    d = create_driver
+    producer = DummyProducer.new
+    stub(d.instance).get_producer { producer }
+
+    assert_nothing_raised {
+      d.instance.write(create_chunk([{"a" => "b"}, {"a" => "c", "partition" => partition}, {"a" => "d"}]))
+    }
+
+    assert_equal ['{"a":"b"}', '{"a":"d"}'], producer.produced.collect { |message| message[:payload] }
+  end
+
+  def test_write_keeps_event_with_zero_padded_partition
+    d = create_driver
+    producer = DummyProducer.new
+    stub(d.instance).get_producer { producer }
+
+    d.instance.write(create_chunk([{"a" => "b", "partition" => "010"}]))
+
+    assert_equal [10], producer.produced.collect { |message| message[:partition] }
+  end
+
+  def test_write_converts_non_string_message_key
+    d = create_driver
+    producer = DummyProducer.new
+    stub(d.instance).get_producer { producer }
+
+    d.instance.write(create_chunk([{"a" => "b", "message_key" => 12345}]))
+
+    assert_equal ["12345"], producer.produced.collect { |message| message[:key] }
   end
 
   def test_mutli_worker_support
