@@ -1,5 +1,24 @@
 module Fluent
   module KafkaPluginUtil
+    module PartitionSettings
+      # -1 is the unassigned partition; the Kafka protocol takes the index as int32
+      PARTITION_RANGE = -1..(2**31 - 1)
+
+      def coerce_partition(partition)
+        partition = case partition
+                    when Integer
+                      partition
+                    when String
+                      Integer(partition, 10)
+                    else
+                      raise TypeError, "partition must be an Integer or a decimal String, got #{partition.class}"
+                    end
+        raise RangeError, "partition #{partition} is out of range" unless PARTITION_RANGE.cover?(partition)
+
+        partition
+      end
+    end
+
     module AwsIamSettings
       def self.included(klass)
         klass.instance_eval do

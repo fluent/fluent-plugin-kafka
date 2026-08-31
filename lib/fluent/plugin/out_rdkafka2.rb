@@ -113,6 +113,7 @@ DESC
 
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::SaslSettings
+    include Fluent::KafkaPluginUtil::PartitionSettings
 
     SCRAM_MECHANISMS = {
       "sha256" => "SCRAM-SHA-256",
@@ -419,6 +420,8 @@ DESC
             record.delete(@topic_key) if @exclude_topic_key
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
+            partition = coerce_partition(partition) unless partition.nil?
+            message_key = message_key.to_s unless message_key.nil?
 
             @headers_from_record_accessors.each do |key, header_accessor|
               headers[key] = header_accessor.call(record)
