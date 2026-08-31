@@ -99,6 +99,23 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'SASL_SSL', config[:"security.protocol"]
   end
 
+  data("sha256" => ["sha256", "SCRAM-SHA-256"],
+       "sha512" => ["sha512", "SCRAM-SHA-512"])
+  def test_configure_sasl_scram(data)
+    mechanism, expected = data
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass",
+                                                     "scram_mechanism" => mechanism,
+                                                     "ssl_ca_cert" => "/path/to/ca_cert.pem"}, [])
+    d = create_driver(conf)
+
+    config = d.instance.build_config
+
+    assert_equal expected, config[:"sasl.mechanisms"]
+    assert_equal 'SASL_SSL', config[:"security.protocol"]
+    assert_equal 'testuser', config[:"sasl.username"]
+    assert_equal 'testpass', config[:"sasl.password"]
+  end
+
   def test_configure_ssl_ca_certs_from_system
     conf = base_config + config_element('ROOT', '', {"ssl_ca_certs_from_system" => "true"}, [])
     d = create_driver(conf)
