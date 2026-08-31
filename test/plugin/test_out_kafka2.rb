@@ -27,6 +27,32 @@ class Kafka2OutputTest < Test::Unit::TestCase
     Fluent::Test::Driver::Output.new(Fluent::Kafka2Output).configure(conf)
   end
 
+  class DummyProducer
+    attr_reader :produced
+
+    # Coerces like ruby-kafka's Producer#produce, which is where an invalid
+    # partition raises today
+    def produce(value, key:, partition_key:, partition:, headers:, create_time:, topic:)
+      @produced ||= []
+      @produced << {value: value && value.to_s, key: key && key.to_s,
+                    partition: partition && Integer(partition)}
+    end
+
+    def deliver_messages
+    end
+
+    def clear_buffer
+    end
+  end
+
+  def create_chunk(records, tag: 'test')
+    metadata = Fluent::Plugin::Buffer::Metadata.new(nil, tag, nil)
+    chunk = Fluent::Plugin::Buffer::MemoryChunk.new(metadata)
+    chunk.extend(Fluent::ChunkMessagePackEventStreamer)
+    chunk.append(records.map { |record| [event_time, record].to_msgpack })
+    chunk
+  end
+
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(base_config)
@@ -90,6 +116,32 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_raise(Fluent::ConfigError) {
       create_driver(conf)
     }
+  end
+
+  data("non numeric partition" => "not-a-number",
+       "hash partition" => {"x" => 1},
+       "negative partition" => -2,
+       "out of int32 range" => 2**31)
+  def test_write_skips_event_with_invalid_partition(partition)
+    d = create_driver
+    producer = DummyProducer.new
+    stub(d.instance).get_producer { producer }
+
+    assert_nothing_raised {
+      d.instance.write(create_chunk([{"a" => "b"}, {"a" => "c", "partition" => partition}, {"a" => "d"}]))
+    }
+
+    assert_equal ['{"a":"b"}', '{"a":"d"}'], producer.produced.collect { |message| message[:value] }
+  end
+
+  def test_write_keeps_event_with_zero_padded_partition
+    d = create_driver
+    producer = DummyProducer.new
+    stub(d.instance).get_producer { producer }
+
+    d.instance.write(create_chunk([{"a" => "b", "partition" => "010"}]))
+
+    assert_equal [10], producer.produced.collect { |message| message[:partition] }
   end
 
   data("crc32" => "crc32",

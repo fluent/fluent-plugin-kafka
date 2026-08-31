@@ -98,6 +98,7 @@ DESC
     include Fluent::KafkaPluginUtil::AwsIamSettings
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::SaslSettings
+    include Fluent::KafkaPluginUtil::PartitionSettings
 
     def initialize
       super
@@ -351,6 +352,7 @@ DESC
             partition_key = (@exclude_partition_key ? record.delete(@partition_key_key) : record[@partition_key_key]) || @default_partition_key
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
+            partition = coerce_partition(partition) unless partition.nil?
 
             if mutate_headers
               headers = base_headers.clone
