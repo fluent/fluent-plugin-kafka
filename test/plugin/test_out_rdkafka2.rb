@@ -71,6 +71,29 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     chunk
   end
 
+  def test_rdkafka_patch_is_applied
+    version = Gem::Version.create(Rdkafka::VERSION)
+    expected = if version >= Gem::Version.create('0.16.0')
+                 '0_16_0.rb'
+               elsif version >= Gem::Version.create('0.14.0')
+                 '0_14_0.rb'
+               elsif version >= Gem::Version.create('0.13.0')
+                 '0_13_0.rb'
+               elsif version >= Gem::Version.create('0.12.0')
+                 '0_12_0.rb'
+               else
+                 '0_11_0.rb'
+               end
+
+    assert_equal expected, File.basename(Rdkafka::Producer.instance_method(:close).source_location.first)
+  end
+
+  def test_producer_close_accepts_timeout
+    producer = Rdkafka::Config.new("bootstrap.servers" => "localhost:9092").producer
+
+    assert_true producer.close(10)
+  end
+
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(base_config)

@@ -24,11 +24,10 @@ class Rdkafka::NativeKafka
       # This check prevents a race condition, where we would enter the close in two threads
       # and after unlocking the primary one that hold the lock but finished, ours would be unlocked
       # and would continue to run, trying to destroy inner twice
-      return unless @inner
-
-      Rdkafka::Bindings.rd_kafka_destroy(@inner)
-      @inner = nil
-      @opaque = nil
+      if @inner
+        Rdkafka::Bindings.rd_kafka_destroy(@inner)
+        @inner = nil
+      end
 
       !thread_status.nil?
     end
@@ -39,18 +38,6 @@ class Rdkafka::Producer
   def close(timeout = nil)
     return true if closed?
     ObjectSpace.undefine_finalizer(self)
-
-    closed = @native_kafka.close(timeout) do
-      # We need to remove the topics references objects before we destroy the producer,
-      # otherwise they would leak out
-      @topics_refs_map.each_value do |refs|
-        refs.each_value do |ref|
-          Rdkafka::Bindings.rd_kafka_topic_destroy(ref)
-        end
-      end
-    end
-
-    @topics_refs_map.clear
-    closed
+    @native_kafka.close(timeout)
   end
 end
