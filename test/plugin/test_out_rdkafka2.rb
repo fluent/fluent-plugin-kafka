@@ -38,15 +38,22 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
   end
 
   class DummyDeliveryHandle
+    def initialize(error = nil)
+      @error = error
+    end
+
     def wait(**)
+      raise @error if @error
     end
   end
 
   class DummyProducer
     attr_reader :produced
 
-    def initialize
+    def initialize(produce_error: nil, delivery_error: nil)
       @produced = []
+      @produce_error = produce_error
+      @delivery_error = delivery_error
     end
 
     # Raises what the rdkafka FFI binding raises: the partition must be an
@@ -57,9 +64,19 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
         raise RangeError, "integer #{partition} too big to convert to 'int'" unless (-2**31..2**31 - 1).cover?(partition)
       end
       key.bytesize unless key.nil?
+      raise @produce_error if @produce_error
 
       @produced << {payload: payload, key: key, partition: partition}
-      DummyDeliveryHandle.new
+      DummyDeliveryHandle.new(@delivery_error)
+    end
+  end
+
+  RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION = -190
+  RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE = 10
+
+  class DummyErrorWithCode < StandardError
+    def code
+      :msg_size_too_large
     end
   end
 
@@ -274,6 +291,111 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     d.instance.write(create_chunk([{"a" => "b", "message_key" => 12345}]))
 
     assert_equal ["12345"], producer.produced.collect { |message| message[:key] }
+  end
+
+  def test_rdkafka_error_codes_under_test
+    assert_equal [:unknown_partition, :msg_size_too_large],
+                 [Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION).code,
+                  Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE).code]
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_raises_unrecoverable_error_for_listed_error_code(path)
+    d = create_driver
+    producer = DummyProducer.new(path => Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE))
+    stub(d.instance).get_producer { producer }
+
+    assert_raise(Fluent::UnrecoverableError) {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_reraises_unlisted_error_code(path)
+    d = create_driver
+    producer = DummyProducer.new(path => Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION))
+    stub(d.instance).get_producer { producer }
+
+    assert_raise(Rdkafka::RdkafkaError) {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_raises_unrecoverable_error_for_unknown_partition_when_listed(path)
+    d = create_driver(config + config_element('ROOT', '', {"unrecoverable_error_codes" => "unknown_partition"}))
+    producer = DummyProducer.new(path => Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION))
+    stub(d.instance).get_producer { producer }
+
+    assert_raise(Fluent::UnrecoverableError) {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_discards_listed_error_code_when_discard_kafka_delivery_failed(path)
+    d = create_driver(config + config_element('ROOT', '', {"discard_kafka_delivery_failed" => "true"}))
+    producer = DummyProducer.new(path => Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE))
+    stub(d.instance).get_producer { producer }
+
+    assert_nothing_raised {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+    assert_true d.logs.any? { |log| log.include?("Delivery failed. Discard events") }
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_reraises_error_that_is_not_a_kafka_error(path)
+    d = create_driver
+    producer = DummyProducer.new(path => DummyErrorWithCode.new)
+    stub(d.instance).get_producer { producer }
+
+    assert_raise(DummyErrorWithCode) {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_discards_listed_error_code_matching_discard_kafka_delivery_failed_regex(path)
+    d = create_driver(config + config_element('ROOT', '', {"discard_kafka_delivery_failed_regex" => "/msg_size_too_large/"}))
+    producer = DummyProducer.new(path => Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE))
+    stub(d.instance).get_producer { producer }
+
+    assert_nothing_raised {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+    assert_true d.logs.any? { |log| log.include?("Delivery failed and matched regexp pattern") }
+  end
+
+  def test_write_produces_every_record_before_raising_unrecoverable_error
+    d = create_driver
+    producer = DummyProducer.new(delivery_error: Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE))
+    stub(d.instance).get_producer { producer }
+
+    assert_raise(Fluent::UnrecoverableError) {
+      d.instance.write(create_chunk([{"a" => "b"}, {"a" => "c"}, {"a" => "d"}]))
+    }
+
+    assert_equal ['{"a":"b"}', '{"a":"c"}', '{"a":"d"}'], producer.produced.collect { |message| message[:payload] }
+  end
+
+  data("produce" => :produce_error,
+       "delivery report" => :delivery_error)
+  def test_write_reraises_listed_error_code_when_unrecoverable_error_codes_is_empty(path)
+    d = create_driver(config + config_element('ROOT', '', {"unrecoverable_error_codes" => ""}))
+    producer = DummyProducer.new(path => Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE))
+    stub(d.instance).get_producer { producer }
+
+    assert_equal [], d.instance.unrecoverable_error_codes
+    assert_raise(Rdkafka::RdkafkaError) {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
   end
 
   def test_mutli_worker_support
