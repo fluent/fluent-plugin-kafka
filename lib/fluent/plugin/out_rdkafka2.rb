@@ -469,6 +469,7 @@ DESC
           log.warn "Delivery failed and matched regexp pattern #{@discard_kafka_delivery_failed_regex}. Discard events:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
 	else
 	  log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
+          raise Fluent::UnrecoverableError, "Rejected due to #{e}" if unrecoverable_error?(e)
           # Raise exception to retry sendind messages
           raise e
 	end
@@ -525,15 +526,14 @@ DESC
 
             raise e
           else
-            if unrecoverable_error_codes.include?(e.code.to_s)
-              # some of the errors should be handled as an unrecoverable error
-              raise Fluent::UnrecoverableError, "Rejected due to #{e}"
-            else
-              raise e
-            end
+            raise e
           end
         end
       end
+    end
+
+    def unrecoverable_error?(e)
+      e.is_a?(Rdkafka::RdkafkaError) && unrecoverable_error_codes.include?(e.code.to_s)
     end
   end
 end

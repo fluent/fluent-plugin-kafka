@@ -571,6 +571,11 @@ You need to install rdkafka gem.
 `rdkafka2` supports `discard_kafka_delivery_failed_regex` parameter:
 - `discard_kafka_delivery_failed_regex` - default: nil - discard the record where the Kafka::DeliveryFailed occurred and the emitted message matches the given regex pattern, such as `/unknown_topic/`. 
 
+`rdkafka2` supports `unrecoverable_error_codes` parameter:
+- `unrecoverable_error_codes` - default: `["topic_authorization_failed", "msg_size_too_large"]` - librdkafka error codes to treat as unrecoverable errors. When a listed code is returned, `Fluent::UnrecoverableError` is raised, so Fluentd hands the whole chunk to the secondary output or to the backup directory instead of retrying it until `retry_timeout` expires. Both the produce call and the delivery report are covered, the latter only while `rdkafka_delivery_handle_poll_timeout` is not 0. Set the parameter to an empty value keeping retrying every error, as this plugin did before v0.19.x.
+- A code is spelled the way `Rdkafka::RdkafkaError#code` reports it, that is the librdkafka name lowercased with the leading underscore removed, so `RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION` is written as `unknown_partition`. A name that matches no error code is accepted and never matches anything.
+- `discard_kafka_delivery_failed` and `discard_kafka_delivery_failed_regex` take precedence over this parameter. The regex is matched against the librdkafka message, such as `Broker: Message size too large (msg_size_too_large)`.
+
 If you use v0.12, use `rdkafka` instead.
 
     <match kafka.**>
