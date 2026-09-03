@@ -119,5 +119,69 @@ module Fluent
         @scram_mechanism = @scram_mechanism.to_s if @scram_mechanism
       end
     end
+
+    module RdkafkaSecuritySettings
+      SCRAM_MECHANISMS = {
+        "sha256" => "SCRAM-SHA-256",
+        "sha512" => "SCRAM-SHA-512",
+      }.freeze
+
+      def self.included(klass)
+        klass.instance_eval {
+          config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
+          config_param :sasl_over_ssl, :bool, :default => true,
+                       :desc => 'When true, SASL authentication requires an SSL connection'
+        }
+      end
+
+      def rdkafka_security_config
+        config = {}
+
+        if (@ssl_ca_cert && @ssl_ca_cert[0]) || @ssl_ca_certs_from_system || @ssl_client_cert || @ssl_client_cert_key
+          ssl = true
+          config[:"ssl.ca.location"] = @ssl_ca_cert[0] if @ssl_ca_cert && @ssl_ca_cert[0]
+          config[:"ssl.certificate.location"] = @ssl_client_cert if @ssl_client_cert
+          config[:"ssl.key.location"] = @ssl_client_cert_key if @ssl_client_cert_key
+          config[:"ssl.key.password"] = @ssl_client_cert_key_password if @ssl_client_cert_key_password
+          config[:"ssl.endpoint.identification.algorithm"] = @ssl_verify_hostname ? "https" : "none"
+          config[:"enable.ssl.certificate.verification"] = true
+        end
+
+        if @principal
+          sasl = true
+          config[:"sasl.mechanisms"] = "GSSAPI"
+          config[:"sasl.kerberos.principal"] = @principal
+          config[:"sasl.kerberos.service.name"] = @service_name if @service_name
+          config[:"sasl.kerberos.keytab"] = @keytab if @keytab
+        end
+
+        if @username && @password
+          sasl = true
+          config[:"sasl.mechanisms"] = SCRAM_MECHANISMS.fetch(@scram_mechanism, 'PLAIN')
+        end
+
+        if ssl && sasl
+          security_protocol = "SASL_SSL"
+        elsif ssl && !sasl
+          security_protocol = "SSL"
+        elsif !ssl && sasl
+          security_protocol = "SASL_PLAINTEXT"
+        else
+          security_protocol = "PLAINTEXT"
+        end
+        config[:"security.protocol"] = security_protocol
+
+        config[:"sasl.username"] = @username if @username
+        config[:"sasl.password"] = @password if @password
+
+        config
+      end
+
+      def validate_sasl_over_ssl(config)
+        if @sasl_over_ssl && config[:"sasl.password"] && config[:"security.protocol"].to_s.upcase == "SASL_PLAINTEXT"
+          raise Fluent::ConfigError, "SASL authentication requires that SSL is configured. Set 'sasl_over_ssl false' to send SASL credentials over a plaintext connection"
+        end
+      end
+    end
   end
 end

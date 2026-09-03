@@ -173,6 +173,15 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal 'SASL_SSL', config[:"security.protocol"]
   end
 
+  def test_configure_sasl_plain_with_lowercase_security_protocol_from_rdkafka_options
+    conf = base_config + config_element('ROOT', '', {"username" => "testuser", "password" => "testpass",
+                                                     "rdkafka_options" => '{"security.protocol": "sasl_plaintext"}'}, [])
+
+    assert_raise(Fluent::ConfigError) {
+      create_driver(conf)
+    }
+  end
+
   data("sha256" => ["sha256", "SCRAM-SHA-256"],
        "sha512" => ["sha512", "SCRAM-SHA-512"])
   def test_configure_sasl_scram(data)

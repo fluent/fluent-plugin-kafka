@@ -166,6 +166,12 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
       time_source <source for message timestamp (now|kafka|record)> :default => now
       time_format <string (Optional when use_record_time is used)>
 
+      # The SSL and SASL parameters in "Common parameters" are mapped to librdkafka
+      # properties. Keys given in kafka_configs take precedence over the mapped values.
+      # ssl_ca_cert uses only its first entry, and ssl_client_cert_chain is not mapped.
+      # When true, SASL authentication requires an SSL connection
+      sasl_over_ssl (bool) :default => true
+
       # kafka consumer options
       max_wait_time_ms 500
       max_batch_size 10000
