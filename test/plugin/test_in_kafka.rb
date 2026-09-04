@@ -122,16 +122,30 @@ class KafkaInputTest < Test::Unit::TestCase
         tagged_message('app.trusted', 'record 1', 0),
         tagged_message(7, 'record 2', 1),
         FakeMessage.new({'message' => 'record 3'}.to_json, nil, 2, Time.now),
-        tagged_message('attacker.controlled', 'record 4', 3),
+        tagged_message('', 'record 4', 3),
+        tagged_message('attacker.controlled', 'record 5', 4),
       ]
       router = FakeRouter.new
       watcher = create_topic_watcher(messages, router)
       watcher.consume
 
       assert_equal([['app.trusted', ['record 1']],
-                    ['attacker.controlled', ['record 4']]],
+                    ['attacker.controlled', ['record 5']]],
                    router.emitted.map { |tag, records| [tag, records.map { |r| r['message'] }] })
-      assert_equal(4, watcher.instance_variable_get(:@next_offset))
+      assert_equal(5, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def test_consume_advances_offset_when_every_message_is_skipped
+      messages = [
+        FakeMessage.new('this is not json', nil, 0, Time.now),
+        tagged_message(nil, 'record 1', 1),
+      ]
+      router = FakeRouter.new
+      watcher = create_topic_watcher(messages, router)
+      watcher.consume
+
+      assert_equal([], router.emitted)
+      assert_equal(2, watcher.instance_variable_get(:@next_offset))
     end
 
     def test_consume_with_tag_source_topic_emits_single_stream

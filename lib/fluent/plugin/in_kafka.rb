@@ -312,7 +312,7 @@ class Fluent::KafkaInput < Fluent::Input
           record = @parser.call(msg, @topic_entry)
           if @tag_source == :record
             tag = record[@record_tag_key]
-            unless tag.is_a?(String)
+            unless tag.is_a?(String) && !tag.empty?
               $log.warn "skipped record with invalid tag in #{@topic_entry.topic}/#{@topic_entry.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
               next
             end
@@ -347,16 +347,14 @@ class Fluent::KafkaInput < Fluent::Input
       }
       offset = messages.last.offset + 1
 
-      unless event_streams.empty?
-        event_streams.each { |tag, es|
-          @router.emit_stream(tag, es)
-        }
+      event_streams.each { |tag, es|
+        @router.emit_stream(tag, es)
+      }
 
-        if @offset_manager
-          @offset_manager.save_offset(offset)
-        end
-        @next_offset = offset
+      if @offset_manager
+        @offset_manager.save_offset(offset)
       end
+      @next_offset = offset
     end
   end
 
