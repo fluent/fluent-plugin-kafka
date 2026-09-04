@@ -56,7 +56,9 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   end
 
   def test_build_config_ssl_ca_certs_from_system
-    d = create_driver(CONFIG + "ssl_ca_certs_from_system true\n")
+    d = create_driver(CONFIG + %[
+      ssl_ca_certs_from_system true
+    ])
     config = d.instance.build_config
 
     assert_equal 'SSL', config[:"security.protocol"]
@@ -82,7 +84,10 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   end
 
   def test_build_config_ssl_verify_hostname_false
-    d = create_driver(CONFIG + "ssl_ca_certs_from_system true\nssl_verify_hostname false\n")
+    d = create_driver(CONFIG + %[
+      ssl_ca_certs_from_system true
+      ssl_verify_hostname false
+    ])
     config = d.instance.build_config
 
     assert_equal 'none', config[:"ssl.endpoint.identification.algorithm"]
@@ -90,7 +95,11 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   end
 
   def test_build_config_sasl_plain_over_ssl
-    d = create_driver(CONFIG + "username testuser\npassword testpass\nssl_ca_certs_from_system true\n")
+    d = create_driver(CONFIG + %[
+      username testuser
+      password testpass
+      ssl_ca_certs_from_system true
+    ])
     config = d.instance.build_config
 
     assert_equal 'SASL_SSL', config[:"security.protocol"]
@@ -101,12 +110,19 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
 
   def test_configure_sasl_plain_without_ssl_raises
     assert_raise(Fluent::ConfigError) {
-      create_driver(CONFIG + "username testuser\npassword testpass\n")
+      create_driver(CONFIG + %[
+        username testuser
+        password testpass
+      ])
     }
   end
 
   def test_build_config_sasl_plain_without_ssl_allowed_by_sasl_over_ssl
-    d = create_driver(CONFIG + "username testuser\npassword testpass\nsasl_over_ssl false\n")
+    d = create_driver(CONFIG + %[
+      username testuser
+      password testpass
+      sasl_over_ssl false
+    ])
     config = d.instance.build_config
 
     assert_equal 'SASL_PLAINTEXT', config[:"security.protocol"]
@@ -117,15 +133,37 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
        "sha512" => ["sha512", "SCRAM-SHA-512"])
   def test_build_config_sasl_scram(data)
     mechanism, expected = data
-    d = create_driver(CONFIG + "username testuser\npassword testpass\nscram_mechanism #{mechanism}\nssl_ca_certs_from_system true\n")
+    d = create_driver(CONFIG + %[
+      username testuser
+      password testpass
+      scram_mechanism #{mechanism}
+      ssl_ca_certs_from_system true
+    ])
     config = d.instance.build_config
 
     assert_equal expected, config[:"sasl.mechanisms"]
     assert_equal 'SASL_SSL', config[:"security.protocol"]
   end
 
+  def test_build_config_sasl_scram_without_credentials_warns
+    d = create_driver(CONFIG + %[
+      scram_mechanism sha256
+      ssl_ca_certs_from_system true
+    ])
+    config = d.instance.build_config
+
+    assert_equal 'SSL', config[:"security.protocol"]
+    assert_nil config[:"sasl.mechanisms"]
+    assert_true d.logs.any? { |log| log.include?("scram_mechanism is ignored") }
+  end
+
   def test_build_config_sasl_gssapi
-    d = create_driver(CONFIG + "principal kafka/host@REALM\nkeytab /path/to/kafka.keytab\nservice_name kafka\nssl_ca_certs_from_system true\n")
+    d = create_driver(CONFIG + %[
+      principal kafka/host@REALM
+      keytab /path/to/kafka.keytab
+      service_name kafka
+      ssl_ca_certs_from_system true
+    ])
     config = d.instance.build_config
 
     assert_equal 'SASL_SSL', config[:"security.protocol"]
@@ -188,7 +226,9 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   end
 
   def test_setup_consumer_uses_build_config
-    d = create_driver(CONFIG + "ssl_ca_certs_from_system true\n")
+    d = create_driver(CONFIG + %[
+      ssl_ca_certs_from_system true
+    ])
     consumer = Object.new
     stub(consumer).subscribe
     rdkafka_config = Object.new

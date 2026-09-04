@@ -158,6 +158,8 @@ module Fluent
         if @username && @password
           sasl = true
           config[:"sasl.mechanisms"] = SCRAM_MECHANISMS.fetch(@scram_mechanism, 'PLAIN')
+        elsif @scram_mechanism
+          log.warn "scram_mechanism is ignored because username and password are not set"
         end
 
         if ssl && sasl
