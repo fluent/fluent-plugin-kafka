@@ -99,9 +99,6 @@ DESC
     config_param :enqueue_retry_backoff, :integer, :default => 3
     config_param :max_enqueue_bytes_per_second, :size, :default => nil, :desc => 'The maximum number of enqueueing bytes per second'
 
-    config_param :service_name, :string, :default => nil, :desc => 'Used for sasl.kerberos.service.name'
-    config_param :sasl_over_ssl, :bool, :default => true,
-                 :desc => 'When true, SASL authentication requires an SSL connection'
     config_param :unrecoverable_error_codes, :array, :default => ["topic_authorization_failed", "msg_size_too_large"],
                  :desc => 'Handle some of the error codes should be unrecoverable if specified'
 
@@ -116,11 +113,7 @@ DESC
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::SaslSettings
     include Fluent::KafkaPluginUtil::PartitionSettings
-
-    SCRAM_MECHANISMS = {
-      "sha256" => "SCRAM-SHA-256",
-      "sha512" => "SCRAM-SHA-512",
-    }.freeze
+    include Fluent::KafkaPluginUtil::RdkafkaSecuritySettings
 
     class EnqueueRate
       class LimitExceeded < StandardError
@@ -260,41 +253,7 @@ DESC
     end
 
     def build_config
-      config = {:"bootstrap.servers" => @brokers}
-
-      if (@ssl_ca_cert && @ssl_ca_cert[0]) || @ssl_ca_certs_from_system || @ssl_client_cert || @ssl_client_cert_key
-        ssl = true
-        config[:"ssl.ca.location"] = @ssl_ca_cert[0] if @ssl_ca_cert && @ssl_ca_cert[0]
-        config[:"ssl.certificate.location"] = @ssl_client_cert if @ssl_client_cert
-        config[:"ssl.key.location"] = @ssl_client_cert_key if @ssl_client_cert_key
-        config[:"ssl.key.password"] = @ssl_client_cert_key_password if @ssl_client_cert_key_password
-        config[:"ssl.endpoint.identification.algorithm"] = @ssl_verify_hostname ? "https" : "none"
-        config[:"enable.ssl.certificate.verification"] = true
-      end
-
-      if @principal
-        sasl = true
-        config[:"sasl.mechanisms"] = "GSSAPI"
-        config[:"sasl.kerberos.principal"] = @principal
-        config[:"sasl.kerberos.service.name"] = @service_name if @service_name
-        config[:"sasl.kerberos.keytab"] = @keytab if @keytab
-      end
-
-      if @username && @password
-        sasl = true
-        config[:"sasl.mechanisms"] = SCRAM_MECHANISMS.fetch(@scram_mechanism, 'PLAIN')
-      end
-
-      if ssl && sasl
-        security_protocol = "SASL_SSL"
-      elsif ssl && !sasl
-        security_protocol = "SSL"
-      elsif !ssl && sasl
-        security_protocol = "SASL_PLAINTEXT"
-      else
-        security_protocol = "PLAINTEXT"
-      end
-      config[:"security.protocol"] = security_protocol
+      config = {:"bootstrap.servers" => @brokers}.merge(rdkafka_security_config)
 
       config[:"compression.codec"] = @compression_codec if @compression_codec
       config[:"message.send.max.retries"] = @max_send_retries if @max_send_retries
@@ -304,17 +263,13 @@ DESC
       config[:"queue.buffering.max.messages"] = @rdkafka_buffering_max_messages if @rdkafka_buffering_max_messages
       config[:"message.max.bytes"] = @rdkafka_message_max_bytes if @rdkafka_message_max_bytes
       config[:"batch.num.messages"] = @rdkafka_message_max_num if @rdkafka_message_max_num
-      config[:"sasl.username"] = @username if @username
-      config[:"sasl.password"] = @password if @password
       config[:"enable.idempotence"] = @idempotent if @idempotent
 
       @rdkafka_options.each { |k, v|
         config[k.to_sym] = v
       }
 
-      if @sasl_over_ssl && config[:"sasl.password"] && config[:"security.protocol"] == "SASL_PLAINTEXT"
-        raise Fluent::ConfigError, "SASL authentication requires that SSL is configured. Set 'sasl_over_ssl false' to send SASL credentials over a plaintext connection"
-      end
+      validate_sasl_over_ssl(config)
 
       config
     end

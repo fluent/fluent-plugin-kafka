@@ -56,6 +56,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
+  include Fluent::KafkaPluginUtil::RdkafkaSecuritySettings
 
   class ForShutdown < StandardError
   end
@@ -126,6 +127,8 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     if @time_source == :record and @time_format
       @time_parser = Fluent::TimeParser.new(@time_format)
     end
+
+    @rdkafka_config = build_config
   end
 
   def setup_parser(parser_conf)
@@ -177,8 +180,17 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     super
   end
 
+  def build_config
+    config = rdkafka_security_config
+    @kafka_configs.each { |k, v|
+      config[k.to_sym] = v
+    }
+    validate_sasl_over_ssl(config)
+    config
+  end
+
   def setup_consumer
-    consumer = Rdkafka::Config.new(@kafka_configs).consumer
+    consumer = Rdkafka::Config.new(@rdkafka_config).consumer
     consumer.subscribe(*@topics)
     consumer
   end
