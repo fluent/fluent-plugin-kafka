@@ -1,3 +1,56 @@
+Release 0.19.8 - 2026/09/04
+	* in_kafka: Emit each record with its own tag when `tag_source record` is
+				set. The whole fetch batch used to be emitted with the tag of the
+				last parsed record, so `tag_source record` never routed anything.
+				A record whose tag field is not a non-empty String is now skipped
+				with a warning, and the offset advances even when every message of
+				a batch is skipped. (#581)
+	* in_rdkafka_group: Apply SSL and SASL parameters to the consumer.
+				`ssl_ca_cert`, `ssl_client_cert`, `username`, `password`,
+				`scram_mechanism` and `principal` were accepted and then discarded,
+				so a consumer configured for SSL connected in the clear. NOTE: these
+				consumers start negotiating TLS after this change, and passing SASL
+				credentials through `kafka_configs` with `security.protocol
+				SASL_PLAINTEXT` is now rejected at startup unless `sasl_over_ssl
+				false` is set. (#580)
+	* out_rdkafka2: Apply `unrecoverable_error_codes` to delivery report
+				errors. The check only ran for errors raised by `produce`, so even the
+				default `msg_size_too_large` kept the chunk retrying until
+				`retry_timeout`. NOTE: such a chunk is now passed to the secondary
+				output, or written to the backup directory. (#579)
+	* out_rdkafka2: Fix the rdkafka patch version dispatch. The 0_16_0 patch
+				had been unreachable since it was added, and rdkafka-ruby 0.12.1
+				through 0.13.x got no patch at all, where `producer.close(10)` raises
+				ArgumentError on shutdown. Add a patch for 0.13.x. (#578)
+	* out_kafka2, out_rdkafka2: Skip an event whose `partition` is not a
+				decimal integer within the int32 range, and coerce `message_key` with
+				`to_s`. Such an event used to raise outside the per-event guard and
+				Fluentd retried the same chunk forever, stalling every source feeding
+				the output. NOTE: `partition` is now read as base 10, so "010" means
+				10 rather than 8. (#576, #577)
+	* out_rdkafka2: Fix `scram_mechanism` being ignored. SCRAM was silently
+				downgraded to PLAIN. `scram_mechanism` is now an enum of the
+				mechanisms ruby-kafka accepts, so an unknown value is rejected at
+				startup instead of falling back. (#574, #575)
+	* out_rdkafka, out_rdkafka2: Fix `ssl_verify_hostname` being ignored, and
+				set the SSL flag for any of `ssl_ca_cert`, `ssl_ca_certs_from_system`,
+				`ssl_client_cert` and `ssl_client_cert_key`. A mutual TLS setup
+				without `ssl_ca_cert` used to connect in the clear. NOTE: these
+				configurations start negotiating TLS after this change. (#572, #573)
+	* Validate that `ssl_client_cert`, `ssl_client_cert_key`,
+				`ssl_client_cert_chain` and `ssl_client_cert_key_password` are set
+				together, in every plugin that accepts them. librdkafka used to accept
+				a certificate without a key and connect with no client identity.
+				NOTE: such a configuration is now rejected at startup. (#571)
+	* out_rdkafka2: Add `sasl_over_ssl` parameter and reject SASL credentials
+				over a plaintext connection. NOTE: a configuration that sends
+				`username` and `password` over `PLAINTEXT` or `SASL_PLAINTEXT` now
+				fails at startup. Set `sasl_over_ssl false` only if you deliberately
+				keep sending them in the clear. (#570)
+	* Replace yajl-ruby with the json gem for JSON handling, and keep
+				accepting duplicate keys so that json 3.0 does not raise
+				`JSON::ParserError`. (#566, #568)
+
 Release 0.19.7 - 2026/06/02
     * in_rdkafka_group: support regexp pattern in topics (#541)
 
