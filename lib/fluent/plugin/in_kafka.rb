@@ -302,18 +302,24 @@ class Fluent::KafkaInput < Fluent::Input
 
       return if messages.size.zero?
 
-      es = Fluent::MultiEventStream.new
-      tag = @topic_entry.topic
-      tag = @add_prefix + "." + tag if @add_prefix
-      tag = tag + "." + @add_suffix if @add_suffix
+      event_streams = {}
+      topic_tag = @topic_entry.topic
+      topic_tag = @add_prefix + "." + topic_tag if @add_prefix
+      topic_tag = topic_tag + "." + @add_suffix if @add_suffix
 
       messages.each { |msg|
         begin
           record = @parser.call(msg, @topic_entry)
           if @tag_source == :record
             tag = record[@record_tag_key]
+            unless tag.is_a?(String)
+              $log.warn "skipped record with invalid tag in #{@topic_entry.topic}/#{@topic_entry.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
+              next
+            end
             tag = @add_prefix + "." + tag if @add_prefix
             tag = tag + "." + @add_suffix if @add_suffix
+          else
+            tag = topic_tag
           end
           case @time_source
           when :kafka
@@ -332,7 +338,8 @@ class Fluent::KafkaInput < Fluent::Input
           if @kafka_message_key
             record[@kafka_message_key] = msg.key
           end
-          es.add(record_time, record)
+          event_streams[tag] ||= Fluent::MultiEventStream.new
+          event_streams[tag].add(record_time, record)
         rescue => e
           $log.warn "parser error in #{@topic_entry.topic}/#{@topic_entry.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
           $log.debug_backtrace
@@ -340,8 +347,10 @@ class Fluent::KafkaInput < Fluent::Input
       }
       offset = messages.last.offset + 1
 
-      unless es.empty?
-        @router.emit_stream(tag, es)
+      unless event_streams.empty?
+        event_streams.each { |tag, es|
+          @router.emit_stream(tag, es)
+        }
 
         if @offset_manager
           @offset_manager.save_offset(offset)
