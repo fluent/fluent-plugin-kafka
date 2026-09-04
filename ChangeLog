@@ -45,8 +45,8 @@ Release 0.19.8 - 2026/09/04
 	* out_rdkafka2: Add `sasl_over_ssl` parameter and reject SASL credentials
 				over a plaintext connection. NOTE: a configuration that sends
 				`username` and `password` over `PLAINTEXT` or `SASL_PLAINTEXT` now
-				fails at startup. Set `sasl_over_ssl false` to keep sending them in
-				the clear. (#570)
+				fails at startup. Set `sasl_over_ssl false` only if you deliberately
+				keep sending them in the clear. (#570)
 	* Replace yajl-ruby with the json gem for JSON handling, and keep
 				accepting duplicate keys so that json 3.0 does not raise
 				`JSON::ParserError`. (#566, #568)
