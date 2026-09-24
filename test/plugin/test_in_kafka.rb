@@ -59,7 +59,7 @@ class KafkaInputTest < Test::Unit::TestCase
       end
 
       def emit_stream(tag, es)
-        raise Fluent::Plugin::Buffer::BufferChunkOverflowError, "too large" if tag == @overflow_tag
+        raise Fluent::KafkaInput::BufferChunkOverflowError, "too large" if tag == @overflow_tag
         super
       end
     end
