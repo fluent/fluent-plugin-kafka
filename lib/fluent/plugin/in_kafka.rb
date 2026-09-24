@@ -62,6 +62,12 @@ class Fluent::KafkaInput < Fluent::Input
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
 
+  BufferChunkOverflowError = if defined?(Fluent::Plugin::Buffer::BufferChunkOverflowError)
+                               Fluent::Plugin::Buffer::BufferChunkOverflowError
+                             else
+                               Fluent::BufferChunkLimitError
+                             end
+
   unless method_defined?(:router)
     define_method("router") { Fluent::Engine }
   end
@@ -350,7 +356,7 @@ class Fluent::KafkaInput < Fluent::Input
       event_streams.each { |tag, es|
         begin
           @router.emit_stream(tag, es)
-        rescue Fluent::Plugin::Buffer::BufferChunkOverflowError => e
+        rescue BufferChunkOverflowError => e
           $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s, :offset => "#{messages.first.offset}..#{messages.last.offset}"
         end
       }
