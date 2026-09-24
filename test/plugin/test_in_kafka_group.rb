@@ -36,6 +36,19 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     assert_true d.instance.multi_workers_ready?
   end
 
+  def test_emit_events_with_buffer_chunk_overflow
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise Fluent::Plugin::Buffer::BufferChunkOverflowError, "too large" }
+    stub(d.instance).router { router }
+
+    assert_nothing_raised do
+      d.instance.emit_events("test", es)
+    end
+    assert_true d.logs.any? { |log| log.include?("Skipped records larger than the buffer chunk limit size") && log.include?("too large") }
+  end
+
   class ConsumeTest < self
     def setup
       @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
