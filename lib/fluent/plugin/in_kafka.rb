@@ -357,7 +357,7 @@ class Fluent::KafkaInput < Fluent::Input
         begin
           @router.emit_stream(tag, es)
         rescue BufferChunkOverflowError => e
-          $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s, :offset => "#{messages.first.offset}..#{messages.last.offset}"
+          $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
         end
       }
 
