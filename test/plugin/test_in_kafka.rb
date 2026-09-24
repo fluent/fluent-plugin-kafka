@@ -52,6 +52,18 @@ class KafkaInputTest < Test::Unit::TestCase
       end
     end
 
+    class OverflowRouter < FakeRouter
+      def initialize(overflow_tag)
+        super()
+        @overflow_tag = overflow_tag
+      end
+
+      def emit_stream(tag, es)
+        raise Fluent::Plugin::Buffer::BufferChunkOverflowError, "too large" if tag == @overflow_tag
+        super
+      end
+    end
+
     def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil)
       kafka = Object.new
       kafka.define_singleton_method(:fetch_messages) { |**args| messages }
@@ -158,6 +170,20 @@ class KafkaInputTest < Test::Unit::TestCase
 
       assert_equal([[TOPIC_NAME, ['record 1', 'record 2']]],
                    router.emitted.map { |tag, records| [tag, records.map { |r| r['message'] }] })
+    end
+
+    def test_consume_skips_buffer_chunk_overflow
+      messages = [
+        tagged_message('app.large', 'record 1', 0),
+        tagged_message('app.small', 'record 2', 1),
+      ]
+      router = OverflowRouter.new('app.large')
+      watcher = create_topic_watcher(messages, router)
+      watcher.consume
+
+      assert_equal([['app.small', ['record 2']]],
+                   router.emitted.map { |tag, records| [tag, records.map { |r| r['message'] }] })
+      assert_equal(2, watcher.instance_variable_get(:@next_offset))
     end
   end
 

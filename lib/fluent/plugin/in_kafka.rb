@@ -348,7 +348,11 @@ class Fluent::KafkaInput < Fluent::Input
       offset = messages.last.offset + 1
 
       event_streams.each { |tag, es|
-        @router.emit_stream(tag, es)
+        begin
+          @router.emit_stream(tag, es)
+        rescue Fluent::Plugin::Buffer::BufferChunkOverflowError => e
+          $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s, :offset => "#{messages.first.offset}..#{messages.last.offset}"
+        end
       }
 
       if @offset_manager
