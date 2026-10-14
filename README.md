@@ -273,7 +273,7 @@ Supports following ruby-kafka's producer options.
 - required_acks - default: -1 - The number of acks required per request. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
-- max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
+- max_send_limit_bytes - default: nil - Max byte size of one record after formatting. A larger record is dropped with a warning, and the other records in the chunk are sent. For example, if you set 1000000, a record larger than 1000000 bytes is dropped. This does not limit the size of a record batch, so it does not prevent MessageSizeTooLarge by itself. See [FAQ](#why-does-fluentd-fail-with-kafkamessagesizetoolarge-or-msg_size_too_large).
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
 
 If you want to know about detail of monitoring, see also https://github.com/zendesk/ruby-kafka#monitoring
@@ -451,7 +451,7 @@ Support of fluentd v0.12 has ended. `kafka_buffered` will be an alias of `kafka2
 - required_acks - default: -1 - The number of acks required per request. If you need flush performance, set lower value, e.g. 1, 2.
 - ack_timeout - default: nil - How long the producer waits for acks. The unit is seconds.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
-- max_send_limit_bytes - default: nil - Max byte size to send message to avoid MessageSizeTooLarge. For example, if you set 1000000(message.max.bytes in kafka), Message more than 1000000 byes will be dropped.
+- max_send_limit_bytes - default: nil - Max byte size of one record after formatting. A larger record is dropped with a warning, and the other records in the chunk are sent. For example, if you set 1000000, a record larger than 1000000 bytes is dropped. This does not limit the size of a record batch, so it does not prevent MessageSizeTooLarge by itself. See [FAQ](#why-does-fluentd-fail-with-kafkamessagesizetoolarge-or-msg_size_too_large).
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
 - monitoring_list - default: [] - library to be used to monitor. statsd and datadog are supported
 
@@ -564,7 +564,8 @@ You need to install rdkafka gem.
       share_producer (bool) :default => false
       # Timeout for polling message wait. If 0, no wait.
       rdkafka_delivery_handle_poll_timeout (integer) :default => 30
-      # If the record size is larger than this value, such records are ignored. Default is no limit
+      # Max byte size of one record after formatting. Larger records are dropped.
+      # This does not limit the size of a record batch. Default is no limit
       max_send_limit_bytes (integer) :default => nil
       # The maximum number of enqueueing bytes per second. It can reduce the
       # load of both Fluentd and Kafka when excessive messages are attempted
@@ -607,6 +608,40 @@ To avoid the problem, there are 2 approaches:
 
 - Upgrade your kafka cluster to latest version. This is better because recent version is faster and robust.
 - Downgrade ruby-kafka/fluent-plugin-kafka to work with your older kafka.
+
+### Why does Fluentd fail with Kafka::MessageSizeTooLarge (or msg_size_too_large)?
+
+Kafka rejects a record batch that is larger than the size limit of the topic. The limit is `max.message.bytes` of the topic if it is set, and `message.max.bytes` of the broker otherwise. The topic value can be larger or smaller than the broker value. Below, "the topic limit" means this value. If one output writes to several topics, use the smallest one.
+
+`kafka2` sends all records of a buffer chunk at once, and the records for the same partition go into one record batch. In the worst case, the whole chunk becomes one record batch. To make the batches smaller, lower `chunk_limit_size` in `<buffer>`.
+
+`chunk_limit_size` is the size of a chunk in the buffer, where records are kept as msgpack. The records sent to Kafka can be larger, because of `<format>`, `<inject>` and the overhead of each Kafka record. Start with about half of the topic limit, and lower it if the error continues. If `<buffer>` has `compress gzip` or `compress zstd`, `chunk_limit_size` limits the compressed size, and a chunk can hold several times more data. In that case, divide it further by the compression ratio of your data.
+
+`max_send_limit_bytes` does not make the batch smaller. It checks only the formatted value of each record, and drops the records larger than this setting. The message key, headers and the overhead of the batch are not counted. To drop a single record that Kafka would reject, set it below the topic limit with some room for them.
+
+The following example assumes a topic limit of 1MB.
+
+    <match app.**>
+      @type kafka2
+      brokers <broker1_host>:<broker1_port>
+      default_topic app
+
+      max_send_limit_bytes 1000000
+
+      <format>
+        @type json
+      </format>
+
+      <buffer topic>
+        chunk_limit_size 512k
+      </buffer>
+    </match>
+
+Fluentd may log `chunk bytes limit exceeds for an emitted event stream`. This warning comes from the Fluentd buffer. It means that one event stream emitted to the output was larger than `chunk_limit_size`, and Fluentd splits it into several chunks. The number in the warning is the size of that event stream in the buffer, not the growth by formatting. If a single record is larger than `chunk_limit_size`, that record cannot be stored, and Fluentd raises `BufferChunkOverflowError`.
+
+`kafka_buffered` splits a chunk into smaller deliveries by `kafka_agg_max_bytes` (default: 4096) and `kafka_agg_max_messages`, so `chunk_limit_size` does not decide its batch size.
+
+`rdkafka2` passes records to librdkafka one by one, and librdkafka builds the record batches within its own `batch.size` and `message.max.bytes`. You can set them in `rdkafka_options`. Keep them below the topic limit. `msg_size_too_large` is in the default of `unrecoverable_error_codes`, so Fluentd does not retry a chunk that hits it.
 
 ## Contributing
 
