@@ -306,6 +306,11 @@ DESC
       end
     end
 
+    def discard_producer
+      producer = @producers_mutex.synchronize { @producers.delete(Thread.current.object_id) }
+      producer.shutdown if producer
+    end
+
     def setup_formatter(conf)
       type = conf['@type']
       case type
@@ -418,6 +423,7 @@ DESC
       log.warn "Exception ignored in tag : #{tag}" if ignore
       # For safety, refresh client and its producers
       refresh_client(false)
+      discard_producer unless @share_producer
       # raise UnrecoverableError for backup ignored exception chunk
       raise Fluent::UnrecoverableError if ignore && exception_backup
       # Raise exception to retry sendind messages
