@@ -160,6 +160,20 @@ class Kafka2OutputTest < Test::Unit::TestCase
     d.instance_shutdown if d
   end
 
+  def test_write_failure_keeps_error_when_producer_shutdown_fails
+    d = create_driver(base_config + config_element('ROOT', '', {"default_topic" => "kitagawakeiko",
+                                                                "brokers" => "localhost:1"}))
+    d.instance_start
+    producer = d.instance.get_producer
+    stub(producer).shutdown { raise IOError }
+
+    assert_raise(Kafka::ConnectionError) {
+      d.instance.write(create_chunk([{"a" => "b"}]))
+    }
+  ensure
+    d.instance_shutdown if d
+  end
+
   data("crc32" => "crc32",
        "murmur2" => "murmur2")
   def test_partitioner_hash_function(data)

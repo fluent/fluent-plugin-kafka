@@ -309,6 +309,8 @@ DESC
     def discard_producer
       producer = @producers_mutex.synchronize { @producers.delete(Thread.current.object_id) }
       producer.shutdown if producer
+    rescue => e
+      log.warn "failed to shut down the discarded producer:", :error => e.to_s, :error_class => e.class.to_s
     end
 
     def setup_formatter(conf)
