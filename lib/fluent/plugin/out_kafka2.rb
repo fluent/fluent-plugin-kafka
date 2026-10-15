@@ -280,7 +280,7 @@ DESC
     def shutdown_producers
       if @share_producer
         @shared_producer_mutex.synchronize {
-          @shared_producer.shutdown
+          @shared_producer.shutdown if @shared_producer
           @shared_producer = nil
         }
       else
@@ -300,7 +300,7 @@ DESC
 
     def get_producer
       if @share_producer
-        @shared_producer
+        @shared_producer ||= create_producer
       else
         @producers_mutex.synchronize {
           producer = @producers[Thread.current.object_id]
@@ -314,7 +314,11 @@ DESC
     end
 
     def discard_producer
-      producer = @producers_mutex.synchronize { @producers.delete(Thread.current.object_id) }
+      if @share_producer
+        producer, @shared_producer = @shared_producer, nil
+      else
+        producer = @producers_mutex.synchronize { @producers.delete(Thread.current.object_id) }
+      end
       producer.shutdown if producer
     rescue => e
       log.warn "failed to shut down the discarded producer:", :error => e.to_s, :error_class => e.class.to_s
@@ -442,7 +446,7 @@ DESC
       log.warn "Exception ignored in tag : #{tag}" if ignore
       # For safety, refresh client and its producers
       refresh_client(false)
-      discard_producer unless @share_producer
+      discard_producer
       # raise UnrecoverableError for backup ignored exception chunk
       raise Fluent::UnrecoverableError if ignore && exception_backup
       # Raise exception to retry sendind messages

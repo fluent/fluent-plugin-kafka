@@ -144,9 +144,12 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal [10], producer.produced.collect { |message| message[:partition] }
   end
 
-  def test_write_failure_replaces_producer
+  data("per thread producer" => false,
+       "shared producer" => true)
+  def test_write_failure_replaces_producer(share_producer)
     d = create_driver(base_config + config_element('ROOT', '', {"default_topic" => "kitagawakeiko",
-                                                                "brokers" => "localhost:1"}))
+                                                                "brokers" => "localhost:1",
+                                                                "share_producer" => share_producer}))
     d.instance_start
     producer = d.instance.get_producer
     mock.proxy(producer).shutdown
@@ -160,9 +163,12 @@ class Kafka2OutputTest < Test::Unit::TestCase
     d.instance_shutdown if d
   end
 
-  def test_write_failure_keeps_error_when_producer_shutdown_fails
+  data("per thread producer" => false,
+       "shared producer" => true)
+  def test_write_failure_keeps_error_when_producer_shutdown_fails(share_producer)
     d = create_driver(base_config + config_element('ROOT', '', {"default_topic" => "kitagawakeiko",
-                                                                "brokers" => "localhost:1"}))
+                                                                "brokers" => "localhost:1",
+                                                                "share_producer" => share_producer}))
     d.instance_start
     producer = d.instance.get_producer
     stub(producer).shutdown { raise IOError }
