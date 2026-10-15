@@ -198,6 +198,10 @@ DESC
         end
       end
 
+      if @share_producer && @buffer_config.flush_thread_count > 1
+        log.warn "share_producer sends one chunk at a time even with flush_thread_count #{@buffer_config.flush_thread_count}. Set share_producer false to send chunks in parallel"
+      end
+
       @producer_opts = {max_retries: @max_send_retries, required_acks: @required_acks, idempotent: @idempotent}
       @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
       @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
@@ -240,6 +244,7 @@ DESC
 
       if @share_producer
         @shared_producer = create_producer
+        @shared_producer_mutex = Mutex.new
       else
         @producers = {}
         @producers_mutex = Mutex.new
@@ -274,8 +279,10 @@ DESC
 
     def shutdown_producers
       if @share_producer
-        @shared_producer.shutdown
-        @shared_producer = nil
+        @shared_producer_mutex.synchronize {
+          @shared_producer.shutdown
+          @shared_producer = nil
+        }
       else
         @producers_mutex.synchronize {
           shutdown_threads = @producers.map { |key, producer|
@@ -334,10 +341,20 @@ DESC
       end
     end
 
-    # TODO: optimize write performance
     def write(chunk)
       @writing_threads_mutex.synchronize { @writing_threads.add(Thread.current) }
 
+      if @share_producer
+        @shared_producer_mutex.synchronize { write_chunk(chunk) }
+      else
+        write_chunk(chunk)
+      end
+    ensure
+      @writing_threads_mutex.synchronize { @writing_threads.delete(Thread.current) }
+    end
+
+    # TODO: optimize write performance
+    def write_chunk(chunk)
       tag = chunk.metadata.tag
       topic = if @topic
                 extract_placeholders(@topic, chunk)
@@ -430,8 +447,6 @@ DESC
       raise Fluent::UnrecoverableError if ignore && exception_backup
       # Raise exception to retry sendind messages
       raise e unless ignore
-    ensure
-      @writing_threads_mutex.synchronize { @writing_threads.delete(Thread.current) }
     end
   end
 end

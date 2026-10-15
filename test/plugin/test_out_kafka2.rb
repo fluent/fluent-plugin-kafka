@@ -174,6 +174,43 @@ class Kafka2OutputTest < Test::Unit::TestCase
     d.instance_shutdown if d
   end
 
+  class SlowProducer < DummyProducer
+    attr_reader :max_concurrent_deliveries
+
+    def initialize
+      @mutex = Mutex.new
+      @deliveries = 0
+      @max_concurrent_deliveries = 0
+    end
+
+    def deliver_messages
+      @mutex.synchronize {
+        @deliveries += 1
+        @max_concurrent_deliveries = [@max_concurrent_deliveries, @deliveries].max
+      }
+      sleep 0.1
+      @mutex.synchronize { @deliveries -= 1 }
+    end
+
+    def shutdown
+    end
+  end
+
+  def test_shared_producer_delivers_one_chunk_at_a_time
+    d = create_driver(config + config_element('ROOT', '', {"share_producer" => true}))
+    producer = SlowProducer.new
+    stub(d.instance).create_producer { producer }
+    d.instance_start
+
+    2.times.map {
+      Thread.new { d.instance.write(create_chunk([{"a" => "b"}])) }
+    }.each(&:join)
+
+    assert_equal 1, producer.max_concurrent_deliveries
+  ensure
+    d.instance_shutdown if d
+  end
+
   data("crc32" => "crc32",
        "murmur2" => "murmur2")
   def test_partitioner_hash_function(data)
