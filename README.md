@@ -263,6 +263,8 @@ The `<formatter name>` in `<format>` uses fluentd's formatter plugins. See [form
 
 **Note:** Java based Kafka client uses `murmur2` as partitioner function by default. If you want to use same partitioning behavior with fluent-plugin-kafka, change it to `murmur2` instead of `crc32`. Note that for using `murmur2` hash partitioner function, you must install `digest-murmurhash` gem.
 
+**Note:** `share_producer true` makes all flush threads use one ruby-kafka producer. This reduces the connections to the brokers. However, the ruby-kafka producer is not thread safe, so the flush threads send chunks one at a time. To send chunks in parallel with `flush_thread_count`, keep `share_producer` false. `rdkafka2` can share its producer without this limit, because librdkafka is thread safe.
+
 ruby-kafka sometimes returns `Kafka::DeliveryFailed` error without good information.
 In this case, `get_kafka_client_log` is useful for identifying the error cause.
 ruby-kafka's log is routed to fluentd log so you can see ruby-kafka's log in fluentd logs.

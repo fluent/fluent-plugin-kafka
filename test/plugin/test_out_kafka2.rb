@@ -144,9 +144,12 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal [10], producer.produced.collect { |message| message[:partition] }
   end
 
-  def test_write_failure_replaces_producer
+  data("per thread producer" => false,
+       "shared producer" => true)
+  def test_write_failure_replaces_producer(share_producer)
     d = create_driver(base_config + config_element('ROOT', '', {"default_topic" => "kitagawakeiko",
-                                                                "brokers" => "localhost:1"}))
+                                                                "brokers" => "localhost:1",
+                                                                "share_producer" => share_producer}))
     d.instance_start
     producer = d.instance.get_producer
     mock.proxy(producer).shutdown
@@ -160,9 +163,12 @@ class Kafka2OutputTest < Test::Unit::TestCase
     d.instance_shutdown if d
   end
 
-  def test_write_failure_keeps_error_when_producer_shutdown_fails
+  data("per thread producer" => false,
+       "shared producer" => true)
+  def test_write_failure_keeps_error_when_producer_shutdown_fails(share_producer)
     d = create_driver(base_config + config_element('ROOT', '', {"default_topic" => "kitagawakeiko",
-                                                                "brokers" => "localhost:1"}))
+                                                                "brokers" => "localhost:1",
+                                                                "share_producer" => share_producer}))
     d.instance_start
     producer = d.instance.get_producer
     stub(producer).shutdown { raise IOError }
@@ -170,6 +176,43 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_raise(Kafka::ConnectionError) {
       d.instance.write(create_chunk([{"a" => "b"}]))
     }
+  ensure
+    d.instance_shutdown if d
+  end
+
+  class SlowProducer < DummyProducer
+    attr_reader :max_concurrent_deliveries
+
+    def initialize
+      @mutex = Mutex.new
+      @deliveries = 0
+      @max_concurrent_deliveries = 0
+    end
+
+    def deliver_messages
+      @mutex.synchronize {
+        @deliveries += 1
+        @max_concurrent_deliveries = [@max_concurrent_deliveries, @deliveries].max
+      }
+      sleep 0.1
+      @mutex.synchronize { @deliveries -= 1 }
+    end
+
+    def shutdown
+    end
+  end
+
+  def test_shared_producer_delivers_one_chunk_at_a_time
+    d = create_driver(config + config_element('ROOT', '', {"share_producer" => true}))
+    producer = SlowProducer.new
+    stub(d.instance).create_producer { producer }
+    d.instance_start
+
+    2.times.map {
+      Thread.new { d.instance.write(create_chunk([{"a" => "b"}])) }
+    }.each(&:join)
+
+    assert_equal 1, producer.max_concurrent_deliveries
   ensure
     d.instance_shutdown if d
   end
