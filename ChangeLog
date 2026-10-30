@@ -1,3 +1,25 @@
+Release 0.19.9 - 2026/10/30
+	* out_kafka2: Fix duplicated records and failing writes with
+				`share_producer true`. All flush threads used one ruby-kafka producer
+				at the same time, although it is not thread safe. NOTE: only one flush
+				thread at a time now uses the shared producer, so chunks are no longer
+				sent in parallel even if `flush_thread_count` is 2 or more. Keep
+				`share_producer false` to send them in parallel. (#589)
+	* out_kafka2: Fix later writes failing until restart after a delivery
+				error. Since 0.18.0, the messages of a failed delivery stayed in the
+				producer, so later writes could keep failing with
+				`Kafka::MessageSizeTooLarge`. The producer is now discarded after a
+				failure and created again on the next write. (#588, #589)
+	* in_kafka: Fix endless re-fetching of a batch with a record larger than
+				`chunk_limit_size`. The offset did not advance, and the records that
+				did fit were emitted again on every `interval`. NOTE: such a record is
+				now dropped with a warning. Use `<label @ERROR>` to keep it. (#584)
+	* in_kafka_group: Fix endless consumer restarts on a record larger than
+				`chunk_limit_size`. The consumer restarted without committing offsets,
+				so the same batch was fetched forever, and the records that did fit
+				were emitted again each time. NOTE: such a record is now dropped with a
+				warning. Use `<label @ERROR>` to keep it. (#583)
+
 Release 0.19.8 - 2026/09/04
 	* in_kafka: Emit each record with its own tag when `tag_source record` is
 				set. The whole fetch batch used to be emitted with the tag of the
