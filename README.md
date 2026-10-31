@@ -128,6 +128,8 @@ Consume events by kafka consumer group features..
       use_record_time (Deprecated. Use 'time_source record' instead.) <If true, replace event time with contents of 'time' field of fetched record>
       time_source <source for message timestamp (now|kafka|record)> :default => now
       time_format <string (Optional when use_record_time is used)>
+      utc <If true, parse the time field as UTC when time_format has no time zone> :default => false
+      timezone <time zone used to parse the time field when time_format has no time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
 
       # ruby-kafka consumer options
       max_bytes               (integer) :default => 1048576
@@ -165,6 +167,8 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
       use_record_time (Deprecated. Use 'time_source record' instead.) <If true, replace event time with contents of 'time' field of fetched record>
       time_source <source for message timestamp (now|kafka|record)> :default => now
       time_format <string (Optional when use_record_time is used)>
+      utc <If true, parse the time field as UTC when time_format has no time zone> :default => false
+      timezone <time zone used to parse the time field when time_format has no time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
 
       # The SSL and SASL parameters in "Common parameters" are mapped to librdkafka
       # properties. Keys given in kafka_configs take precedence over the mapped values.
