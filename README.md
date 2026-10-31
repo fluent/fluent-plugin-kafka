@@ -257,6 +257,7 @@ If `ruby-kafka` doesn't fit your kafka environment, check `rdkafka2` plugin inst
       required_acks     (integer) :default => -1
       ack_timeout       (integer) :default => nil (Use default of ruby-kafka)
       compression_codec (string)  :default => nil (No compression. Depends on ruby-kafka: https://github.com/zendesk/ruby-kafka#compression)
+      monitoring_list   (array)   :default => []
     </match>
 
 The `<formatter name>` in `<format>` uses fluentd's formatter plugins. See [formatter article](https://docs.fluentd.org/v/1.0/formatter).
@@ -277,6 +278,7 @@ Supports following ruby-kafka's producer options.
 - compression_codec - default: nil - The codec the producer uses to compress messages.
 - max_send_limit_bytes - default: nil - Max byte size of one record after formatting. A larger record is dropped with a warning, and the other records in the chunk are sent. For example, if you set 1000000, a record larger than 1000000 bytes is dropped. This does not limit the size of a record batch, so it does not prevent MessageSizeTooLarge by itself. See [FAQ](#why-does-fluentd-fail-with-kafkamessagesizetoolarge-or-msg_size_too_large).
 - discard_kafka_delivery_failed - default: false - discard the record where [Kafka::DeliveryFailed](http://www.rubydoc.info/gems/ruby-kafka/Kafka/DeliveryFailed) occurred
+- monitoring_list - default: [] - library to be used to monitor. statsd and datadog are supported. statsd requires `statsd-ruby` gem, datadog requires `dogstatsd-ruby` gem, and both require `activesupport` gem.
 
 If you want to know about detail of monitoring, see also https://github.com/zendesk/ruby-kafka#monitoring
 
