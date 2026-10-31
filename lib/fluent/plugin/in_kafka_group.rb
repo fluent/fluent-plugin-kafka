@@ -36,6 +36,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :get_kafka_client_log, :bool, :default => false
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
+  config_param :utc, :bool, :default => false,
+               :desc => "Parse 'time' field as UTC when time_format has no time zone."
+  config_param :timezone, :string, :default => nil,
+               :desc => "Time zone used to parse 'time' field when time_format has no time zone."
   config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
                :desc => "Source for the fluentd event tag"
   config_param :record_tag_key, :string, :default => 'tag',
@@ -145,9 +149,11 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     @time_source = :record if @use_record_time
 
+    Fluent::Timezone.validate!(@timezone) if @timezone
+
     if @time_source == :record and @time_format
       if defined?(Fluent::TimeParser)
-        @time_parser = Fluent::TimeParser.new(@time_format)
+        @time_parser = Fluent::TimeParser.new(@time_format, !@utc, @timezone)
       else
         @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
       end
