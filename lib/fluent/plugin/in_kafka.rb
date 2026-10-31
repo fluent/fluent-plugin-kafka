@@ -239,6 +239,7 @@ class Fluent::KafkaInput < Fluent::Input
         @kafka_message_key,
         @time_source,
         @record_time_key,
+        @time_parser,
         @tag_source,
         @record_tag_key,
         opt)
@@ -265,7 +266,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, tag_source, record_tag_key, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, time_parser, tag_source, record_tag_key, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -278,6 +279,7 @@ class Fluent::KafkaInput < Fluent::Input
       @kafka_message_key = kafka_message_key
       @time_source = time_source
       @record_time_key = record_time_key
+      @time_parser = time_parser
       @tag_source = tag_source
       @record_tag_key = record_tag_key
 
@@ -333,8 +335,8 @@ class Fluent::KafkaInput < Fluent::Input
           when :now
             record_time = Fluent::Engine.now
           when :record
-            if @time_format
-              record_time = @time_parser.parse(record[@record_time_key])
+            if @time_parser
+              record_time = @time_parser.parse(record[@record_time_key].to_s)
             else
               record_time = record[@record_time_key]
             end

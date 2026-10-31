@@ -39,15 +39,19 @@ class KafkaInputTest < Test::Unit::TestCase
     FakeMessage = Struct.new(:value, :key, :offset, :create_time)
 
     class FakeRouter
-      attr_reader :emitted
+      attr_reader :emitted, :emitted_times
 
       def initialize
         @emitted = []
+        @emitted_times = []
       end
 
       def emit_stream(tag, es)
         records = []
-        es.each { |time, record| records << record }
+        es.each { |time, record|
+          records << record
+          @emitted_times << time
+        }
         @emitted << [tag, records]
       end
     end
@@ -64,7 +68,7 @@ class KafkaInputTest < Test::Unit::TestCase
       end
     end
 
-    def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil)
+    def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil, time_source: :now, time_parser: nil)
       kafka = Object.new
       kafka.define_singleton_method(:fetch_messages) { |**args| messages }
       parser = Proc.new { |msg, te| JSON.parse(msg.value) }
@@ -79,8 +83,9 @@ class KafkaInputTest < Test::Unit::TestCase
         nil,
         router,
         nil,
-        :now,
+        time_source,
         'time',
+        time_parser,
         tag_source,
         'tag')
     end
@@ -172,6 +177,28 @@ class KafkaInputTest < Test::Unit::TestCase
                    router.emitted.map { |tag, records| [tag, records.map { |r| r['message'] }] })
     end
 
+    def test_consume_with_time_source_record_parses_time_format
+      messages = [
+        FakeMessage.new({'tag' => 'app', 'time' => '2020-11-11 07:58:58 +0000'}.to_json, nil, 0, Time.now),
+      ]
+      router = FakeRouter.new
+      time_parser = Fluent::TimeParser.new('%Y-%m-%d %H:%M:%S %z')
+      create_topic_watcher(messages, router, time_source: :record, time_parser: time_parser).consume
+
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))], router.emitted_times)
+    end
+
+    def test_consume_with_time_source_record_parses_non_string_time
+      messages = [
+        FakeMessage.new({'tag' => 'app', 'time' => 1605081538}.to_json, nil, 0, Time.now),
+      ]
+      router = FakeRouter.new
+      time_parser = Fluent::TimeParser.new('%s')
+      create_topic_watcher(messages, router, time_source: :record, time_parser: time_parser).consume
+
+      assert_equal([Fluent::EventTime.new(1605081538)], router.emitted_times)
+    end
+
     def test_consume_skips_buffer_chunk_overflow
       messages = [
         tagged_message('app.large', 'record 1', 0),
@@ -214,6 +241,25 @@ class KafkaInputTest < Test::Unit::TestCase
       end
       expected = {'message'  => 'Hello, fluent-plugin-kafka!'}
       assert_equal expected, d.events[0][2]
+    end
+
+    def test_consume_with_time_source_record_and_time_format
+      conf = %[
+        @type kafka
+        brokers localhost:9092
+        format json
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        @label @kafka
+        topics #{TOPIC_NAME}
+      ]
+      d = create_driver(conf)
+
+      d.run(expect_records: 1, timeout: 10) do
+        @producer.produce({'time' => '2020-11-11 07:58:58 +0000'}.to_json, topic: TOPIC_NAME)
+        @producer.deliver_messages
+      end
+      assert_equal Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58)), d.events[0][1]
     end
   end
 end
