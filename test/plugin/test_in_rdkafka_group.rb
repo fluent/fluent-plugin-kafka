@@ -1,8 +1,10 @@
 require 'helper'
 require 'fluent/test/driver/input'
+require 'fluent/test/helpers'
 require 'securerandom'
 
 class RdkafkaGroupInputTest < Test::Unit::TestCase
+  include Fluent::Test::Helpers
 
   def have_rdkafka
     begin
@@ -42,6 +44,33 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   def test_multi_worker_support
     d = create_driver
     assert_true d.instance.multi_workers_ready?
+  end
+
+  data("localtime" => ["", Time.new(2020, 11, 11, 7, 58, 58, "+09:00")],
+       "utc" => ["utc true", Time.utc(2020, 11, 11, 7, 58, 58)],
+       "timezone" => ["timezone -05:00", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")],
+       "timezone takes precedence over utc" => ["utc true\ntimezone -05:00", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")])
+  def test_configure_time_zone_of_time_format(data)
+    params, expected = data
+    with_timezone("JST-9") do
+      d = create_driver(CONFIG + %[
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S
+        #{params}
+      ])
+      time_parser = d.instance.instance_variable_get(:@time_parser)
+      assert_equal Fluent::EventTime.from_time(expected), time_parser.parse('2020-11-11 07:58:58')
+    end
+  end
+
+  def test_configure_invalid_timezone
+    assert_raise(Fluent::ConfigError) {
+      create_driver(CONFIG + %[
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S
+        timezone Invalid/Zone
+      ])
+    }
   end
 
   def test_build_config_without_security_parameters

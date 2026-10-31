@@ -1,8 +1,11 @@
 require 'helper'
 require 'fluent/test/driver/input'
+require 'fluent/test/helpers'
 require 'securerandom'
 
 class KafkaGroupInputTest < Test::Unit::TestCase
+  include Fluent::Test::Helpers
+
   def setup
     Fluent::Test.setup
   end
@@ -34,6 +37,57 @@ class KafkaGroupInputTest < Test::Unit::TestCase
   def test_multi_worker_support
     d = create_driver
     assert_true d.instance.multi_workers_ready?
+  end
+
+  data("localtime" => ["", Time.new(2020, 11, 11, 7, 58, 58, "+09:00")],
+       "utc" => ["utc true", Time.utc(2020, 11, 11, 7, 58, 58)],
+       "timezone" => ["timezone -05:00", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")],
+       "timezone takes precedence over utc" => ["utc true\ntimezone -05:00", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")])
+  def test_configure_time_zone_of_time_format(data)
+    params, expected = data
+    with_timezone("JST-9") do
+      d = create_driver(CONFIG + %[
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S
+        #{params}
+      ])
+      time_parser = d.instance.instance_variable_get(:@time_parser)
+      assert_equal Fluent::EventTime.from_time(expected), time_parser.parse('2020-11-11 07:58:58')
+    end
+  end
+
+  def test_configure_invalid_timezone
+    assert_raise(Fluent::ConfigError) {
+      create_driver(CONFIG + %[
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S
+        timezone Invalid/Zone
+      ])
+    }
+  end
+
+  def test_process_batch_parses_time_format_as_utc
+    d = create_driver(%[
+      brokers localhost:9092
+      consumer_group fluentd
+      format json
+      topics #{TOPIC_NAME}
+      time_source record
+      time_format %Y-%m-%dT%H:%M:%S.%NZ
+      utc true
+    ])
+    message = Struct.new(:value, :key, :offset, :create_time, :headers).new(
+      {'time' => '2020-11-11T07:58:58.7291622Z'}.to_json, nil, 0, Time.now, {})
+    batch = Struct.new(:topic, :partition, :messages).new(TOPIC_NAME, 0, [message])
+    emitted = nil
+    stub(d.instance).emit_events { |tag, es| emitted = es }
+
+    with_timezone("JST-9") do
+      d.instance.process_batch(batch)
+    end
+
+    time, _record = emitted.first
+    assert_equal Fluent::EventTime.new(Time.utc(2020, 11, 11, 7, 58, 58).to_i, 729162200), time
   end
 
   def test_emit_events_with_buffer_chunk_overflow
