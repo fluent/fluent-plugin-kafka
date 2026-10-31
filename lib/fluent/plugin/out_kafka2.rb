@@ -86,6 +86,8 @@ DESC
 Add a regular expression to capture ActiveSupport notifications from the Kafka client
 requires activesupport gem - records will be generated under fluent_kafka_stats.**
 DESC
+    config_param :monitoring_list, :array, :default => [], value_type: :string,
+                 :desc => "library to be used to monitor. statsd and datadog are supported"
     config_param :share_producer, :bool, :default => false, :desc => 'share kafka producer between flush threads'
 
     config_section :buffer do
@@ -213,6 +215,17 @@ DESC
           message = event.payload.respond_to?(:stringify_keys) ? event.payload.stringify_keys : event.payload
           @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
         end
+      end
+
+      unless @monitoring_list.empty?
+        # ruby-kafka's monitoring libraries load only some parts of ActiveSupport.
+        # Recent ActiveSupport needs its core loaded first, or sending fails with
+        # "uninitialized constant ActiveSupport::IsolatedExecutionState".
+        require 'active_support'
+        @monitoring_list.each { |m|
+          require "kafka/#{m}"
+          log.info "#{m} monitoring started"
+        }
       end
 
       @topic_key_sym = @topic_key.to_sym

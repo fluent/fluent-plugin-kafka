@@ -118,6 +118,27 @@ class Kafka2OutputTest < Test::Unit::TestCase
     }
   end
 
+  def test_configure_monitoring_list
+    d = Fluent::Test::Driver::Output.new(Fluent::Kafka2Output)
+    # Record the monitoring libraries instead of loading them, because they
+    # need the activesupport, statsd-ruby and dogstatsd-ruby gems
+    required = []
+    original_require = d.instance.method(:require)
+    stub(d.instance).require { |path|
+      case path
+      when 'active_support', %r{\Akafka/}
+        required << path
+        true
+      else
+        original_require.call(path)
+      end
+    }
+    d.configure(config + config_element('ROOT', '', {"monitoring_list" => "statsd,datadog"}, []))
+
+    assert_equal ['statsd', 'datadog'], d.instance.monitoring_list
+    assert_equal ['active_support', 'kafka/statsd', 'kafka/datadog'], required
+  end
+
   data("non numeric partition" => "not-a-number",
        "hash partition" => {"x" => 1},
        "negative partition" => -2,
