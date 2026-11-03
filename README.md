@@ -282,6 +282,8 @@ Supports following ruby-kafka's producer options.
 
 If you want to know about detail of monitoring, see also https://github.com/zendesk/ruby-kafka#monitoring
 
+**Note:** kafka2 sends records with its own producer, which does not emit ruby-kafka's `produce_message` and `deliver_messages` events. So with `monitoring_list`, the `produce.*`, `buffer.*` and `deliver.*` producer metrics, including `deliver.errors`, are not reported. The `ack.*` producer metrics and the `api.*` connection metrics are reported. statsd sends to `127.0.0.1:8125` by default. The plugin has no parameter for the address, so set it through ruby-kafka's API, such as `Kafka::Statsd.host=` or `Kafka::Datadog.host=`. The monitoring is registered for the whole fluentd process, not per plugin instance, so other ruby-kafka clients in the same process report their metrics too.
+
 See also [Kafka::Client](http://www.rubydoc.info/gems/ruby-kafka/Kafka/Client) for more detailed documentation about ruby-kafka.
 
 This plugin supports compression codec "snappy" also.

@@ -118,14 +118,15 @@ class Kafka2OutputTest < Test::Unit::TestCase
     }
   end
 
-  def test_configure_monitoring_list
-    d = Fluent::Test::Driver::Output.new(Fluent::Kafka2Output)
-    # Record the monitoring libraries instead of loading them, because they
-    # need the activesupport, statsd-ruby and dogstatsd-ruby gems
+  # Records the monitoring libraries instead of loading them, because they
+  # need the activesupport, statsd-ruby and dogstatsd-ruby gems
+  def stub_monitoring_require(d, missing: {})
     required = []
     original_require = d.instance.method(:require)
     stub(d.instance).require { |path|
       case path
+      when *missing.keys
+        raise LoadError, missing[path]
       when 'active_support', %r{\Akafka/}
         required << path
         true
@@ -133,10 +134,31 @@ class Kafka2OutputTest < Test::Unit::TestCase
         original_require.call(path)
       end
     }
+    required
+  end
+
+  def test_configure_monitoring_list
+    d = Fluent::Test::Driver::Output.new(Fluent::Kafka2Output)
+    required = stub_monitoring_require(d)
     d.configure(config + config_element('ROOT', '', {"monitoring_list" => "statsd,datadog"}, []))
 
     assert_equal ['statsd', 'datadog'], d.instance.monitoring_list
     assert_equal ['active_support', 'kafka/statsd', 'kafka/datadog'], required
+  end
+
+  data("misspelled library" => ["datdog", {"kafka/datdog" => "cannot load such file -- kafka/datdog"}, /'datdog'/],
+       "missing gem" => ["statsd", {"kafka/statsd" => "cannot load such file -- statsd"}, /'statsd'/],
+       "missing activesupport" => ["statsd", {"active_support" => "cannot load such file -- active_support"}, /activesupport/])
+  def test_configure_missing_monitoring_library(data)
+    entry, missing, message = data
+    d = Fluent::Test::Driver::Output.new(Fluent::Kafka2Output)
+    stub_monitoring_require(d, missing: missing)
+
+    error = assert_raise(Fluent::ConfigError) {
+      d.configure(config + config_element('ROOT', '', {"monitoring_list" => entry}, []))
+    }
+    assert_match message, error.message
+    assert_match missing.values.first, error.message
   end
 
   data("non numeric partition" => "not-a-number",

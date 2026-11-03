@@ -221,9 +221,17 @@ DESC
         # ruby-kafka's monitoring libraries load only some parts of ActiveSupport.
         # Recent ActiveSupport needs its core loaded first, or sending fails with
         # "uninitialized constant ActiveSupport::IsolatedExecutionState".
-        require 'active_support'
+        begin
+          require 'active_support'
+        rescue LoadError => e
+          raise Fluent::ConfigError, "monitoring_list requires activesupport gem: #{e.message}"
+        end
         @monitoring_list.each { |m|
-          require "kafka/#{m}"
+          begin
+            require "kafka/#{m}"
+          rescue LoadError => e
+            raise Fluent::ConfigError, "Failed to load '#{m}' in monitoring_list: #{e.message}. statsd requires statsd-ruby gem and datadog requires dogstatsd-ruby gem"
+          end
           log.info "#{m} monitoring started"
         }
       end
