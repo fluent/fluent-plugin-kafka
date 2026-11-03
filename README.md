@@ -128,8 +128,8 @@ Consume events by kafka consumer group features..
       use_record_time (Deprecated. Use 'time_source record' instead.) <If true, replace event time with contents of 'time' field of fetched record>
       time_source <source for message timestamp (now|kafka|record)> :default => now
       time_format <string (Optional when use_record_time is used)>
-      utc <If true, parse the time field as UTC when time_format has no time zone> :default => false
-      timezone <time zone used to parse the time field when time_format has no time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
+      utc <If true, parse the time field as UTC> :default => false
+      timezone <time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
 
       # ruby-kafka consumer options
       max_bytes               (integer) :default => 1048576
@@ -143,6 +143,8 @@ Consume events by kafka consumer group features..
     </source>
 
 See also [ruby-kafka README](https://github.com/zendesk/ruby-kafka#consuming-messages-from-kafka) for more detailed documentation about ruby-kafka options.
+
+`utc` and `timezone` control record time parsing when `time_source record` (or the deprecated `use_record_time true`) and `time_format` are set. `timezone` takes precedence over `utc`. A time zone parsed with `%z` or `%Z` takes precedence over both. A literal `Z` in `time_format` is not a time zone directive.
 
 `topics` supports regex pattern since v0.13.1. If you want to use regex pattern, use `/pattern/` like `/foo.*/`.
 
@@ -167,8 +169,8 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
       use_record_time (Deprecated. Use 'time_source record' instead.) <If true, replace event time with contents of 'time' field of fetched record>
       time_source <source for message timestamp (now|kafka|record)> :default => now
       time_format <string (Optional when use_record_time is used)>
-      utc <If true, parse the time field as UTC when time_format has no time zone> :default => false
-      timezone <time zone used to parse the time field when time_format has no time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
+      utc <If true, parse the time field as UTC> :default => false
+      timezone <time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
 
       # The SSL and SASL parameters in "Common parameters" are mapped to librdkafka
       # properties. Keys given in kafka_configs take precedence over the mapped values.
@@ -186,6 +188,8 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
     </source>
 
 See also [rdkafka-ruby](https://github.com/appsignal/rdkafka-ruby) and [librdkafka](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for more detailed documentation about Kafka consumer options.
+
+`utc` and `timezone` control record time parsing when `time_source record` (or the deprecated `use_record_time true`) and `time_format` are set. `timezone` takes precedence over `utc`. A time zone parsed with `%z` or `%Z` takes precedence over both. A literal `Z` in `time_format` is not a time zone directive.
 
 `topics` supports POSIX Extended Regular Expression pattern (not Ruby regex syntax) since v0.19.6. If you want to use regex pattern, use `/pattern/` like `/foo.*/`.
 
