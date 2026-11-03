@@ -179,8 +179,12 @@ class Fluent::KafkaInput < Fluent::Input
     else
       @custom_parser = Fluent::Plugin.new_parser(conf['format'])
       @custom_parser.configure(conf)
-      Proc.new { |msg|
-        @custom_parser.parse(msg.value) {|_time, record|
+      # The custom parser removes its time_key from the record unless
+      # keep_time_key is set, so hand over the time it parsed instead.
+      consumes_record_time_key = @custom_parser.time_key == @record_time_key && !@custom_parser.keep_time_key
+      Proc.new { |msg, te, &time_callback|
+        @custom_parser.parse(msg.value) {|time, record|
+          time_callback.call(time) if time_callback && consumes_record_time_key
           record
         }
       }
@@ -317,7 +321,8 @@ class Fluent::KafkaInput < Fluent::Input
 
       messages.each { |msg|
         begin
-          record = @parser.call(msg, @topic_entry)
+          parsed_time = nil
+          record = @parser.call(msg, @topic_entry) { |time| parsed_time = time }
           if @tag_source == :record
             tag = record[@record_tag_key]
             unless tag.is_a?(String) && !tag.empty?
@@ -335,8 +340,15 @@ class Fluent::KafkaInput < Fluent::Input
           when :now
             record_time = Fluent::Engine.now
           when :record
-            if @time_parser
-              record_time = @time_parser.parse(record[@record_time_key].to_s)
+            if parsed_time
+              record_time = parsed_time
+            elsif @time_parser
+              if record.has_key?(@record_time_key)
+                record_time = @time_parser.parse(record[@record_time_key].to_s)
+              else
+                # Same as Fluentd parsers: use the current time if the time field is missing
+                record_time = Fluent::Engine.now
+              end
             else
               record_time = record[@record_time_key]
             end
