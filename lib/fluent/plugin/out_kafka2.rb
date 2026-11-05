@@ -208,6 +208,9 @@ DESC
       @producer_opts[:ack_timeout] = @ack_timeout if @ack_timeout
       @producer_opts[:compression_codec] = @compression_codec.to_sym if @compression_codec
       if @active_support_notification_regex
+        # Recent ActiveSupport needs its core loaded before its parts, or ruby-kafka's
+        # notifications fail with "uninitialized constant ActiveSupport::IsolatedExecutionState".
+        require 'active_support'
         require 'active_support/notifications'
         require 'active_support/core_ext/hash/keys'
         ActiveSupport::Notifications.subscribe(Regexp.new(@active_support_notification_regex)) do |*args|

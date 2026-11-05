@@ -1,0 +1,6 @@
+# Runs the tests with ActiveSupport and the ruby-kafka monitoring libraries,
+# which the plugins load only when they are configured.
+eval_gemfile("../Gemfile")
+
+gem "activesupport"
+gem "statsd-ruby"

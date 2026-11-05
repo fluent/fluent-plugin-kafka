@@ -17,6 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       USE_RDKAFKA: 1
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
     strategy:
       fail-fast: false
       matrix:
@@ -29,9 +30,18 @@ jobs:
           - { min: '>= 0.14.0', max: '< 0.16.0' }
           - { min: '>= 0.16.0', max: '< 0.25.0' }
           - { min: '>= 0.25.0', max: '>= 0.25.0' }
+        gemfile:
+          - Gemfile
         exclude:
           - ruby: head
-    name: Ruby ${{ matrix.ruby }} unit testing on ${{ matrix.os }} with rdkafka gem version (min ${{ matrix.rdkafka_versions.min }} max ${{ matrix.rdkafka_versions.max }})
+        include:
+          # activesupport and statsd-ruby are optional, so the default bundle leaves them out.
+          # Run the tests once with them too.
+          - ruby: '4.0'
+            os: ubuntu-latest
+            rdkafka_versions: { min: '>= 0.25.0', max: '>= 0.25.0' }
+            gemfile: gemfiles/activesupport.gemfile
+    name: Ruby ${{ matrix.ruby }} unit testing on ${{ matrix.os }} with rdkafka gem version (min ${{ matrix.rdkafka_versions.min }} max ${{ matrix.rdkafka_versions.max }})${{ matrix.gemfile != 'Gemfile' && format(' and {0}', matrix.gemfile) || '' }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
