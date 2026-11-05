@@ -166,6 +166,9 @@ DESC
     @producer_opts[:max_buffer_size] = @max_buffer_size if @max_buffer_size
     @producer_opts[:max_buffer_bytesize] = @max_buffer_bytesize if @max_buffer_bytesize
     if @active_support_notification_regex
+      # Recent ActiveSupport needs its core loaded before its parts, or ruby-kafka's
+      # notifications fail with "uninitialized constant ActiveSupport::IsolatedExecutionState".
+      require 'active_support'
       require 'active_support/notifications'
       require 'active_support/core_ext/hash/keys'
       ActiveSupport::Notifications.subscribe(Regexp.new(@active_support_notification_regex)) do |*args|
