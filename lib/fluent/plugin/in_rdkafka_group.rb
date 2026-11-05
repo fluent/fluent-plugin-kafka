@@ -31,6 +31,10 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
                :desc => "Time field when time_source is 'record'"
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
+  config_param :utc, :bool, :default => false,
+               :desc => "Parse 'time' field as UTC when time_format has no time zone."
+  config_param :timezone, :string, :default => nil,
+               :desc => "Time zone used to parse 'time' field when time_format has no time zone."
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
 
@@ -124,8 +128,10 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
 
     @time_source = :record if @use_record_time
 
+    Fluent::Timezone.validate!(@timezone) if @timezone
+
     if @time_source == :record and @time_format
-      @time_parser = Fluent::TimeParser.new(@time_format)
+      @time_parser = Fluent::TimeParser.new(@time_format, !@utc, @timezone)
     end
 
     @rdkafka_config = build_config

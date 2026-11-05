@@ -1,9 +1,12 @@
 require 'helper'
 require 'fluent/test/driver/input'
+require 'fluent/test/helpers'
 require 'securerandom'
 require 'json'
 
 class KafkaInputTest < Test::Unit::TestCase
+  include Fluent::Test::Helpers
+
   def setup
     Fluent::Test.setup
   end
@@ -33,6 +36,33 @@ class KafkaInputTest < Test::Unit::TestCase
   def test_multi_worker_support
     d = create_driver
     assert_false d.instance.multi_workers_ready?
+  end
+
+  data("localtime" => ["", Time.new(2020, 11, 11, 7, 58, 58, "+09:00")],
+       "utc" => ["utc true", Time.utc(2020, 11, 11, 7, 58, 58)],
+       "timezone" => ["timezone -05:00", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")],
+       "timezone takes precedence over utc" => ["utc true\ntimezone -05:00", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")])
+  def test_configure_time_zone_of_time_format(data)
+    params, expected = data
+    with_timezone("JST-9") do
+      d = create_driver(CONFIG + %[
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S
+        #{params}
+      ])
+      time_parser = d.instance.instance_variable_get(:@time_parser)
+      assert_equal Fluent::EventTime.from_time(expected), time_parser.parse('2020-11-11 07:58:58')
+    end
+  end
+
+  def test_configure_invalid_timezone
+    assert_raise(Fluent::ConfigError) {
+      create_driver(CONFIG + %[
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S
+        timezone Invalid/Zone
+      ])
+    }
   end
 
   class TopicWatcherTest < self
@@ -288,10 +318,13 @@ class KafkaInputTest < Test::Unit::TestCase
     def setup
       @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
       @producer = @kafka.producer
+      # Use a new topic for each test, so that a test can read it from offset 0
+      # without seeing messages left over from another test.
+      @topic = "kafka-input-#{SecureRandom.uuid}"
     end
 
     def teardown
-      @kafka.delete_topic(TOPIC_NAME)
+      @kafka.delete_topic(@topic)
       @kafka.close
     end
 
@@ -301,35 +334,43 @@ class KafkaInputTest < Test::Unit::TestCase
         brokers localhost:9092
         format text
         @label @kafka
-        topics #{TOPIC_NAME}
+        topics #{@topic}
       ]
-      d = create_driver
+      d = create_driver(conf)
 
       d.run(expect_records: 1, timeout: 10) do
-        @producer.produce("Hello, fluent-plugin-kafka!", topic: TOPIC_NAME)
+        @producer.produce("Hello, fluent-plugin-kafka!", topic: @topic)
         @producer.deliver_messages
       end
       expected = {'message'  => 'Hello, fluent-plugin-kafka!'}
       assert_equal expected, d.events[0][2]
     end
 
-    def test_consume_with_time_source_record_and_time_format
+    data("time zone in time_format" => ["%Y-%m-%d %H:%M:%S %z", "", "2020-11-11 07:58:58 +0000", Time.utc(2020, 11, 11, 7, 58, 58)],
+         "utc" => ["%Y-%m-%d %H:%M:%S", "utc true", "2020-11-11 07:58:58", Time.utc(2020, 11, 11, 7, 58, 58)],
+         "timezone" => ["%Y-%m-%d %H:%M:%S", "timezone -05:00", "2020-11-11 07:58:58", Time.new(2020, 11, 11, 7, 58, 58, "-05:00")])
+    def test_consume_with_time_source_record_and_time_format(data)
+      time_format, params, time, expected = data
       conf = %[
         @type kafka
         brokers localhost:9092
         format json
         time_source record
-        time_format %Y-%m-%d %H:%M:%S %z
+        time_format #{time_format}
+        #{params}
+        offset 0
         @label @kafka
-        topics #{TOPIC_NAME}
+        topics #{@topic}
       ]
-      d = create_driver(conf)
+      with_timezone("JST-9") do
+        d = create_driver(conf)
 
-      d.run(expect_records: 1, timeout: 10) do
-        @producer.produce({'time' => '2020-11-11 07:58:58 +0000'}.to_json, topic: TOPIC_NAME)
-        @producer.deliver_messages
+        d.run(expect_records: 1, timeout: 10) do
+          @producer.produce({'time' => time}.to_json, topic: @topic)
+          @producer.deliver_messages
+        end
+        assert_equal Fluent::EventTime.from_time(expected), d.events[0][1]
       end
-      assert_equal Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58)), d.events[0][1]
     end
   end
 end
