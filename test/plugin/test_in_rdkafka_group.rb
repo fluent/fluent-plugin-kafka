@@ -242,6 +242,148 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     assert_equal 'SSL', passed[:"security.protocol"]
   end
 
+  class RecordTimeTest < self
+    FakeMessage = Struct.new(:topic, :partition, :payload, :key, :offset, :timestamp, :headers)
+
+    class FakeRouter
+      attr_reader :emitted
+
+      def initialize
+        @emitted = []
+      end
+
+      def emit_stream(tag, es)
+        es.each { |time, record| @emitted << [tag, time, record] }
+      end
+    end
+
+    # Feeds the messages to run, then stops it the way shutdown does.
+    class FakeConsumer
+      def initialize(plugin, messages)
+        @plugin = plugin
+        @messages = messages
+      end
+
+      def poll(_timeout)
+        message = @messages.shift
+        @plugin.instance_variable_set(:@consumer, nil) unless message
+        message
+      end
+    end
+
+    def consume(conf, payloads)
+      d = @driver = create_driver(conf)
+      router = FakeRouter.new
+      stub(d.instance).router { router }
+      messages = payloads.each_with_index.map { |p, i| FakeMessage.new(TOPIC_NAME, 0, p, nil, i, Time.now, {}) }
+      d.instance.instance_variable_set(:@consumer, FakeConsumer.new(d.instance, messages))
+      d.instance.run
+      router.emitted
+    end
+
+    data("time key removed by the parser" => ["", false],
+         "keep_time_key" => ["keep_time_key true", true])
+    def test_custom_parser_time(data)
+      extra_conf, keeps_time_key = data
+      conf = %[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        <parse>
+          @type regexp
+          expression /^(?<time>\\S+ \\S+ \\S+) (?<message>.*)$/
+          time_format %Y-%m-%d %H:%M:%S %z
+          #{extra_conf}
+        </parse>
+      ]
+      emitted = consume(conf, ['2020-11-11 07:58:58 +0000 record 1',
+                               'not a time record 2',
+                               '2020-11-11 07:59:00 +0000 record 3'])
+
+      assert_equal(['record 1', 'record 3'], emitted.map { |_, _, r| r['message'] })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58)),
+                    Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 59, 0))],
+                   emitted.map { |_, t, _| t })
+      assert_equal([keeps_time_key, keeps_time_key], emitted.map { |_, _, r| r.has_key?('time') })
+    end
+
+    def test_apache2_parser_time
+      conf = %[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        <parse>
+          @type apache2
+        </parse>
+      ]
+      emitted = consume(conf, ['192.168.0.1 - - [28/Feb/2013:12:00:00 +0900] "GET / HTTP/1.1" 200 777 "-" "Opera/12.0"'])
+
+      assert_equal(['/'], emitted.map { |_, _, r| r['path'] })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2013, 2, 28, 3, 0, 0))], emitted.map { |_, t, _| t })
+    end
+
+    def test_custom_parser_time_key_other_than_record_time_key
+      conf = %[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        <parse>
+          @type regexp
+          expression /^(?<ts>\\S+ \\S+ \\S+) (?<message>.*)$/
+          time_key ts
+          time_format %Y-%m-%d %H:%M:%S %z
+        </parse>
+      ]
+      emitted = consume(conf, ['2020-11-11 07:58:58 +0000 record 1'])
+
+      assert_equal([{'message' => 'record 1'}], emitted.map { |_, _, r| r })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))], emitted.map { |_, t, _| t })
+    end
+
+    def test_custom_parser_keeps_record_time_key
+      conf = %[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        <parse>
+          @type none
+          message_key time
+          time_key time
+        </parse>
+      ]
+      emitted = consume(conf, ['2020-11-11 07:58:58 +0000', 'bad'])
+
+      assert_equal([{'time' => '2020-11-11 07:58:58 +0000'}], emitted.map { |_, _, r| r })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))], emitted.map { |_, t, _| t })
+      assert_true @driver.logs.any? { |log| log.include?("parser error") && log.include?("bad") }
+    end
+
+    def test_missing_time_key_uses_current_time
+      conf = %[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        <parse>
+          @type json
+        </parse>
+      ]
+      now = Fluent::EventTime.now
+      stub(Fluent::Engine).now { now }
+      emitted = consume(conf, [{'message' => 'no time'}.to_json,
+                               {'message' => 'with time', 'time' => '2020-11-11 07:58:58 +0000'}.to_json,
+                               {'message' => 'bad time', 'time' => 1605081538}.to_json])
+
+      assert_equal(['no time', 'with time'], emitted.map { |_, _, r| r['message'] })
+      assert_equal([now, Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))],
+                   emitted.map { |_, t, _| t })
+    end
+  end
+
   class ConsumeTest < self
     TOPIC_NAME = "kafka-input-#{SecureRandom.uuid}"
 

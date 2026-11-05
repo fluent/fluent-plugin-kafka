@@ -153,8 +153,9 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       Proc.new { |msg| {@message_key => msg.payload} }
     else
       @custom_parser = parser_create(usage: 'in-rdkafka-plugin', conf: parser_conf)
-      Proc.new { |msg|
-        @custom_parser.parse(msg.payload) {|_time, record|
+      Proc.new { |msg, &time_callback|
+        @custom_parser.parse(msg.payload) {|time, record|
+          time_callback.call(time) if time_callback
           record
         }
       }
@@ -264,15 +265,23 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
 
           batch.messages.each { |msg|
             begin
-              record = @parser_proc.call(msg)
+              parsed_time = nil
+              record = @parser_proc.call(msg) { |time| parsed_time = time }
               case @time_source
               when :kafka
                 record_time = Fluent::EventTime.from_time(msg.timestamp)
               when :now
                 record_time = Fluent::Engine.now
               when :record
-                if @time_format
-                  record_time = @time_parser.parse(record[@record_time_key].to_s)
+                if parsed_time && !record.has_key?(@record_time_key)
+                  record_time = parsed_time
+                elsif @time_format
+                  if record.has_key?(@record_time_key)
+                    record_time = @time_parser.parse(record[@record_time_key].to_s)
+                  else
+                    # Same as Fluentd parsers: use the current time if the time field is missing
+                    record_time = Fluent::Engine.now
+                  end
                 else
                   record_time = record[@record_time_key]
                 end
