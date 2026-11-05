@@ -180,12 +180,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
     else
       @custom_parser = Fluent::Plugin.new_parser(conf['format'])
       @custom_parser.configure(conf)
-      # The custom parser removes its time_key from the record unless
-      # keep_time_key is set, so hand over the time it parsed instead.
-      consumes_record_time_key = @custom_parser.time_key == @record_time_key && !@custom_parser.keep_time_key
       Proc.new { |msg, &time_callback|
         @custom_parser.parse(msg.value) {|time, record|
-          time_callback.call(time) if time_callback && consumes_record_time_key
+          time_callback.call(time) if time_callback
           record
         }
       }
@@ -290,7 +287,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
         when :now
           record_time = Fluent::Engine.now
         when :record
-          if parsed_time
+          if parsed_time && !record.has_key?(@record_time_key)
             record_time = parsed_time
           elsif @time_format
             if record.has_key?(@record_time_key)
@@ -345,7 +342,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
         when :record
           record_time = record[@record_time_key]
 
-          if parsed_time
+          if parsed_time && !record.has_key?(@record_time_key)
             record_time = parsed_time
           elsif @time_format
             if record.has_key?(@record_time_key)

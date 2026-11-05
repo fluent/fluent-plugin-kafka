@@ -70,7 +70,7 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     end
 
     def process(conf, values, with_record_tag: false)
-      d = create_driver(conf)
+      d = @driver = create_driver(conf)
       router = FakeRouter.new
       stub(d.instance).router { router }
       batch = FakeBatch.new(TOPIC_NAME, 0, values.each_with_index.map { |v, i| message(v, i) })
@@ -82,29 +82,84 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       router.emitted
     end
 
-    data("time key removed by the parser" => ["", false],
-         "keep_time_key" => ["keep_time_key true", true])
+    data("time key removed by the parser" => ["", false, false],
+         "keep_time_key" => ["keep_time_key true", true, false],
+         "time key removed by the parser, record tag" => ["", false, true],
+         "keep_time_key, record tag" => ["keep_time_key true", true, true])
     def test_custom_parser_time(data)
-      extra_conf, keeps_time_key = data
+      extra_conf, keeps_time_key, with_record_tag = data
       conf = %[
         brokers localhost:9092
         consumer_group fluentd
         format regexp
-        expression /^(?<time>\\S+ \\S+ \\S+) (?<message>.*)$/
+        expression /^(?<time>\\S+ \\S+ \\S+) (?<tag>\\S+) (?<message>.*)$/
         time_source record
         time_format %Y-%m-%d %H:%M:%S %z
         #{extra_conf}
+        #{with_record_tag ? 'tag_source record' : ''}
         topics #{TOPIC_NAME}
       ]
-      emitted = process(conf, ['2020-11-11 07:58:58 +0000 record 1',
-                               'not a time record 2',
-                               '2020-11-11 07:59:00 +0000 record 3'])
+      emitted = process(conf, ['2020-11-11 07:58:58 +0000 app record 1',
+                               'not a time app record 2',
+                               '2020-11-11 07:59:00 +0000 app record 3'],
+                        with_record_tag: with_record_tag)
 
       assert_equal(['record 1', 'record 3'], emitted.map { |_, _, r| r['message'] })
+      assert_equal([with_record_tag ? 'app' : TOPIC_NAME] * 2, emitted.map { |tag, _, _| tag })
       assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58)),
                     Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 59, 0))],
                    emitted.map { |_, t, _| t })
       assert_equal([keeps_time_key, keeps_time_key], emitted.map { |_, _, r| r.has_key?('time') })
+    end
+
+    def test_apache2_parser_time
+      conf = %[
+        brokers localhost:9092
+        consumer_group fluentd
+        format apache2
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        topics #{TOPIC_NAME}
+      ]
+      emitted = process(conf, ['192.168.0.1 - - [28/Feb/2013:12:00:00 +0900] "GET / HTTP/1.1" 200 777 "-" "Opera/12.0"'])
+
+      assert_equal(['/'], emitted.map { |_, _, r| r['path'] })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2013, 2, 28, 3, 0, 0))], emitted.map { |_, t, _| t })
+    end
+
+    def test_custom_parser_time_key_other_than_record_time_key
+      conf = %[
+        brokers localhost:9092
+        consumer_group fluentd
+        format regexp
+        expression /^(?<ts>\\S+ \\S+ \\S+) (?<message>.*)$/
+        time_key ts
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        topics #{TOPIC_NAME}
+      ]
+      emitted = process(conf, ['2020-11-11 07:58:58 +0000 record 1'])
+
+      assert_equal([{'message' => 'record 1'}], emitted.map { |_, _, r| r })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))], emitted.map { |_, t, _| t })
+    end
+
+    def test_custom_parser_keeps_record_time_key
+      conf = %[
+        brokers localhost:9092
+        consumer_group fluentd
+        format none
+        message_key time
+        time_key time
+        time_source record
+        time_format %Y-%m-%d %H:%M:%S %z
+        topics #{TOPIC_NAME}
+      ]
+      emitted = process(conf, ['2020-11-11 07:58:58 +0000', 'bad'])
+
+      assert_equal([{'time' => '2020-11-11 07:58:58 +0000'}], emitted.map { |_, _, r| r })
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))], emitted.map { |_, t, _| t })
+      assert_true @driver.logs.any? { |log| log.include?("parser error") && log.include?("bad") }
     end
 
     data("topic tag" => false, "record tag" => true)
