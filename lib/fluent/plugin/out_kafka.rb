@@ -171,7 +171,7 @@ DESC
       require 'active_support'
       require 'active_support/notifications'
       require 'active_support/core_ext/hash/keys'
-      ActiveSupport::Notifications.subscribe(Regexp.new(@active_support_notification_regex)) do |*args|
+      @active_support_subscriber = ActiveSupport::Notifications.subscribe(Regexp.new(@active_support_notification_regex)) do |*args|
         event = ActiveSupport::Notifications::Event.new(*args)
         message = event.payload.respond_to?(:stringify_keys) ? event.payload.stringify_keys : event.payload
         @router.emit("fluent_kafka_stats.#{event.name}", Time.now.to_i, message)
@@ -191,6 +191,11 @@ DESC
   def shutdown
     super
     @kafka = nil
+    # A graceful reload creates new instances in the same process, and the router of this one becomes nil.
+    if @active_support_subscriber
+      ActiveSupport::Notifications.unsubscribe(@active_support_subscriber)
+      @active_support_subscriber = nil
+    end
   end
 
   def setup_formatter(conf)

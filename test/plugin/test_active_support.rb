@@ -18,8 +18,10 @@ class ActiveSupportTest < Test::Unit::TestCase
     omit_unless(have_gem('activesupport'), "activesupport isn't installed")
   end
 
-  # Returns the tags of the events that the plugin emitted
-  def run_plugin(plugin, klass, conf)
+  # Returns the tags of the events that the plugin emitted.
+  # With restart, it runs a second instance after the first one is shut down,
+  # as a graceful reload does in the same process, and returns the tags of both.
+  def run_plugin(plugin, klass, conf, restart: false)
     script = <<~RUBY
       require 'bundler/setup'
       require 'fluent/test'
@@ -29,13 +31,15 @@ class ActiveSupportTest < Test::Unit::TestCase
       # fluent/test loads test-unit, which would run the test files at exit
       Test::Unit::AutoRunner.need_auto_run = false
       Fluent::Test.setup
-      d = Fluent::Test::Driver::Output.new(#{klass})
-      d.configure(#{conf.dump})
-      d.run do
-        notification = {broker_host: 'localhost', api: :metadata, request_size: 0, response_size: 0}
-        Kafka::Instrumenter.new(client_id: 'fluentd').instrument('request.connection', notification) {}
+      (#{restart} ? 2 : 1).times do
+        d = Fluent::Test::Driver::Output.new(#{klass})
+        d.configure(#{conf.dump})
+        d.run do
+          notification = {broker_host: 'localhost', api: :metadata, request_size: 0, response_size: 0}
+          Kafka::Instrumenter.new(client_id: 'fluentd').instrument('request.connection', notification) {}
+        end
+        puts d.events.map(&:first)
       end
-      puts d.events.map(&:first)
     RUBY
     stdout, stderr, status = Open3.capture3(RbConfig.ruby, '-I', LIB_DIR, '-e', script)
     assert_true(status.success?, stderr)
@@ -57,6 +61,23 @@ class ActiveSupportTest < Test::Unit::TestCase
     CONF
 
     assert_equal ['fluent_kafka_stats.request.connection.kafka'], tags
+  end
+
+  data("kafka" => ["out_kafka", "Fluent::KafkaOutput"],
+       "kafka_buffered" => ["out_kafka_buffered", "Fluent::KafkaOutputBuffered"],
+       "kafka2" => ["out_kafka2", "Fluent::Kafka2Output"])
+  def test_active_support_notification_regex_after_restart(data)
+    plugin, klass = data
+    tags = run_plugin(plugin, klass, <<~CONF, restart: true)
+      default_topic kitagawakeiko
+      brokers localhost:9092
+      active_support_notification_regex kafka
+      <format>
+        @type json
+      </format>
+    CONF
+
+    assert_equal ['fluent_kafka_stats.request.connection.kafka'] * 2, tags
   end
 
   data("kafka_buffered" => ["out_kafka_buffered", "Fluent::KafkaOutputBuffered"],
