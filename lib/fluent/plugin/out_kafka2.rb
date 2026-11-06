@@ -452,6 +452,7 @@ DESC
             begin
               producer.deliver_messages
             rescue Kafka::DeliveryFailed => e
+              raise if retry_with_default_topic?(e, topic)
               log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
               producer.clear_buffer
             end
@@ -459,13 +460,13 @@ DESC
             producer.deliver_messages
           end
         end
-      rescue Kafka::UnknownTopicOrPartition
-        if @use_default_for_unknown_topic && topic != @default_topic
-          log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
-          topic = @default_topic
-          retry
-        end
-        raise
+      rescue Kafka::DeliveryFailed => e
+        raise unless retry_with_default_topic?(e, topic)
+        log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+        producer.clear_buffer
+        topic = @default_topic
+        messages = 0
+        retry
       end
     rescue Exception => e
       ignore = @ignore_exceptions.include?(e.class.name)
@@ -480,6 +481,12 @@ DESC
       raise Fluent::UnrecoverableError if ignore && exception_backup
       # Raise exception to retry sendind messages
       raise e unless ignore
+    end
+
+    # CustomProducer retries the partition assignment, which gives an auto created topic
+    # the time to appear, and then raises DeliveryFailed with the last error as its cause.
+    def retry_with_default_topic?(error, topic)
+      @use_default_for_unknown_topic && topic != @default_topic && error.cause.is_a?(Kafka::UnknownTopicOrPartition)
     end
   end
 end

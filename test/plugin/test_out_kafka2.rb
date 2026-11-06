@@ -45,8 +45,8 @@ class Kafka2OutputTest < Test::Unit::TestCase
     end
   end
 
-  def create_chunk(records, tag: 'test')
-    metadata = Fluent::Plugin::Buffer::Metadata.new(nil, tag, nil)
+  def create_chunk(records, tag: 'test', variables: nil)
+    metadata = Fluent::Plugin::Buffer::Metadata.new(nil, tag, variables)
     chunk = Fluent::Plugin::Buffer::MemoryChunk.new(metadata)
     chunk.extend(Fluent::ChunkMessagePackEventStreamer)
     chunk.append(records.map { |record| [event_time, record].to_msgpack })
@@ -221,6 +221,140 @@ class Kafka2OutputTest < Test::Unit::TestCase
     }
   ensure
     d.instance_shutdown if d
+  end
+
+  # Fails like CustomProducer#deliver_messages while any buffered message is for an unknown topic
+  class UnknownTopicProducer < DummyProducer
+    attr_reader :delivered
+
+    def initialize(unknown_topics)
+      @unknown_topics = unknown_topics
+      @buffer = []
+      @delivered = []
+    end
+
+    def produce(value, key:, partition_key:, partition:, headers:, create_time:, topic:)
+      @buffer << topic
+    end
+
+    def deliver_messages
+      unless (@buffer & @unknown_topics).empty?
+        raise Kafka::DeliveryFailed.new("Failed to assign partitions", []), cause: Kafka::UnknownTopicOrPartition.new
+      end
+      @delivered.concat(@buffer)
+      @buffer.clear
+    end
+
+    def clear_buffer
+      @buffer.clear
+    end
+  end
+
+  def unknown_topic_config(params = {})
+    config(default_topic: "fallback") + config_element('ROOT', '', {"use_default_for_unknown_topic" => true}.merge(params))
+  end
+
+  def write_to_unknown_topic(conf, producer)
+    d = create_driver(conf)
+    stub(d.instance).get_producer { producer }
+    stub(d.instance).refresh_client
+    stub(d.instance).discard_producer
+    d.instance.write(create_chunk([{"a" => "b"}, {"a" => "c"}], variables: {topic: "unknown"}))
+    d
+  end
+
+  def test_write_retries_with_default_topic_for_unknown_topic
+    producer = UnknownTopicProducer.new(["unknown"])
+
+    d = write_to_unknown_topic(unknown_topic_config, producer)
+
+    assert_equal ["fallback", "fallback"], producer.delivered
+    assert_true d.logs.any? { |log| log.include?("'unknown' topic not found. Retry with 'fallback' topic") }
+  end
+
+  def test_write_retries_with_default_topic_before_discarding
+    producer = UnknownTopicProducer.new(["unknown"])
+
+    write_to_unknown_topic(unknown_topic_config("discard_kafka_delivery_failed" => true), producer)
+
+    assert_equal ["fallback", "fallback"], producer.delivered
+  end
+
+  def test_write_raises_for_unknown_default_topic
+    producer = UnknownTopicProducer.new(["unknown", "fallback"])
+
+    assert_raise(Kafka::DeliveryFailed) {
+      write_to_unknown_topic(unknown_topic_config, producer)
+    }
+    assert_equal [], producer.delivered
+  end
+
+  def test_write_discards_for_unknown_default_topic
+    producer = UnknownTopicProducer.new(["unknown", "fallback"])
+
+    assert_nothing_raised {
+      write_to_unknown_topic(unknown_topic_config("discard_kafka_delivery_failed" => true), producer)
+    }
+    assert_equal [], producer.delivered
+  end
+
+  def test_write_raises_for_unknown_topic_without_use_default_for_unknown_topic
+    producer = UnknownTopicProducer.new(["unknown"])
+
+    assert_raise(Kafka::DeliveryFailed) {
+      write_to_unknown_topic(config(default_topic: "fallback"), producer)
+    }
+    assert_equal [], producer.delivered
+  end
+
+  def test_write_raises_for_other_delivery_failure
+    producer = UnknownTopicProducer.new([])
+    stub(producer).deliver_messages { raise Kafka::DeliveryFailed.new("Failed to send messages", []) }
+
+    assert_raise(Kafka::DeliveryFailed) {
+      write_to_unknown_topic(unknown_topic_config, producer)
+    }
+  end
+
+  class UnknownTopicCluster
+    def add_target_topics(_topics)
+    end
+
+    def refresh_metadata_if_necessary!
+    end
+
+    def mark_as_stale!
+    end
+
+    def partitions_for(_topic)
+      raise Kafka::UnknownTopicOrPartition
+    end
+  end
+
+  def test_custom_producer_keeps_unknown_topic_as_cause_of_delivery_failed
+    logger = Logger.new(IO::NULL)
+    cluster = UnknownTopicCluster.new
+    instrumenter = Kafka::Instrumenter.new(client_id: 'fluentd')
+    producer = Kafka::CustomProducer.new(
+      cluster: cluster,
+      transaction_manager: Kafka::TransactionManager.new(cluster: cluster, logger: logger),
+      logger: logger,
+      instrumenter: instrumenter,
+      compressor: Kafka::Compressor.new(codec_name: nil, threshold: 1, instrumenter: instrumenter),
+      ack_timeout: 5,
+      required_acks: -1,
+      max_retries: 0,
+      retry_backoff: 0,
+      max_buffer_size: 1000,
+      max_buffer_bytesize: 10_000_000,
+      partitioner: Kafka::Partitioner.new,
+    )
+    producer.produce("a", topic: "unknown")
+
+    error = assert_raise(Kafka::DeliveryFailed) { producer.deliver_messages }
+
+    assert_kind_of Kafka::UnknownTopicOrPartition, error.cause
+    assert_equal 1, producer.buffer_size
   end
 
   class SlowProducer < DummyProducer
