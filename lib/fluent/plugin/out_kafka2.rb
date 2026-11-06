@@ -448,25 +448,21 @@ DESC
 
         if messages > 0
           log.debug { "#{messages} messages send." }
-          if @discard_kafka_delivery_failed
-            begin
-              producer.deliver_messages
-            rescue Kafka::DeliveryFailed => e
-              raise if retry_with_default_topic?(e, topic)
-              log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
-              producer.clear_buffer
-            end
-          else
-            producer.deliver_messages
-          end
+          producer.deliver_messages
         end
       rescue Kafka::DeliveryFailed => e
-        raise unless retry_with_default_topic?(e, topic)
-        log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+        # A record that reached the topic means that the topic exists, even if a broker
+        # with stale metadata still reports it as unknown.
+        if e.failed_messages.size == messages && retry_with_default_topic?(producer, topic)
+          log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+          producer.clear_buffer
+          topic = @default_topic
+          messages = 0
+          retry
+        end
+        raise unless @discard_kafka_delivery_failed
+        log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
         producer.clear_buffer
-        topic = @default_topic
-        messages = 0
-        retry
       end
     rescue Exception => e
       ignore = @ignore_exceptions.include?(e.class.name)
@@ -483,10 +479,8 @@ DESC
       raise e unless ignore
     end
 
-    # CustomProducer retries the partition assignment, which gives an auto created topic
-    # the time to appear, and then raises DeliveryFailed with the last error as its cause.
-    def retry_with_default_topic?(error, topic)
-      @use_default_for_unknown_topic && topic != @default_topic && error.cause.is_a?(Kafka::UnknownTopicOrPartition)
+    def retry_with_default_topic?(producer, topic)
+      @use_default_for_unknown_topic && topic != @default_topic && producer.unknown_topic?(topic)
     end
   end
 end

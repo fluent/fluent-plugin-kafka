@@ -239,7 +239,7 @@ class Kafka2OutputTest < Test::Unit::TestCase
 
     def deliver_messages
       unless (@buffer & @unknown_topics).empty?
-        raise Kafka::DeliveryFailed.new("Failed to assign partitions", []), cause: Kafka::UnknownTopicOrPartition.new
+        raise Kafka::DeliveryFailed.new("Failed to assign partitions", @buffer.dup)
       end
       @delivered.concat(@buffer)
       @buffer.clear
@@ -247,6 +247,10 @@ class Kafka2OutputTest < Test::Unit::TestCase
 
     def clear_buffer
       @buffer.clear
+    end
+
+    def unknown_topic?(topic)
+      @unknown_topics.include?(topic)
     end
   end
 
@@ -307,16 +311,49 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal [], producer.delivered
   end
 
-  def test_write_raises_for_other_delivery_failure
-    producer = UnknownTopicProducer.new([])
-    stub(producer).deliver_messages { raise Kafka::DeliveryFailed.new("Failed to send messages", []) }
-
-    assert_raise(Kafka::DeliveryFailed) {
-      write_to_unknown_topic(unknown_topic_config, producer)
-    }
+  # Delivers the first buffered message, and fails for the others
+  class PartlyDeliveringProducer < UnknownTopicProducer
+    def deliver_messages
+      @delivered << @buffer.shift
+      raise Kafka::DeliveryFailed.new("Failed to assign partitions", @buffer.dup) unless @buffer.empty?
+    end
   end
 
-  class UnknownTopicCluster
+  def assert_write_keeps_topic(producer, discard)
+    conf = unknown_topic_config("discard_kafka_delivery_failed" => discard)
+    if discard
+      assert_nothing_raised { write_to_unknown_topic(conf, producer) }
+    else
+      assert_raise(Kafka::DeliveryFailed) { write_to_unknown_topic(conf, producer) }
+    end
+  end
+
+  data("raise" => false,
+       "discard" => true)
+  def test_write_keeps_topic_when_some_records_were_delivered(discard)
+    producer = PartlyDeliveringProducer.new(["unknown"])
+
+    assert_write_keeps_topic(producer, discard)
+
+    assert_equal ["unknown"], producer.delivered
+  end
+
+  data("raise" => false,
+       "discard" => true)
+  def test_write_keeps_topic_when_topic_is_known_again(discard)
+    producer = UnknownTopicProducer.new(["unknown"])
+    stub(producer).unknown_topic?("unknown") { false }
+
+    assert_write_keeps_topic(producer, discard)
+
+    assert_equal [], producer.delivered
+  end
+
+  class PartitionsForCluster
+    def initialize(&partitions_for)
+      @partitions_for = partitions_for
+    end
+
     def add_target_topics(_topics)
     end
 
@@ -326,16 +363,15 @@ class Kafka2OutputTest < Test::Unit::TestCase
     def mark_as_stale!
     end
 
-    def partitions_for(_topic)
-      raise Kafka::UnknownTopicOrPartition
+    def partitions_for(topic)
+      @partitions_for.call(topic)
     end
   end
 
-  def test_custom_producer_keeps_unknown_topic_as_cause_of_delivery_failed
+  def create_custom_producer(cluster)
     logger = Logger.new(IO::NULL)
-    cluster = UnknownTopicCluster.new
     instrumenter = Kafka::Instrumenter.new(client_id: 'fluentd')
-    producer = Kafka::CustomProducer.new(
+    Kafka::CustomProducer.new(
       cluster: cluster,
       transaction_manager: Kafka::TransactionManager.new(cluster: cluster, logger: logger),
       logger: logger,
@@ -349,12 +385,38 @@ class Kafka2OutputTest < Test::Unit::TestCase
       max_buffer_bytesize: 10_000_000,
       partitioner: Kafka::Partitioner.new,
     )
+  end
+
+  def test_custom_producer_unknown_topic
+    cluster = PartitionsForCluster.new { raise Kafka::UnknownTopicOrPartition }
+
+    assert_true create_custom_producer(cluster).unknown_topic?("unknown")
+  end
+
+  def test_custom_producer_known_topic
+    cluster = PartitionsForCluster.new { [] }
+
+    assert_false create_custom_producer(cluster).unknown_topic?("known")
+  end
+
+  data("Kafka" => Kafka::ConnectionError,
+       "TLS" => OpenSSL::SSL::SSLError,
+       "DNS" => Resolv::ResolvError)
+  def test_custom_producer_failed_topic_check_is_not_unknown_topic(error_class)
+    cluster = PartitionsForCluster.new { raise error_class }
+
+    assert_false create_custom_producer(cluster).unknown_topic?("unknown")
+  end
+
+  def test_custom_producer_reports_all_messages_of_unknown_topic_as_failed
+    cluster = PartitionsForCluster.new { raise Kafka::UnknownTopicOrPartition }
+    producer = create_custom_producer(cluster)
     producer.produce("a", topic: "unknown")
+    producer.produce("b", topic: "unknown")
 
     error = assert_raise(Kafka::DeliveryFailed) { producer.deliver_messages }
 
-    assert_kind_of Kafka::UnknownTopicOrPartition, error.cause
-    assert_equal 1, producer.buffer_size
+    assert_equal 2, error.failed_messages.size
   end
 
   class SlowProducer < DummyProducer

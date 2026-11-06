@@ -153,6 +153,19 @@ module Kafka
       @pending_message_queue.clear
     end
 
+    # Checks whether the brokers report the topic as unknown. A failed check is not
+    # treated as an unknown topic.
+    #
+    # @return [Boolean]
+    def unknown_topic?(topic)
+      @cluster.partitions_for(topic)
+      false
+    rescue Kafka::UnknownTopicOrPartition
+      true
+    rescue Kafka::Error, OpenSSL::SSL::SSLError, Resolv::ResolvError
+      false
+    end
+
     # Closes all connections to the brokers.
     #
     # @return [nil]
@@ -191,7 +204,6 @@ module Kafka
 
     def deliver_messages_with_retries
       attempt = 0
-      assign_error = nil
 
       @cluster.add_target_topics(@target_topics)
 
@@ -215,7 +227,7 @@ module Kafka
           raise DeliveryFailed.new(e, buffer_messages)
         end
 
-        assign_error = assign_partitions!
+        assign_partitions!
         operation.execute
 
         if @required_acks.zero?
@@ -240,7 +252,7 @@ module Kafka
       unless @pending_message_queue.empty?
         # Mark the cluster as stale in order to force a cluster metadata refresh.
         @cluster.mark_as_stale!
-        raise DeliveryFailed.new("Failed to assign partitions to #{@pending_message_queue.size} messages", buffer_messages), cause: assign_error
+        raise DeliveryFailed.new("Failed to assign partitions to #{@pending_message_queue.size} messages", buffer_messages)
       end
 
       unless @buffer.empty?
@@ -250,10 +262,8 @@ module Kafka
       end
     end
 
-    # Returns the last error, so that callers can tell why messages stay in the queue.
     def assign_partitions!
       failed_messages = []
-      error = nil
 
       @pending_message_queue.each do |message|
         partition = message.partition
@@ -275,7 +285,6 @@ module Kafka
           )
         rescue Kafka::Error => e
           failed_messages << message
-          error = e
         end
       end
 
@@ -288,7 +297,6 @@ module Kafka
       end
 
       @pending_message_queue.replace(failed_messages)
-      error
     end
 
     def buffer_messages
