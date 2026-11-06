@@ -66,6 +66,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   end
 
   BufferError = Fluent::Plugin::Buffer::BufferOverflowError
+  BufferChunkOverflowError = Fluent::Plugin::Buffer::BufferChunkOverflowError
 
   def initialize
     super
@@ -329,6 +330,8 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     retries = 0
     begin
       router.emit_stream(tag, es)
+    rescue BufferChunkOverflowError => e
+      log.warn "Skipped records larger than the buffer chunk limit size", :tag => tag, :error => e.to_s
     rescue BufferError
       raise ForShutdown if @consumer.nil?
 
