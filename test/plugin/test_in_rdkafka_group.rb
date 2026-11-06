@@ -271,6 +271,19 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     assert_equal 'SSL', passed[:"security.protocol"]
   end
 
+  def test_emit_events_with_buffer_chunk_overflow
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise Fluent::Plugin::Buffer::BufferChunkOverflowError, "too large" }
+    stub(d.instance).router { router }
+
+    assert_nothing_raised do
+      d.instance.emit_events("test", es)
+    end
+    assert_true d.logs.any? { |log| log.include?("Skipped records larger than the buffer chunk limit size") && log.include?("too large") }
+  end
+
   class RecordTimeTest < self
     FakeMessage = Struct.new(:topic, :partition, :payload, :key, :offset, :timestamp, :headers)
 
@@ -410,6 +423,36 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
       assert_equal(['no time', 'with time'], emitted.map { |_, _, r| r['message'] })
       assert_equal([now, Fluent::EventTime.from_time(Time.utc(2020, 11, 11, 7, 58, 58))],
                    emitted.map { |_, t, _| t })
+    end
+  end
+
+  class BufferChunkOverflowTest < self
+    # Like Fluentd, keeps the records that fit, and raises at the end of the first batch
+    class OverflowingRouter < RecordTimeTest::FakeRouter
+      def emit_stream(tag, es)
+        super
+        raise Fluent::Plugin::Buffer::BufferChunkOverflowError, "too large" if @emitted.size == 2
+      end
+    end
+
+    def test_oversized_record_keeps_consumer_and_following_records
+      d = create_driver(CONFIG + "max_batch_size 2\n")
+      router = OverflowingRouter.new
+      stub(d.instance).router { router }
+      reconnected = false
+      stub(d.instance).reconnect_consumer {
+        reconnected = true
+        d.instance.instance_variable_set(:@consumer, nil)
+      }
+      messages = %w[a b c].each_with_index.map { |payload, i|
+        RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, payload, nil, i, Time.now, {})
+      }
+      d.instance.instance_variable_set(:@consumer, RecordTimeTest::FakeConsumer.new(d.instance, messages))
+
+      d.instance.run
+
+      assert_false reconnected
+      assert_equal(%w[a b c], router.emitted.map { |_, _, record| record['message'] })
     end
   end
 
