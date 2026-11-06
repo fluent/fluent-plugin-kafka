@@ -206,9 +206,13 @@ class Kafka2OutputTest < Test::Unit::TestCase
     producer = KeyRecordingProducer.new
     stub(d.instance).get_producer { producer }
 
-    d.instance.write(create_chunk([{"message_key" => value, "partition_key" => value}]))
+    d.instance.write(create_chunk([
+      {"message_key" => value, "partition_key" => value},
+      {"message_key" => value},
+      {"partition_key" => value},
+    ]))
 
-    assert_equal [[expected, expected]], producer.keys
+    assert_equal [[expected, expected], [expected, nil], [nil, expected]], producer.keys
   end
 
   def test_write_keeps_missing_keys_nil
