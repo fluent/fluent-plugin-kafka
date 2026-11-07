@@ -284,6 +284,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
         parsed_time = nil
         record = @parser_proc.call(msg) { |time| parsed_time = time }
         tag = record[@record_tag_key]
+        unless tag.is_a?(String) && !tag.empty?
+          log.warn "skipped record with invalid tag in #{batch.topic}/#{batch.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
+          next
+        end
         tag = @add_prefix + "." + tag if @add_prefix
         tag = tag + "." + @add_suffix if @add_suffix
         es[tag] ||= Fluent::MultiEventStream.new
