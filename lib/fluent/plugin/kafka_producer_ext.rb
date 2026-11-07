@@ -153,8 +153,15 @@ module Kafka
       @pending_message_queue.clear
     end
 
-    # Checks whether the brokers report the topic as unknown. A failed check is not
-    # treated as an unknown topic.
+    # Returns the number of messages still in the pending queue. This producer has
+    # not tried to send them.
+    #
+    # @return [Integer]
+    def pending_message_count
+      @pending_message_queue.size
+    end
+
+    # Checks whether the brokers report the topic as unknown.
     #
     # @return [Boolean]
     def unknown_topic?(topic)
@@ -162,8 +169,6 @@ module Kafka
       false
     rescue Kafka::UnknownTopicOrPartition
       true
-    rescue Kafka::Error, OpenSSL::SSL::SSLError, Resolv::ResolvError
-      false
     end
 
     # Closes all connections to the brokers.

@@ -451,9 +451,7 @@ DESC
           producer.deliver_messages
         end
       rescue Kafka::DeliveryFailed => e
-        # A record that reached the topic means that the topic exists, even if a broker
-        # with stale metadata still reports it as unknown.
-        if e.failed_messages.size == messages && retry_with_default_topic?(producer, topic)
+        if retry_with_default_topic?(producer, topic, messages)
           log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
           producer.clear_buffer
           topic = @default_topic
@@ -479,8 +477,14 @@ DESC
       raise e unless ignore
     end
 
-    def retry_with_default_topic?(producer, topic)
-      @use_default_for_unknown_topic && topic != @default_topic && producer.unknown_topic?(topic)
+    # A record that was sent may have reached the topic, even if a broker with stale
+    # metadata reports the topic as unknown. If the check fails, keep the original error.
+    def retry_with_default_topic?(producer, topic, messages)
+      @use_default_for_unknown_topic && topic != @default_topic &&
+        producer.pending_message_count == messages && producer.unknown_topic?(topic)
+    rescue => e
+      log.warn "Failed to check '#{topic}' topic:", :error => e.to_s, :error_class => e.class.to_s
+      false
     end
   end
 end
