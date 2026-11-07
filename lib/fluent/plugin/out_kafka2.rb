@@ -448,24 +448,19 @@ DESC
 
         if messages > 0
           log.debug { "#{messages} messages send." }
-          if @discard_kafka_delivery_failed
-            begin
-              producer.deliver_messages
-            rescue Kafka::DeliveryFailed => e
-              log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
-              producer.clear_buffer
-            end
-          else
-            producer.deliver_messages
-          end
+          producer.deliver_messages
         end
-      rescue Kafka::UnknownTopicOrPartition
-        if @use_default_for_unknown_topic && topic != @default_topic
+      rescue Kafka::DeliveryFailed => e
+        if retry_with_default_topic?(producer, topic, messages)
           log.warn "'#{topic}' topic not found. Retry with '#{default_topic}' topic"
+          producer.clear_buffer
           topic = @default_topic
+          messages = 0
           retry
         end
-        raise
+        raise unless @discard_kafka_delivery_failed
+        log.warn "DeliveryFailed occurred. Discard broken event:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+        producer.clear_buffer
       end
     rescue Exception => e
       ignore = @ignore_exceptions.include?(e.class.name)
@@ -480,6 +475,16 @@ DESC
       raise Fluent::UnrecoverableError if ignore && exception_backup
       # Raise exception to retry sendind messages
       raise e unless ignore
+    end
+
+    # A record that was sent may have reached the topic, even if a broker with stale
+    # metadata reports the topic as unknown. If the check fails, keep the original error.
+    def retry_with_default_topic?(producer, topic, messages)
+      @use_default_for_unknown_topic && topic != @default_topic &&
+        producer.pending_message_count == messages && producer.unknown_topic?(topic)
+    rescue => e
+      log.warn "Failed to check '#{topic}' topic:", :error => e.to_s, :error_class => e.class.to_s
+      false
     end
   end
 end
