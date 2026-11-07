@@ -529,17 +529,20 @@ You need to install rdkafka gem.
 
       brokers <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
 
+      # Kafka topic, placeholders are supported. Chunk keys are required in the Buffer section in order for placeholders
+      # to work.
+      topic                 (string) :default => nil
       topic_key             (string) :default => 'topic'
       default_topic         (string) :default => nil
       partition_key         (string) :default => 'partition'
-      partition_key_key     (string) :default => 'partition_key'
       message_key_key       (string) :default => 'message_key'
       use_default_for_unknown_topic           (bool) :default => false
       use_default_for_unknown_partition_error (bool) :default => false
-      default_partition_key (string) :default => nil
+      default_partition     (integer) :default => nil
       default_message_key   (string) :default => nil
       exclude_topic_key     (bool) :default => false
-      exclude_partition_key (bool) :default => false
+      exclude_partition     (bool) :default => false
+      exclude_message_key   (bool) :default => false
       discard_kafka_delivery_failed (bool) :default => false (No discard)
       discard_kafka_delivery_failed_regex (regexp) :default => nil (No discard)
       use_event_time        (bool) :default => false
@@ -588,6 +591,8 @@ You need to install rdkafka gem.
       unrecoverable_error_codes (array) :default => ["topic_authorization_failed", "msg_size_too_large"]
 
     </match>
+
+`rdkafka2` doesn't support the `partition_key_key`, `default_partition_key` and `exclude_partition_key` parameters of `kafka2`. librdkafka chooses the partition from the message key instead, so records with the same message key (`message_key_key` or `default_message_key`) go to the same partition. To change how the key is hashed, set `partitioner` in `rdkafka_options`. If a record has the field named by `partition_key` (`partition` by default), or `default_partition` is set, the record goes to that partition instead.
 
 `rdkafka2` supports `discard_kafka_delivery_failed_regex` parameter:
 - `discard_kafka_delivery_failed_regex` - default: nil - discard the record where the Kafka::DeliveryFailed occurred and the emitted message matches the given regex pattern, such as `/unknown_topic/`. 
