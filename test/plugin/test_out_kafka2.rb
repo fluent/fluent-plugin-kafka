@@ -187,6 +187,44 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal [10], producer.produced.collect { |message| message[:partition] }
   end
 
+  class KeyRecordingProducer < DummyProducer
+    attr_reader :keys
+
+    def produce(value, key:, partition_key:, partition:, headers:, create_time:, topic:)
+      @keys ||= []
+      @keys << [key, partition_key]
+    end
+  end
+
+  data("integer" => [123, "123"],
+       "float" => [1.5, "1.5"],
+       "boolean" => [true, "true"],
+       "string" => ["abc", "abc"])
+  def test_write_converts_keys_to_string(data)
+    value, expected = data
+    d = create_driver
+    producer = KeyRecordingProducer.new
+    stub(d.instance).get_producer { producer }
+
+    d.instance.write(create_chunk([
+      {"message_key" => value, "partition_key" => value},
+      {"message_key" => value},
+      {"partition_key" => value},
+    ]))
+
+    assert_equal [[expected, expected], [expected, nil], [nil, expected]], producer.keys
+  end
+
+  def test_write_keeps_missing_keys_nil
+    d = create_driver
+    producer = KeyRecordingProducer.new
+    stub(d.instance).get_producer { producer }
+
+    d.instance.write(create_chunk([{"a" => "b"}]))
+
+    assert_equal [[nil, nil]], producer.keys
+  end
+
   data("per thread producer" => false,
        "shared producer" => true)
   def test_write_failure_replaces_producer(share_producer)
@@ -318,6 +356,19 @@ class Kafka2OutputTest < Test::Unit::TestCase
       end
       actual_messages = target_driver.events.collect { |event| event[2] }
       assert_equal([expected_message], actual_messages)
+    end
+
+    def test_write_with_integer_keys
+      target_driver = create_target_driver(INPUT_CONFIG + "kafka_message_key kafka_key\n")
+      target_driver.run(expect_records: 1, timeout: 5) do
+        sleep 2
+        d = create_driver(config(default_topic: TOPIC_NAME))
+        d.run do
+          d.feed("test", event_time, {"a" => 2, "message_key" => 123, "partition_key" => 456})
+        end
+      end
+      actual_messages = target_driver.events.collect { |event| event[2] }
+      assert_equal([{"a" => 2, "message_key" => 123, "partition_key" => 456, "kafka_key" => "123"}], actual_messages)
     end
 
     def test_record_key

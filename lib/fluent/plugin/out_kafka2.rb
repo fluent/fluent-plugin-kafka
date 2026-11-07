@@ -410,6 +410,8 @@ DESC
             partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
             message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
             partition = coerce_partition(partition) unless partition.nil?
+            partition_key = partition_key.to_s unless partition_key.nil?
+            message_key = message_key.to_s unless message_key.nil?
 
             if mutate_headers
               headers = base_headers.clone
