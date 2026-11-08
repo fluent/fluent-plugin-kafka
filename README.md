@@ -592,7 +592,7 @@ You need to install rdkafka gem.
 
     </match>
 
-`rdkafka2` doesn't support the `partition_key_key`, `default_partition_key` and `exclude_partition_key` parameters of `kafka2`. librdkafka chooses the partition from the message key instead, so records with the same message key (`message_key_key` or `default_message_key`) go to the same partition. To change how the key is hashed, set `partitioner` in `rdkafka_options`. If a record has the field named by `partition_key` (`partition` by default), or `default_partition` is set, the record goes to that partition instead.
+`rdkafka2` doesn't support the `partition_key_key`, `default_partition_key` and `exclude_partition_key` parameters of `kafka2`. librdkafka chooses the partition from the message key instead, so records with the same non-empty message key (`message_key_key` or `default_message_key`) go to the same partition. To change how the key is hashed, set `partitioner` in `rdkafka_options`. If a record has the field named by `partition_key` (`partition` by default), or `default_partition` is set, the record goes to that partition instead.
 
 `rdkafka2` supports `discard_kafka_delivery_failed_regex` parameter:
 - `discard_kafka_delivery_failed_regex` - default: nil - discard the record where the Kafka::DeliveryFailed occurred and the emitted message matches the given regex pattern, such as `/unknown_topic/`. 
