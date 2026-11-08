@@ -284,7 +284,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
         parsed_time = nil
         record = @parser_proc.call(msg) { |time| parsed_time = time }
         tag = record[@record_tag_key]
-        unless tag.is_a?(String) && !tag.empty?
+        unless tag.nil? || (tag.is_a?(String) && tag.valid_encoding?)
           log.warn "skipped record with invalid tag in #{batch.topic}/#{batch.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
           next
         end
