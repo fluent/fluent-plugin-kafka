@@ -240,6 +240,75 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     end
   end
 
+  class RecordTagTest < self
+    FakeMessage = Struct.new(:value, :key, :offset, :create_time, :headers)
+    FakeBatch = Struct.new(:topic, :partition, :messages)
+
+    class FakeRouter
+      attr_reader :emitted
+
+      def initialize
+        @emitted = []
+      end
+
+      def emit_stream(tag, es)
+        records = []
+        es.each { |time, record| records << record['message'] }
+        @emitted << [tag, records]
+      end
+    end
+
+    def tagged_message(tag, message, offset)
+      FakeMessage.new({'tag' => tag, 'message' => message}.to_json, nil, offset, Time.now, {})
+    end
+
+    def process(messages, extra_conf = '')
+      d = @driver = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        topics #{TOPIC_NAME}
+        #{extra_conf}
+      ])
+      router = FakeRouter.new
+      stub(d.instance).router { router }
+      d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, messages))
+      router.emitted
+    end
+
+    data("without prefix and suffix" => ['',
+                                          [['app.a', ['record 1']],
+                                           [nil, ['record 3']],
+                                           ['', ['record 4']],
+                                           ['app.b', ['record 7']]],
+                                          []],
+         "with prefix and suffix" => ["add_prefix prefix\nadd_suffix suffix",
+                                      [['prefix.app.a.suffix', ['record 1']],
+                                       ['prefix..suffix', ['record 4']],
+                                       ['prefix.app.b.suffix', ['record 7']]],
+                                      ['offset=2']])
+    def test_skips_invalid_tag(data)
+      extra_conf, expected_emitted, expected_parser_errors = data
+      emitted = process([tagged_message('app.a', 'record 1', 0),
+                         tagged_message(7, 'record 2', 1),
+                         FakeMessage.new({'message' => 'record 3'}.to_json, nil, 2, Time.now, {}),
+                         tagged_message('', 'record 4', 3),
+                         tagged_message({'name' => 'app'}, 'record 5', 4),
+                         FakeMessage.new("{\"tag\":\"app.\xFF\",\"message\":\"record 6\"}".b, nil, 5, Time.now, {}),
+                         tagged_message('app.b', 'record 7', 6)],
+                        extra_conf)
+
+      assert_equal(expected_emitted, emitted)
+      warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
+      assert_equal(['offset=1', 'offset=4', 'offset=5'],
+                   warnings.map { |log| log[/offset=\d+/] })
+      parser_errors = @driver.logs.select { |log| log.include?("parser error in #{TOPIC_NAME}/0") }
+      assert_equal(expected_parser_errors,
+                   parser_errors.map { |log| log[/offset=\d+/] })
+    end
+  end
+
   class ConsumeTest < self
     def setup
       @kafka = Kafka.new(["localhost:9092"], client_id: 'kafka')
