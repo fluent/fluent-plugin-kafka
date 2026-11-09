@@ -90,6 +90,19 @@ module Fluent
         end
       end
 
+      # SSL options of Kafka.new for the ruby-kafka based plugins
+      def ruby_kafka_ssl_params
+        {
+          ssl_ca_cert_file_path: @ssl_ca_cert,
+          ssl_client_cert: read_ssl_file(@ssl_client_cert),
+          ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
+          ssl_client_cert_key_password: @ssl_client_cert_key_password,
+          ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
+          ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
+          ssl_verify_hostname: @ssl_verify_hostname,
+        }
+      end
+
       def pickup_ssl_endpoint(node)
         ssl_endpoint = node['endpoints'].find {|e| e.start_with?('SSL')}
         raise 'no SSL endpoint found on Zookeeper' unless ssl_endpoint
