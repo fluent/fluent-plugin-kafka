@@ -22,22 +22,18 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
     Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaOutputBuffered, tag).configure(conf)
   end
 
-  # ruby-kafka only rejects these values in deliver_messages, where the
-  # partition is packed as int32 and the default partitioner runs
-  # Zlib.crc32 on the keys
   class DummyProducer
     attr_reader :produced
 
+    def initialize
+      @produced = []
+    end
+
     def produce_for_buffered(value, key:, topic:, partition:, partition_key:, create_time:)
-      @produced ||= []
       @produced << {value: value, key: key, partition_key: partition_key, partition: partition}
     end
 
     def deliver_messages
-      (@produced || []).each do |message|
-        [message[:partition]].pack("l>") if message[:partition]
-        [message[:key], message[:partition_key]].compact.each { |key| Zlib.crc32(key) }
-      end
     end
   end
 
@@ -49,7 +45,7 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
     chunk = Fluent::Plugin::Buffer::MemoryChunk.new(metadata)
     chunk.append(records.map { |record| [event_time, record].to_msgpack })
     d.instance.write(chunk)
-    producer.produced || []
+    producer.produced
   end
 
   data("non numeric partition" => "not-a-number",
