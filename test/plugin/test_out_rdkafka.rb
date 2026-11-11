@@ -1,6 +1,8 @@
 require 'helper'
 require 'fluent/test/helpers'
 require 'fluent/test/driver/output'
+require 'open3'
+require 'rbconfig'
 
 class RdkafkaOutputTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
@@ -185,5 +187,54 @@ class RdkafkaOutputTest < Test::Unit::TestCase
     producer = write_records([{"a" => "b"}], "rdkafka_delivery_handle_poll_timeout" => "0")
 
     assert_equal [nil], producer.handles.collect(&:waited)
+  end
+
+  # The thread that polls the native producer: on the producer before
+  # rdkafka 0.12, on its client in 0.12 and on its native kafka since 0.13.
+  def polling_thread(producer)
+    [producer, producer.instance_variable_get(:@client), producer.instance_variable_get(:@native_kafka)].compact.
+      map { |owner| owner.instance_variable_get(:@polling_thread) }.compact.first
+  end
+
+  def test_shutdown_closes_real_producer
+    d = create_driver(base_config("brokers" => "127.0.0.1:1",
+                                  "default_topic" => "kitagawakeiko",
+                                  "rdkafka_delivery_handle_poll_timeout" => "0",
+                                  "rdkafka_options" => '{"message.timeout.ms":1000}'))
+    producers = []
+    stub.proxy(d.instance).get_producer { |producer| producers << producer; producer }
+
+    assert_nothing_raised do
+      d.run(default_tag: "test", timeout: 30) do
+        d.feed(event_time, {"a" => "b"})
+      end
+    end
+
+    assert_equal 1, producers.size
+    producer = producers.first
+    assert_true producer.closed? if producer.respond_to?(:closed?)
+    assert_false polling_thread(producer).alive?
+    assert_equal({}, d.instance.instance_variable_get(:@producers))
+  end
+
+  # Returns the file that defines Rdkafka::Producer#close after requiring
+  # the plugins in this order, in a fresh Ruby process.
+  def producer_close_location(*plugins)
+    script = <<~RUBY
+      require 'bundler/setup'
+      #{plugins.map { |plugin| "require 'fluent/plugin/#{plugin}'" }.join("\n")}
+      puts Rdkafka::Producer.instance_method(:close).source_location.first
+    RUBY
+    stdout, stderr, status = Open3.capture3(RbConfig.ruby, '-I', File.expand_path('../../lib', __dir__), '-e', script)
+    assert_true(status.success?, stderr)
+    stdout.chomp
+  end
+
+  def test_both_plugins_use_the_same_close_patch
+    expected = producer_close_location("out_rdkafka2")
+    assert_match(%r{/rdkafka_patch/}, expected)
+    assert_equal expected, producer_close_location("out_rdkafka")
+    assert_equal expected, producer_close_location("out_rdkafka", "out_rdkafka2")
+    assert_equal expected, producer_close_location("out_rdkafka2", "out_rdkafka")
   end
 end

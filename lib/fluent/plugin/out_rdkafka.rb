@@ -5,22 +5,7 @@ require 'fluent/plugin/kafka_plugin_util'
 
 require 'rdkafka'
 require 'fluent/plugin/kafka_producer_ext'
-
-class Rdkafka::Producer
-  # return false if producer is forcefully closed, otherwise return true
-  def close(timeout = nil)
-    @closing = true
-    # Wait for the polling thread to finish up
-    # If the broker isn't alive, the thread doesn't exit
-    if timeout
-      thr = @polling_thread.join(timeout)
-      return !!thr
-    else
-      @polling_thread.join
-      return true
-    end
-  end
-end
+require_relative 'rdkafka_patch'
 
 class Fluent::KafkaOutputBuffered2 < Fluent::BufferedOutput
   Fluent::Plugin.register_output('rdkafka', self)
