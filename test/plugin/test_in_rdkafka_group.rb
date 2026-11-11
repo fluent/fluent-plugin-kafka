@@ -426,6 +426,96 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     end
   end
 
+  class RecordTagTest < self
+    class FakeRouter
+      attr_reader :emitted
+
+      def initialize
+        @emitted = []
+      end
+
+      def emit_stream(tag, es)
+        records = []
+        es.each { |time, record| records << record['message'] }
+        @emitted << [tag, records]
+      end
+    end
+
+    def tagged_message(tag, message, offset)
+      payload = {'tag' => tag, 'message' => message}.to_json
+      RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, payload, nil, offset, Time.now, {})
+    end
+
+    def consume(messages, extra_conf = '', tag_source: 'record')
+      d = @driver = create_driver(%[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        tag_source #{tag_source}
+        <parse>
+          @type json
+        </parse>
+        #{extra_conf}
+      ])
+      router = FakeRouter.new
+      stub(d.instance).router { router }
+      d.instance.instance_variable_set(:@consumer, RecordTimeTest::FakeConsumer.new(d.instance, messages))
+      d.instance.run
+      router.emitted
+    end
+
+    def test_configure_defaults
+      d = create_driver
+      assert_equal :topic, d.instance.tag_source
+      assert_equal 'tag', d.instance.record_tag_key
+    end
+
+    data("without prefix and suffix" => ['', ['app.a', 'app.b']],
+         "with prefix and suffix" => ["add_prefix prefix\nadd_suffix suffix",
+                                      ['prefix.app.a.suffix', 'prefix.app.b.suffix']])
+    def test_emits_stream_per_tag(data)
+      extra_conf, (tag_a, tag_b) = data
+      emitted = consume([tagged_message('app.a', 'record 1', 0),
+                         tagged_message('app.b', 'record 2', 1),
+                         tagged_message('app.a', 'record 3', 2)],
+                        extra_conf)
+
+      assert_equal([[tag_a, ['record 1', 'record 3']],
+                    [tag_b, ['record 2']]],
+                   emitted)
+    end
+
+    def test_record_tag_key
+      payload = {'tag' => 'ignored', 'route' => 'app.a', 'message' => 'record 1'}.to_json
+      emitted = consume([RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, payload, nil, 0, Time.now, {})],
+                        'record_tag_key route')
+
+      assert_equal([['app.a', ['record 1']]], emitted)
+    end
+
+    def test_skips_invalid_tag
+      emitted = consume([tagged_message('app.a', 'record 1', 0),
+                         tagged_message(7, 'record 2', 1),
+                         RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, {'message' => 'record 3'}.to_json, nil, 2, Time.now, {}),
+                         tagged_message('', 'record 4', 3),
+                         tagged_message({'name' => 'app'}, 'record 5', 4),
+                         RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, "{\"tag\":\"app.\xFF\",\"message\":\"record 6\"}".b, nil, 5, Time.now, {}),
+                         tagged_message('app.b', 'record 7', 6)])
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 7']]], emitted)
+      warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
+      assert_equal(['offset=1', 'offset=2', 'offset=3', 'offset=4', 'offset=5'],
+                   warnings.map { |log| log[/offset=\d+/] })
+    end
+
+    def test_tag_source_topic_ignores_tag_field
+      emitted = consume([tagged_message('app.a', 'record 1', 0),
+                         tagged_message('app.b', 'record 2', 1)],
+                        tag_source: 'topic')
+
+      assert_equal([[TOPIC_NAME, ['record 1', 'record 2']]], emitted)
+    end
+  end
+
   class BufferChunkOverflowTest < self
     # Like Fluentd, keeps the records that fit, and raises at the end of the first batch
     class OverflowingRouter < RecordTimeTest::FakeRouter

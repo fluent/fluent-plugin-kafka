@@ -171,6 +171,8 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
       time_format <string (Optional when use_record_time is used)>
       utc <If true, parse the time field as UTC> :default => false
       timezone <time zone, e.g. +09:00 or Asia/Tokyo (Optional)>
+      tag_source <source for the event tag (topic|record)> :default => topic
+      record_tag_key <tag field when tag_source is record> :default => tag
 
       # The SSL and SASL parameters in "Common parameters" are mapped to librdkafka
       # properties. Keys given in kafka_configs take precedence over the mapped values.
@@ -196,6 +198,8 @@ See also [rdkafka-ruby](https://github.com/appsignal/rdkafka-ruby) and [librdkaf
 **Note**: A caret (`^`) is automatically added to the beginning of the pattern.
 
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
+
+With `tag_source record`, the value of the `record_tag_key` field in each record is used for event tag instead of the topic name, and `add_prefix` and `add_suffix` are applied to it in the same way. A record whose tag field is missing, empty, not a string, or a string with invalid encoding is skipped with a warning.
 
 ### Output plugin
 
