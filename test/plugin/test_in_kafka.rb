@@ -66,7 +66,7 @@ class KafkaInputTest < Test::Unit::TestCase
   end
 
   class TopicWatcherTest < self
-    FakeMessage = Struct.new(:value, :key, :offset, :create_time)
+    FakeMessage = Struct.new(:value, :key, :offset, :create_time, :headers)
 
     class FakeRouter
       attr_reader :emitted, :emitted_times
@@ -98,7 +98,7 @@ class KafkaInputTest < Test::Unit::TestCase
       end
     end
 
-    def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil, time_source: :now, time_parser: nil, parser: nil)
+    def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil, time_source: :now, time_parser: nil, parser: nil, add_headers: false)
       kafka = Object.new
       kafka.define_singleton_method(:fetch_messages) { |**args| messages }
       parser ||= Proc.new { |msg, te| JSON.parse(msg.value) }
@@ -117,7 +117,8 @@ class KafkaInputTest < Test::Unit::TestCase
         'time',
         time_parser,
         tag_source,
-        'tag')
+        'tag',
+        add_headers)
     end
 
     def tagged_message(tag, message, offset)
@@ -299,6 +300,22 @@ class KafkaInputTest < Test::Unit::TestCase
       assert_equal(3, watcher.instance_variable_get(:@next_offset))
     end
 
+    data("add_headers" => [true, [{'message' => 'record 1', 'header1' => 'value1', 'header2' => 'value2'},
+                                  {'message' => 'record 2'}]],
+         "without add_headers" => [false, [{'message' => 'record 1'},
+                                           {'message' => 'record 2'}]])
+    def test_consume_with_add_headers(data)
+      add_headers, expected = data
+      messages = [
+        FakeMessage.new({'message' => 'record 1'}.to_json, nil, 0, Time.now, {'header1' => 'value1', 'header2' => 'value2'}),
+        FakeMessage.new({'message' => 'record 2'}.to_json, nil, 1, Time.now, {}),
+      ]
+      router = FakeRouter.new
+      create_topic_watcher(messages, router, tag_source: :topic, add_headers: add_headers).consume
+
+      assert_equal([[TOPIC_NAME, expected]], router.emitted)
+    end
+
     def test_consume_skips_buffer_chunk_overflow
       messages = [
         tagged_message('app.large', 'record 1', 0),
@@ -343,6 +360,25 @@ class KafkaInputTest < Test::Unit::TestCase
         @producer.deliver_messages
       end
       expected = {'message'  => 'Hello, fluent-plugin-kafka!'}
+      assert_equal expected, d.events[0][2]
+    end
+
+    def test_consume_with_add_headers
+      conf = %[
+        @type kafka
+        brokers localhost:9092
+        format text
+        add_headers true
+        @label @kafka
+        topics #{@topic}
+      ]
+      d = create_driver(conf)
+
+      d.run(expect_records: 1, timeout: 10) do
+        @producer.produce("Hello, fluent-plugin-kafka!", topic: @topic, headers: {'header1' => 'value1'})
+        @producer.deliver_messages
+      end
+      expected = {'message' => 'Hello, fluent-plugin-kafka!', 'header1' => 'value1'}
       assert_equal expected, d.events[0][2]
     end
 

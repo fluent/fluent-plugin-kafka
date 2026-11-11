@@ -9,6 +9,8 @@ class Fluent::KafkaInput < Fluent::Input
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
                :desc => "For 'text' format only."
+  config_param :add_headers, :bool, :default => false,
+               :desc => "Add kafka's message headers to event record"
   config_param :host, :string, :default => nil,
                :desc => "Broker host"
   config_param :port, :integer, :default => nil,
@@ -252,6 +254,7 @@ class Fluent::KafkaInput < Fluent::Input
         @time_parser,
         @tag_source,
         @record_tag_key,
+        @add_headers,
         opt)
     }
     @topic_watchers.each {|tw|
@@ -276,7 +279,7 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
-    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, time_parser, tag_source, record_tag_key, options={})
+    def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, time_parser, tag_source, record_tag_key, add_headers, options={})
       @topic_entry = topic_entry
       @kafka = kafka
       @callback = method(:consume)
@@ -292,6 +295,7 @@ class Fluent::KafkaInput < Fluent::Input
       @time_parser = time_parser
       @tag_source = tag_source
       @record_tag_key = record_tag_key
+      @add_headers = add_headers
 
       @next_offset = @topic_entry.offset
       if @topic_entry.offset == -1 && offset_manager
@@ -363,6 +367,11 @@ class Fluent::KafkaInput < Fluent::Input
           end
           if @kafka_message_key
             record[@kafka_message_key] = msg.key
+          end
+          if @add_headers
+            msg.headers.each_pair { |k, v|
+              record[k] = v
+            }
           end
           event_streams[tag] ||= Fluent::MultiEventStream.new
           event_streams[tag].add(record_time, record)

@@ -72,6 +72,7 @@ Consume events by single consumer.
       topics <listening topics(separate with comma',')>
       format <input text type (text|json|ltsv|msgpack)> :default => json
       message_key <key (Optional, for text format only, default is message)>
+      add_headers <If true, add kafka's message headers to record>
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
 
