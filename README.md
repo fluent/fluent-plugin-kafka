@@ -199,7 +199,7 @@ See also [rdkafka-ruby](https://github.com/appsignal/rdkafka-ruby) and [librdkaf
 
 Consuming topic name is used for event tag. So when the target topic name is `app_event`, the tag is `app_event`. If you want to modify tag, use `add_prefix` or `add_suffix` parameter. With `add_prefix kafka`, the tag is `kafka.app_event`.
 
-With `tag_source record`, the value of the `record_tag_key` field in each record is used for event tag instead of the topic name, and `add_prefix` and `add_suffix` are applied to it in the same way. A record whose tag field is missing, empty, not a string, or a string with invalid encoding is skipped with a warning.
+With `tag_source record`, the value of the `record_tag_key` field in each record is used for event tag instead of the topic name, and `add_prefix` and `add_suffix` are applied to it in the same way. The value must be a string that Kafka would accept as a topic name: 1 to 249 characters of `a-z`, `A-Z`, `0-9`, `.`, `_` and `-`, and not `.` or `..`. Other records, including records that are not a map (for example, a JSON string), are skipped with a warning. Anyone who can write to the topic chooses this tag. To keep these events away from your other `<match>` sections, set `@label @KAFKA` (any label name) in this `<source>`, and put their `<filter>` and `<match>` sections in `<label @KAFKA>`.
 
 ### Output plugin
 

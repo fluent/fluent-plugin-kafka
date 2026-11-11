@@ -279,8 +279,10 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
               parsed_time = nil
               record = @parser_proc.call(msg) { |time| parsed_time = time }
               if @tag_source == :record
-                tag = record[@record_tag_key]
-                unless tag.is_a?(String) && !tag.empty? && tag.valid_encoding?
+                tag = record.is_a?(Hash) ? record[@record_tag_key] : nil
+                # Anyone who can write to the topic chooses this tag, and it may be used in a path
+                # such as ${tag}. Allow only what Kafka allows as a topic name.
+                unless tag.is_a?(String) && tag.valid_encoding? && tag.match?(/\A[a-zA-Z0-9._-]{1,249}\z/) && tag != '.' && tag != '..'
                   log.warn "skipped record with invalid tag in #{msg.topic}/#{msg.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
                   next
                 end
@@ -327,7 +329,8 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
           }
 
           event_streams.each { |tag, es|
-            emit_events(tag, es)
+            # Hash keys are frozen copies. Some v0.12 style outputs change the tag in place.
+            emit_events(+tag, es)
           }
         }
       rescue ForShutdown

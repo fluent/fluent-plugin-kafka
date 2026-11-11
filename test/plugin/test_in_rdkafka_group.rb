@@ -428,16 +428,18 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
 
   class RecordTagTest < self
     class FakeRouter
-      attr_reader :emitted
+      attr_reader :emitted, :frozen_tags
 
       def initialize
         @emitted = []
+        @frozen_tags = []
       end
 
       def emit_stream(tag, es)
         records = []
         es.each { |time, record| records << record['message'] }
         @emitted << [tag, records]
+        @frozen_tags << tag.frozen?
       end
     end
 
@@ -446,17 +448,17 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
       RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, payload, nil, offset, Time.now, {})
     end
 
-    def consume(messages, extra_conf = '', tag_source: 'record')
+    def consume(messages, extra_conf = '', tag_source: 'record', parser: "@type json")
       d = @driver = create_driver(%[
         topics #{TOPIC_NAME}
         kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
         tag_source #{tag_source}
         <parse>
-          @type json
+          #{parser}
         </parse>
         #{extra_conf}
       ])
-      router = FakeRouter.new
+      router = @router = FakeRouter.new
       stub(d.instance).router { router }
       d.instance.instance_variable_set(:@consumer, RecordTimeTest::FakeConsumer.new(d.instance, messages))
       d.instance.run
@@ -505,6 +507,64 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
       warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
       assert_equal(['offset=1', 'offset=2', 'offset=3', 'offset=4', 'offset=5'],
                    warnings.map { |log| log[/offset=\d+/] })
+    end
+
+    data("dot" => '.',
+         "dot dot" => '..',
+         "path traversal" => '../x',
+         "slash" => 'a/b',
+         "space" => 'a b',
+         "250 characters" => 'a' * 250)
+    def test_skips_tag_that_is_not_a_topic_name(tag)
+      emitted = consume([tagged_message('app.a', 'record 1', 0),
+                         tagged_message(tag, 'record 2', 1),
+                         tagged_message('app.b', 'record 3', 2)])
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], emitted)
+      warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
+      assert_equal(['offset=1'], warnings.map { |log| log[/offset=\d+/] })
+    end
+
+    def test_emits_tag_of_249_characters
+      tag = 'a' * 249
+      emitted = consume([tagged_message(tag, 'record 1', 0)])
+
+      assert_equal([[tag, ['record 1']]], emitted)
+    end
+
+    def test_skips_record_that_is_not_a_map
+      emitted = consume([tagged_message('app.a', 'record 1', 0),
+                         RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, '"a tag string"', nil, 1, Time.now, {}),
+                         tagged_message('app.b', 'record 3', 2)])
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], emitted)
+      warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
+      assert_equal(['offset=1'], warnings.map { |log| log[/offset=\d+/] })
+    end
+
+    def test_skips_binary_tag_with_regexp_parser
+      payloads = ["app.a record 1", "app.\xFF record 2".b, "app.b record 3"]
+      messages = payloads.each_with_index.map { |payload, i|
+        RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, payload.b, nil, i, Time.now, {})
+      }
+      emitted = consume(messages,
+                        parser: "@type regexp\n expression /^(?<tag>[^ ]*) (?<message>.*)$/")
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], emitted)
+      warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
+      assert_equal(['offset=1'], warnings.map { |log| log[/offset=\d+/] })
+    end
+
+    def test_tag_source_topic_emits_mutable_tag
+      consume([tagged_message('app.a', 'record 1', 0)], 'add_prefix prefix', tag_source: 'topic')
+
+      assert_equal([false], @router.frozen_tags)
+    end
+
+    def test_tag_source_record_emits_mutable_tag
+      consume([tagged_message('app.a', 'record 1', 0)])
+
+      assert_equal([false], @router.frozen_tags)
     end
 
     def test_tag_source_topic_ignores_tag_field
