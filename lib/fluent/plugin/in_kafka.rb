@@ -331,7 +331,7 @@ class Fluent::KafkaInput < Fluent::Input
           record = @parser.call(msg, @topic_entry) { |time| parsed_time = time }
           if @tag_source == :record
             tag = record[@record_tag_key]
-            unless tag.is_a?(String) && !tag.empty?
+            unless tag.is_a?(String) && !tag.empty? && tag.valid_encoding?
               $log.warn "skipped record with invalid tag in #{@topic_entry.topic}/#{@topic_entry.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
               next
             end
