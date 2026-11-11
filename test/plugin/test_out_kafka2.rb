@@ -225,6 +225,73 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_equal [[nil, nil]], producer.keys
   end
 
+  class MessageRecordingProducer < DummyProducer
+    def produce(value, key:, partition_key:, partition:, headers:, create_time:, topic:)
+      @produced ||= []
+      @produced << {record: JSON.parse(value), key: key, partition_key: partition_key, partition: partition}
+    end
+  end
+
+  def nested_keys_config(params = {})
+    config + config_element('ROOT', '', {"message_key_key" => "$.kafka.message_key",
+                                         "partition_key_key" => "$.kafka.partition_key",
+                                         "partition_key" => "$['kafka']['partition']"}.merge(params))
+  end
+
+  def write_records(conf, records)
+    d = create_driver(conf)
+    producer = MessageRecordingProducer.new
+    stub(d.instance).get_producer { producer }
+    d.instance.write(create_chunk(records))
+    producer.produced
+  end
+
+  def test_write_with_nested_keys
+    record = {"kafka" => {"message_key" => "mk", "partition_key" => "pk", "partition" => 3}, "a" => "b"}
+
+    produced = write_records(nested_keys_config, [record])
+
+    assert_equal [{record: record, key: "mk", partition_key: "pk", partition: 3}], produced
+  end
+
+  def test_write_excludes_nested_keys
+    record = {"kafka" => {"message_key" => "mk", "partition_key" => "pk", "partition" => 3, "c" => "d"}, "a" => "b"}
+    conf = nested_keys_config("exclude_message_key" => true, "exclude_partition_key" => true, "exclude_partition" => true)
+
+    produced = write_records(conf, [record])
+
+    assert_equal [{record: {"kafka" => {"c" => "d"}, "a" => "b"}, key: "mk", partition_key: "pk", partition: 3}], produced
+  end
+
+  data("missing parent" => {"a" => "b"},
+       "missing field" => {"kafka" => {}, "a" => "b"},
+       "parent is a String" => {"kafka" => "str", "a" => "b"},
+       "parent is an Array" => {"kafka" => ["str"], "a" => "b"})
+  def test_write_uses_defaults_for_nested_keys_not_found(record)
+    defaults = {"default_message_key" => "dmk", "default_partition_key" => "dpk", "default_partition" => 1}
+
+    [false, true].each do |exclude|
+      conf = nested_keys_config(defaults.merge("exclude_message_key" => exclude, "exclude_partition_key" => exclude,
+                                               "exclude_partition" => exclude))
+
+      produced = write_records(conf, [record])
+
+      assert_equal [{record: record, key: "dmk", partition_key: "dpk", partition: 1}], produced
+    end
+  end
+
+  def test_write_keeps_dotted_key_names_as_top_level_fields
+    conf = config + config_element('ROOT', '', {"message_key_key" => "kafka.message_key",
+                                                "partition_key_key" => "kafka.partition_key",
+                                                "partition_key" => "kafka.partition"})
+    record = {"kafka.message_key" => "mk", "kafka.partition_key" => "pk", "kafka.partition" => 3,
+              "kafka" => {"message_key" => "nested"}}
+
+    produced = write_records(conf, [record])
+
+    assert_equal [{record: record, key: "mk", partition_key: "pk", partition: 3}], produced
+  end
+
   data("per thread producer" => false,
        "shared producer" => true)
   def test_write_failure_replaces_producer(share_producer)

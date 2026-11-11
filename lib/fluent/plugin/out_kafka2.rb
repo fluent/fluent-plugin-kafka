@@ -19,11 +19,11 @@ DESC
     config_param :topic_key, :string, :default => 'topic', :desc => "Field for kafka topic"
     config_param :default_topic, :string, :default => nil,
                  :desc => "Default output topic when record doesn't have topic field"
-    config_param :message_key_key, :string, :default => 'message_key', :desc => "Field for kafka message key"
+    config_param :message_key_key, :string, :default => 'message_key', :desc => "Field for kafka message key. Supports record_accessor syntax, e.g. $.key1.key2"
     config_param :default_message_key, :string, :default => nil
-    config_param :partition_key_key, :string, :default => 'partition_key', :desc => "Field for kafka partition key"
+    config_param :partition_key_key, :string, :default => 'partition_key', :desc => "Field for kafka partition key. Supports record_accessor syntax, e.g. $.key1.key2"
     config_param :default_partition_key, :string, :default => nil
-    config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition"
+    config_param :partition_key, :string, :default => 'partition', :desc => "Field for kafka partition. Supports record_accessor syntax, e.g. $.key1.key2"
     config_param :partitioner_hash_function, :enum, list: [:crc32, :murmur2], :default => :crc32,
                  :desc => "Specify kafka patrtitioner hash algorithm"
     config_param :default_partition, :integer, :default => nil
@@ -241,6 +241,10 @@ DESC
 
       @topic_key_sym = @topic_key.to_sym
 
+      @message_key_key_accessor = record_accessor_create(@message_key_key)
+      @partition_key_key_accessor = record_accessor_create(@partition_key_key)
+      @partition_key_accessor = record_accessor_create(@partition_key)
+
       @headers_from_record_accessors = {}
       @headers_from_record.each do |key, value|
         @headers_from_record_accessors[key] = record_accessor_create(value)
@@ -374,6 +378,17 @@ DESC
       end
     end
 
+    # A nested field under a value that is not a Hash or an Array is handled
+    # as missing, and the record is left as it is. Deleting the field through
+    # the accessor would call String#delete on a String value instead.
+    def record_value(record, accessor, exclude)
+      value = accessor.call(record)
+      accessor.delete(record) if exclude
+      value
+    rescue TypeError
+      nil
+    end
+
     def write(chunk)
       @writing_threads_mutex.synchronize { @writing_threads.add(Thread.current) }
 
@@ -406,9 +421,9 @@ DESC
           begin
             record = inject_values_to_record(tag, time, record)
             record.delete(@topic_key) if @exclude_topic_key
-            partition_key = (@exclude_partition_key ? record.delete(@partition_key_key) : record[@partition_key_key]) || @default_partition_key
-            partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
-            message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
+            partition_key = record_value(record, @partition_key_key_accessor, @exclude_partition_key) || @default_partition_key
+            partition = record_value(record, @partition_key_accessor, @exclude_partition) || @default_partition
+            message_key = record_value(record, @message_key_key_accessor, @exclude_message_key) || @default_message_key
             partition = coerce_partition(partition) unless partition.nil?
             partition_key = partition_key.to_s unless partition_key.nil?
             message_key = message_key.to_s unless message_key.nil?
