@@ -98,6 +98,47 @@ class KafkaInputTest < Test::Unit::TestCase
       end
     end
 
+    # Mimics Fluent::Plugin::RootAgent#handle_emits_error
+    class FakeEmitErrorHandler
+      attr_writer :error_collector
+
+      def handle_emits_error(tag, es, error)
+        raise error unless @error_collector
+        @error_collector.emit_stream(tag, es)
+      end
+
+      def emit_error_event(tag, time, record, error)
+      end
+    end
+
+    class FakeOutput
+      attr_reader :emitted
+
+      def initialize(fail_tag: nil)
+        @emitted = []
+        @fail_tag = fail_tag
+      end
+
+      def emit_events(tag, es)
+        raise ArgumentError, "output failed" if tag == @fail_tag
+        records = []
+        es.each { |_time, record| records << record['message'] }
+        @emitted << [tag, records]
+      end
+    end
+
+    def create_event_router(pattern, output, error_output: nil)
+      handler = FakeEmitErrorHandler.new
+      router = Fluent::EventRouter.new(output, handler)
+      router.add_rule(pattern, output)
+      if error_output
+        error_router = Fluent::EventRouter.new(error_output, handler)
+        error_router.add_rule('**', error_output)
+        handler.error_collector = error_router
+      end
+      router
+    end
+
     def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil, time_source: :now, time_parser: nil, parser: nil)
       kafka = Object.new
       kafka.define_singleton_method(:fetch_messages) { |**args| messages }
@@ -170,17 +211,66 @@ class KafkaInputTest < Test::Unit::TestCase
         tagged_message(7, 'record 2', 1),
         FakeMessage.new({'message' => 'record 3'}.to_json, nil, 2, Time.now),
         tagged_message('', 'record 4', 3),
-        FakeMessage.new("{\"tag\":\"app.\xFF\",\"message\":\"record 5\"}".b, nil, 4, Time.now),
-        tagged_message('attacker.controlled', 'record 6', 5),
+        tagged_message('attacker.controlled', 'record 5', 4),
       ]
       router = FakeRouter.new
       watcher = create_topic_watcher(messages, router)
       watcher.consume
 
       assert_equal([['app.trusted', ['record 1']],
-                    ['attacker.controlled', ['record 6']]],
+                    ['attacker.controlled', ['record 5']]],
                    router.emitted.map { |tag, records| [tag, records.map { |r| r['message'] }] })
-      assert_equal(6, watcher.instance_variable_get(:@next_offset))
+      assert_equal(5, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def invalid_tag_messages
+      [
+        tagged_message('app.a', 'record 1', 0),
+        FakeMessage.new("{\"tag\":\"app.\xFF\",\"message\":\"record 2\"}".b, nil, 1, Time.now),
+        tagged_message('app.b', 'record 3', 2),
+      ]
+    end
+
+    def test_consume_skips_invalid_tag_when_router_cannot_match_it
+      output = FakeOutput.new
+      router = create_event_router('app.**', output)
+      watcher = create_topic_watcher(invalid_tag_messages, router)
+      watcher.consume
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], output.emitted)
+      assert_equal(3, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def test_consume_sends_invalid_tag_to_error_label_when_router_cannot_match_it
+      output = FakeOutput.new
+      error_output = FakeOutput.new
+      router = create_event_router('app.**', output, error_output: error_output)
+      watcher = create_topic_watcher(invalid_tag_messages, router)
+      watcher.consume
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], output.emitted)
+      assert_equal(1, error_output.emitted.size)
+      assert_equal(['record 2'], error_output.emitted[0][1])
+      assert_equal(3, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def test_consume_delivers_invalid_tag_when_router_matches_it_without_regexp
+      output = FakeOutput.new
+      router = create_event_router('**', output)
+      watcher = create_topic_watcher(invalid_tag_messages, router)
+      watcher.consume
+
+      assert_equal(['record 1', 'record 2', 'record 3'], output.emitted.flat_map { |_tag, records| records })
+      assert_equal(3, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def test_consume_keeps_offset_when_output_raises_for_invalid_tag
+      output = FakeOutput.new(fail_tag: "app.\xFF")
+      router = create_event_router('**', output)
+      watcher = create_topic_watcher(invalid_tag_messages, router)
+
+      assert_raise(ArgumentError) { watcher.consume }
+      assert_equal(0, watcher.instance_variable_get(:@next_offset))
     end
 
     def test_consume_advances_offset_when_every_message_is_skipped
