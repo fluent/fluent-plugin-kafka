@@ -329,7 +329,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     unless es.empty?
       es.each { |tag,es|
-        emit_events(tag, es)
+        # Hash keys are frozen copies, and an output may change the tag in place
+        emit_events(tag&.dup, es)
       }
     end
   end

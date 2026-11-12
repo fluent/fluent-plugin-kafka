@@ -307,6 +307,31 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       assert_equal(expected_parser_errors,
                    parser_errors.map { |log| log[/offset=\d+/] })
     end
+
+    # An output may change the tag in place, as HandleTagNameMixin#filter_record does.
+    def test_emits_tag_that_can_be_changed_in_place
+      d = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        add_prefix kafka
+        topics #{TOPIC_NAME}
+      ])
+      emitted = []
+      router = Object.new
+      router.define_singleton_method(:emit_stream) do |tag, _es|
+        frozen = tag.frozen?
+        tag.sub!(/\Akafka\./, '')
+        emitted << [tag, frozen]
+      end
+      stub(d.instance).router { router }
+
+      assert_nothing_raised {
+        d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, [tagged_message('app.a', 'record 1', 0)]))
+      }
+      assert_equal([['app.a', false]], emitted)
+    end
   end
 
   class ConsumeTest < self
