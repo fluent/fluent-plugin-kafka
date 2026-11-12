@@ -302,6 +302,77 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal ["12345"], producer.produced.collect { |message| message[:key] }
   end
 
+  def nested_keys_config(params = {})
+    config + config_element('ROOT', '', {"message_key_key" => "$.kafka.message_key",
+                                         "partition_key" => "$['kafka']['partition']"}.merge(params))
+  end
+
+  def write_records(conf, records)
+    d = create_driver(conf)
+    producer = DummyProducer.new
+    stub(d.instance).get_producer { producer }
+    d.instance.write(create_chunk(records))
+    producer.produced.collect { |message| message.merge(payload: JSON.parse(message[:payload])) }
+  end
+
+  def test_write_with_nested_keys
+    record = {"kafka" => {"message_key" => "mk", "partition" => 3}, "a" => "b"}
+
+    produced = write_records(nested_keys_config, [record])
+
+    assert_equal [{payload: record, key: "mk", partition: 3}], produced
+  end
+
+  def test_write_excludes_top_level_keys
+    conf = config + config_element('ROOT', '', {"exclude_message_key" => true, "exclude_partition" => true})
+    record = {"message_key" => "mk", "partition" => 3, "a" => "b"}
+
+    produced = write_records(conf, [record])
+
+    assert_equal [{payload: {"a" => "b"}, key: "mk", partition: 3}], produced
+  end
+
+  def test_write_skips_records_that_are_not_a_hash
+    produced = write_records(config, [[1, 2], 5, {"a" => "b"}])
+
+    assert_equal [{payload: {"a" => "b"}, key: nil, partition: nil}], produced
+  end
+
+  def test_write_excludes_nested_keys
+    record = {"kafka" => {"message_key" => "mk", "partition" => 3, "c" => "d"}, "a" => "b"}
+    conf = nested_keys_config("exclude_message_key" => true, "exclude_partition" => true)
+
+    produced = write_records(conf, [record])
+
+    assert_equal [{payload: {"kafka" => {"c" => "d"}, "a" => "b"}, key: "mk", partition: 3}], produced
+  end
+
+  data("missing parent" => {"a" => "b"},
+       "missing field" => {"kafka" => {}, "a" => "b"},
+       "parent is a String" => {"kafka" => "str", "a" => "b"},
+       "parent is an Array" => {"kafka" => ["str"], "a" => "b"})
+  def test_write_uses_defaults_for_nested_keys_not_found(record)
+    defaults = {"default_message_key" => "dmk", "default_partition" => 1}
+
+    [false, true].each do |exclude|
+      conf = nested_keys_config(defaults.merge("exclude_message_key" => exclude, "exclude_partition" => exclude))
+
+      produced = write_records(conf, [record])
+
+      assert_equal [{payload: record, key: "dmk", partition: 1}], produced
+    end
+  end
+
+  def test_write_keeps_dotted_key_names_as_top_level_fields
+    conf = config + config_element('ROOT', '', {"message_key_key" => "kafka.message_key",
+                                                "partition_key" => "kafka.partition"})
+    record = {"kafka.message_key" => "mk", "kafka.partition" => 3, "kafka" => {"message_key" => "nested"}}
+
+    produced = write_records(conf, [record])
+
+    assert_equal [{payload: record, key: "mk", partition: 3}], produced
+  end
+
   def test_rdkafka_error_codes_under_test
     assert_equal [:unknown_partition, :msg_size_too_large],
                  [Rdkafka::RdkafkaError.new(RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION).code,

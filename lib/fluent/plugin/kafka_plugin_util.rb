@@ -17,6 +17,21 @@ module Fluent
 
         partition
       end
+
+      # A nested field under a value that is not a Hash or an Array is handled
+      # as missing, and the record is left as it is. Deleting the field through
+      # the accessor would call String#delete on a String value instead.
+      # A record that is not a Hash raises TypeError as before, so that the
+      # event is skipped.
+      def record_value(record, accessor, exclude)
+        value = accessor.call(record)
+        accessor.delete(record) if exclude
+        value
+      rescue TypeError
+        raise unless record.is_a?(Hash)
+
+        nil
+      end
     end
 
     module AwsIamSettings

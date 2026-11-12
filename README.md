@@ -336,6 +336,8 @@ If key name `partition_key_key` exists in a message, this plugin set the value o
 
 If key name `message_key_key` exists in a message, this plugin publishes the value of message_key_key to kafka and can be read by consumers. Same message key will be assigned to all messages by setting `default_message_key` in config file. If message_key_key exists and if partition_key_key is not set explicitly, messsage_key_key will be used for partitioning.
 
+In `kafka2`, `message_key_key`, `partition_key_key` and `partition_key` accept the [record_accessor](https://docs.fluentd.org/plugin-helper-overview/api-plugin-helper-record_accessor) syntax, so the keys and the partition can come from a nested field. For example, with `message_key_key $.kubernetes.pod_name`, the record `{"kubernetes": {"pod_name": "app-1"}, "message": "hello"}` is sent with the message key `app-1`. A name that doesn't start with `$.` or `$[` is a top-level field as before, even if it contains a dot. `exclude_message_key`, `exclude_partition_key` and `exclude_partition` remove only the nested field. If the field is not found, including when a value on its path is not a Hash or an Array, the record is handled as if it had no such field, so `default_message_key`, `default_partition_key` or `default_partition` is used.
+
 #### Headers
 It is possible to set headers on Kafka messages. This only works for kafka2 and rdkafka2 output plugin.
 
@@ -597,6 +599,8 @@ You need to install rdkafka gem.
     </match>
 
 `rdkafka2` doesn't support the `partition_key_key`, `default_partition_key` and `exclude_partition_key` parameters of `kafka2`. librdkafka chooses the partition from the message key instead, so records with the same non-empty message key (`message_key_key` or `default_message_key`) go to the same partition. To change how the key is hashed, set `partitioner` in `rdkafka_options`. If a record has the field named by `partition_key` (`partition` by default), or `default_partition` is set, the record goes to that partition instead.
+
+As in `kafka2`, `message_key_key` and `partition_key` accept the record_accessor syntax, such as `$.kubernetes.pod_name`, to use a nested field. See [Load balancing](#load-balancing).
 
 `rdkafka2` supports `discard_kafka_delivery_failed_regex` parameter:
 - `discard_kafka_delivery_failed_regex` - default: nil - discard the record where the Kafka::DeliveryFailed occurred and the emitted message matches the given regex pattern, such as `/unknown_topic/`. 
