@@ -16,6 +16,14 @@ class Rdkafka::NativeKafka
         # this can be aborted in practice if this
         # code runs from a finalizer.
         thread_status = @polling_thread.join(timeout)
+
+        # The polling thread leaves its loop only when the queue is empty, and it
+        # must stop before @inner is destroyed. Purge the queue to stop it.
+        unless thread_status
+          code = Rdkafka::Bindings.rd_kafka_purge(@inner, Rdkafka::Bindings::RD_KAFKA_PURGE_F_QUEUE | Rdkafka::Bindings::RD_KAFKA_PURGE_F_INFLIGHT)
+          raise Rdkafka::RdkafkaError.new(code) unless code.zero?
+          @polling_thread.join
+        end
       end
 
       # Destroy the client after locking both mutexes

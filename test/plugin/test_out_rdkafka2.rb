@@ -111,6 +111,19 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_true producer.close(10)
   end
 
+  def test_producer_close_with_queued_messages_stops_polling_thread
+    omit_unless(Gem::Version.create(Rdkafka::VERSION) >= Gem::Version.create('0.16.0'), "the patch for rdkafka < 0.16.0 isn't fixed")
+
+    producer = Rdkafka::Config.new("bootstrap.servers" => "127.0.0.1:1").producer
+    producer.produce(topic: "kitagawakeiko", payload: "hello")
+    polling_thread = producer.instance_variable_get(:@native_kafka).instance_variable_get(:@polling_thread)
+
+    closer = Thread.new { producer.close(1) }
+    assert_not_nil closer.join(10)
+    assert_false closer.value
+    assert_false polling_thread.alive?
+  end
+
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(base_config)
