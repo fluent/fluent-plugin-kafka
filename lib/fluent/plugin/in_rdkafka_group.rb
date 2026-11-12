@@ -65,6 +65,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
   include Fluent::KafkaPluginUtil::RdkafkaSecuritySettings
+  include Fluent::KafkaPluginUtil::MessageEncoding
 
   class ForShutdown < StandardError
   end
@@ -156,7 +157,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       end
     when 'ltsv'
       require 'ltsv'
-      Proc.new { |msg| LTSV.parse(msg.payload, {:symbolize_keys => false}).first }
+      Proc.new { |msg| LTSV.parse(as_utf8(msg.payload), {:symbolize_keys => false}).first }
     when 'msgpack'
       require 'msgpack'
       Proc.new { |msg| MessagePack.unpack(msg.payload) }
@@ -165,7 +166,7 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
     else
       @custom_parser = parser_create(usage: 'in-rdkafka-plugin', conf: parser_conf)
       Proc.new { |msg, &time_callback|
-        @custom_parser.parse(msg.payload) {|time, record|
+        @custom_parser.parse(as_utf8(msg.payload)) {|time, record|
           time_callback.call(time) if time_callback
           record
         }
@@ -313,11 +314,12 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
                 log.fatal "BUG: invalid time_source: #{@time_source}"
               end
               if @kafka_message_key
-                record[@kafka_message_key] = msg.key
+                record[@kafka_message_key] = as_utf8(msg.key)
               end
               if @add_headers
                 msg.headers.each_pair { |k, v|
-                  record[k] = v
+                  # rdkafka returns the values of a repeated header as an Array.
+                  record[as_utf8(k)] = v.is_a?(Array) ? v.map { |e| as_utf8(e) } : as_utf8(v)
                 }
               end
               event_streams[tag] ||= Fluent::MultiEventStream.new

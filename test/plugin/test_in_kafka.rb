@@ -139,7 +139,7 @@ class KafkaInputTest < Test::Unit::TestCase
       router
     end
 
-    def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil, time_source: :now, time_parser: nil, parser: nil)
+    def create_topic_watcher(messages, router, tag_source: :record, add_prefix: nil, add_suffix: nil, time_source: :now, time_parser: nil, parser: nil, kafka_message_key: nil)
       kafka = Object.new
       kafka.define_singleton_method(:fetch_messages) { |**args| messages }
       parser ||= Proc.new { |msg, te| JSON.parse(msg.value) }
@@ -153,7 +153,7 @@ class KafkaInputTest < Test::Unit::TestCase
         add_suffix,
         nil,
         router,
-        nil,
+        kafka_message_key,
         time_source,
         'time',
         time_parser,
@@ -388,6 +388,32 @@ class KafkaInputTest < Test::Unit::TestCase
       assert_equal([keeps_time_key, keeps_time_key],
                    router.emitted[0][1].map { |r| r.has_key?('time') })
       assert_equal(3, watcher.instance_variable_get(:@next_offset))
+    end
+
+    data("text" => ["text", "あ", "\xFF"],
+         "ltsv" => ["ltsv", "message:あ", "message:\xFF"],
+         "custom parser" => ["none", "あ", "\xFF"])
+    def test_consume_marks_valid_utf8_as_utf8(data)
+      format, valid_value, invalid_value = data
+      input = create_driver(%[
+        @type kafka
+        brokers localhost:9092
+        format #{format}
+        topics #{TOPIC_NAME}
+      ]).instance
+      messages = [
+        FakeMessage.new(valid_value.b, 'い'.b, 0, Time.now),
+        FakeMessage.new(invalid_value.b, "\xFF".b, 1, Time.now),
+      ]
+      router = FakeRouter.new
+      watcher = create_topic_watcher(messages, router, tag_source: :topic,
+                                     parser: input.instance_variable_get(:@parser_proc),
+                                     kafka_message_key: 'key')
+      watcher.consume
+
+      assert_equal([[TOPIC_NAME, [{'message' => 'あ', 'key' => 'い'},
+                                  {'message' => "\xFF".b, 'key' => "\xFF".b}]]],
+                   router.emitted)
     end
 
     def test_consume_skips_buffer_chunk_overflow

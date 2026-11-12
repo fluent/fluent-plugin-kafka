@@ -7,6 +7,7 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
     end
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::PartitionSettings
+    include Fluent::KafkaPluginUtil::MessageEncoding
 
     def config_param
     end
@@ -65,6 +66,24 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
         path
       end
       assert_equal(["a","b"], read_ssl_file(["a","b"]))
+    end
+
+    data("valid UTF-8" => ["あ".b, "あ"],
+         "frozen" => ["あ".b.freeze, "あ"],
+         "ASCII only" => ["abc".b, "abc".b],
+         "invalid UTF-8" => ["\xFF".b, "\xFF".b],
+         "already UTF-8" => ["あ", "あ"],
+         "nil" => [nil, nil])
+    def test_as_utf8(data)
+      given, expected = data
+      actual = as_utf8(given)
+      assert_equal([expected, expected&.encoding], [actual, actual&.encoding])
+    end
+
+    def test_as_utf8_keeps_argument
+      str = "あ".b
+      as_utf8(str)
+      assert_equal(Encoding::ASCII_8BIT, str.encoding)
     end
 
 end

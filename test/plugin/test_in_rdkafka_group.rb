@@ -426,6 +426,37 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     end
   end
 
+  class MessageEncodingTest < self
+    data("ltsv" => ["ltsv", "message:あ", "message:\xFF"],
+         "custom parser" => ["none", "あ", "\xFF"])
+    def test_marks_valid_utf8_as_utf8(data)
+      format, valid_value, invalid_value = data
+      d = create_driver(%[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        kafka_message_key key
+        add_headers true
+        <parse>
+          @type #{format}
+        </parse>
+      ])
+      router = RecordTimeTest::FakeRouter.new
+      stub(d.instance).router { router }
+      messages = [
+        RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, valid_value.b, 'い'.b, 0, Time.now,
+                                        {'う'.b => 'え'.b, 'か'.b => ['き'.b, 'く'.b]}),
+        RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, invalid_value.b, "\xFF".b, 1, Time.now,
+                                        {"\xFF".b => "\xFF".b}),
+      ]
+      d.instance.instance_variable_set(:@consumer, RecordTimeTest::FakeConsumer.new(d.instance, messages))
+      d.instance.run
+
+      assert_equal([{'message' => 'あ', 'key' => 'い', 'う' => 'え', 'か' => ['き', 'く']},
+                    {'message' => "\xFF".b, 'key' => "\xFF".b, "\xFF".b => "\xFF".b}],
+                   router.emitted.map { |_tag, _time, record| record })
+    end
+  end
+
   class RecordTagTest < self
     class FakeRouter
       attr_reader :emitted, :frozen_tags

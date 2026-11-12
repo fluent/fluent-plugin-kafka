@@ -19,6 +19,19 @@ module Fluent
       end
     end
 
+    module MessageEncoding
+      # ruby-kafka and rdkafka return message values, keys and headers as ASCII-8BIT.
+      # json 3.x rejects such a String only when it has non-ASCII bytes.
+      # ASCII-only Strings are kept so that msgpack still packs them as bin.
+      def as_utf8(str)
+        return str unless str.is_a?(String) && str.encoding == Encoding::ASCII_8BIT
+        return str if str.ascii_only?
+
+        utf8 = str.dup.force_encoding(Encoding::UTF_8)
+        utf8.valid_encoding? ? utf8 : str
+      end
+    end
+
     module AwsIamSettings
       def self.included(klass)
         klass.instance_eval do
