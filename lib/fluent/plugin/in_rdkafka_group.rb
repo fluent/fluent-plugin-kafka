@@ -35,6 +35,10 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
                :desc => "Parse 'time' field as UTC when time_format has no time zone."
   config_param :timezone, :string, :default => nil,
                :desc => "Time zone used to parse 'time' field when time_format has no time zone."
+  config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
+               :desc => "Source for the fluentd event tag"
+  config_param :record_tag_key, :string, :default => 'tag',
+               :desc => "Tag field when tag_source is 'record'"
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
 
@@ -265,15 +269,28 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       begin
         each_batch { |batch|
           log.debug "A new batch for topic #{batch.topic} with #{batch.messages.size} messages"
-          es = Fluent::MultiEventStream.new
-          tag = batch.topic
-          tag = @add_prefix + "." + tag if @add_prefix
-          tag = tag + "." + @add_suffix if @add_suffix
+          event_streams = {}
+          topic_tag = batch.topic
+          topic_tag = @add_prefix + "." + topic_tag if @add_prefix
+          topic_tag = topic_tag + "." + @add_suffix if @add_suffix
 
           batch.messages.each { |msg|
             begin
               parsed_time = nil
               record = @parser_proc.call(msg) { |time| parsed_time = time }
+              if @tag_source == :record
+                tag = record.is_a?(Hash) ? record[@record_tag_key] : nil
+                # Anyone who can write to the topic chooses this tag, and it may be used in a path
+                # such as ${tag}. Allow only what Kafka allows as a topic name.
+                unless tag.is_a?(String) && tag.valid_encoding? && tag.match?(/\A[a-zA-Z0-9._-]{1,249}\z/) && tag != '.' && tag != '..'
+                  log.warn "skipped record with invalid tag in #{msg.topic}/#{msg.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
+                  next
+                end
+                tag = @add_prefix + "." + tag if @add_prefix
+                tag = tag + "." + @add_suffix if @add_suffix
+              else
+                tag = topic_tag
+              end
               case @time_source
               when :kafka
                 record_time = Fluent::EventTime.from_time(msg.timestamp)
@@ -303,16 +320,18 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
                   record[k] = v
                 }
               end
-              es.add(record_time, record)
+              event_streams[tag] ||= Fluent::MultiEventStream.new
+              event_streams[tag].add(record_time, record)
             rescue => e
               log.warn "parser error in #{msg.topic}/#{msg.partition}", :error => e.to_s, :value => msg.payload, :offset => msg.offset
               log.debug_backtrace
             end
           }
 
-          unless es.empty?
-            emit_events(tag, es)
-          end
+          event_streams.each { |tag, es|
+            # Hash keys are frozen copies. Some v0.12 style outputs change the tag in place.
+            emit_events(+tag, es)
+          }
         }
       rescue ForShutdown
       rescue => e

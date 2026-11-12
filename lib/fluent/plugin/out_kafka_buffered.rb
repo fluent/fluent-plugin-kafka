@@ -90,6 +90,7 @@ DESC
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
+  include Fluent::KafkaPluginUtil::PartitionSettings
 
   attr_accessor :output_data_type
   attr_accessor :field_separator
@@ -337,6 +338,9 @@ DESC
           partition_key = (@exclude_partition_key ? record.delete(@partition_key_key) : record[@partition_key_key]) || @default_partition_key
           partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
           message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
+          partition = coerce_partition(partition) unless partition.nil?
+          partition_key = partition_key.to_s unless partition_key.nil?
+          message_key = message_key.to_s unless message_key.nil?
 
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0

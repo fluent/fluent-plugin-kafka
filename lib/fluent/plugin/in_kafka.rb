@@ -378,6 +378,11 @@ class Fluent::KafkaInput < Fluent::Input
           @router.emit_stream(tag, es)
         rescue BufferChunkOverflowError => e
           $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
+        rescue ArgumentError => e
+          # A tag with invalid encoding raises ArgumentError when the router matches it against a pattern.
+          # Other ArgumentError, such as the one from an output, must still propagate to keep the offset.
+          raise unless !tag.valid_encoding? && unmatchable_tag?(tag)
+          $log.warn "skipped records with invalid tag in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
         end
       }
 
@@ -385,6 +390,15 @@ class Fluent::KafkaInput < Fluent::Input
         @offset_manager.save_offset(offset)
       end
       @next_offset = offset
+    end
+
+    private
+
+    def unmatchable_tag?(tag)
+      @router.match?(tag)
+      false
+    rescue ArgumentError
+      true
     end
   end
 
