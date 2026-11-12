@@ -5,22 +5,7 @@ require 'fluent/plugin/kafka_plugin_util'
 
 require 'rdkafka'
 require 'fluent/plugin/kafka_producer_ext'
-
-class Rdkafka::Producer
-  # return false if producer is forcefully closed, otherwise return true
-  def close(timeout = nil)
-    @closing = true
-    # Wait for the polling thread to finish up
-    # If the broker isn't alive, the thread doesn't exit
-    if timeout
-      thr = @polling_thread.join(timeout)
-      return !!thr
-    else
-      @polling_thread.join
-      return true
-    end
-  end
-end
+require_relative 'rdkafka_patch'
 
 class Fluent::KafkaOutputBuffered2 < Fluent::BufferedOutput
   Fluent::Plugin.register_output('rdkafka', self)
@@ -81,6 +66,7 @@ DESC
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
+  include Fluent::KafkaPluginUtil::PartitionSettings
 
   def initialize
     super
@@ -262,8 +248,10 @@ DESC
     record_buf = nil
     record_buf_bytes = nil
 
+    handlers = []
+
     begin
-      chunk.msgpack_each.map { |time, record|
+      chunk.msgpack_each { |time, record|
         begin
           if @output_include_time
             if @time_format
@@ -277,6 +265,8 @@ DESC
           topic = (@exclude_topic_key ? record.delete('topic'.freeze) : record['topic'.freeze]) || def_topic
           partition = (@exclude_partition ? record.delete('partition'.freeze) : record['partition'.freeze]) || @default_partition
           message_key = (@exclude_message_key ? record.delete('message_key'.freeze) : record['message_key'.freeze]) || @default_message_key
+          partition = coerce_partition(partition) unless partition.nil?
+          message_key = message_key.to_s unless message_key.nil?
 
           record_buf = @formatter_proc.call(tag, time, record)
           record_buf_bytes = record_buf.bytesize
@@ -291,17 +281,17 @@ DESC
         end
 
         producer = get_producer
-        handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
-        handler
-      }.each { |handler|
-        if @rdkafka_delivery_handle_poll_timeout != 0
+        handlers << enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
+      }
+      if @rdkafka_delivery_handle_poll_timeout != 0
+        handlers.each { |handler|
           if @use_max_wait_timeout_ms
             handler.wait(max_wait_timeout_ms: @rdkafka_delivery_handle_poll_timeout * 1000)
           else
             handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout)
           end
-        end
-      }
+        }
+      end
     end
   rescue Exception => e
     log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
