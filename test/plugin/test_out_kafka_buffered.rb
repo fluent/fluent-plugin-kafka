@@ -30,10 +30,15 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
     end
 
     def produce_for_buffered(value, key:, topic:, partition:, partition_key:, create_time:)
-      @produced << {value: value, key: key, partition_key: partition_key, partition: partition}
+      @produced << {value: value, key: key, partition_key: partition_key, partition: partition, topic: topic}
     end
 
+    # Kafka::Producer#deliver_messages passes the topics to this check before
+    # it talks to a broker.
     def deliver_messages
+      cluster = Kafka::Cluster.new(seed_brokers: ["kafka://localhost:9092"], broker_pool: nil, logger: Logger.new(nil))
+      def cluster.refresh_metadata!; end
+      cluster.add_target_topics(@produced.collect { |message| message[:topic] })
     end
   end
 
@@ -84,6 +89,19 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
 
     assert_equal [[expected, expected], [expected, nil], [nil, expected]],
                  produced.collect { |message| [message[:key], message[:partition_key]] }
+  end
+
+  data("empty" => "",
+       "integer" => 123,
+       "hash" => {"x" => 1})
+  def test_write_skips_event_with_invalid_topic(topic)
+    produced = nil
+    assert_nothing_raised {
+      produced = write_records([{"a" => "b"}, {"a" => "c", "topic" => topic}, {"a" => "d", "topic" => "other"}])
+    }
+
+    assert_equal [['{"a":"b"}', "kitagawakeiko"], ['{"a":"d","topic":"other"}', "other"]],
+                 produced.collect { |message| [message[:value], message[:topic]] }
   end
 
   def test_configure
