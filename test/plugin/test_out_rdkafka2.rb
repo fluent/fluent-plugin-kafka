@@ -105,6 +105,17 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal expected, File.basename(Rdkafka::Producer.instance_method(:close).source_location.first)
   end
 
+  def test_producer_close_destroys_native_kafka
+    version = Gem::Version.create(Rdkafka::VERSION)
+    omit_unless(version >= Gem::Version.create('0.8.0') && version < Gem::Version.create('0.12.0'),
+                "this checks the patch for rdkafka 0.8.0 to 0.11.x")
+
+    producer = Rdkafka::Config.new("bootstrap.servers" => "localhost:9092").producer
+
+    assert_true producer.close(10)
+    assert_nil producer.instance_variable_get(:@native_kafka)
+  end
+
   def test_producer_close_accepts_timeout
     producer = Rdkafka::Config.new("bootstrap.servers" => "localhost:9092").producer
 
