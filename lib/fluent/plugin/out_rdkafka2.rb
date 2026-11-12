@@ -344,17 +344,6 @@ DESC
       end
     end
 
-    # A nested field under a value that is not a Hash or an Array is handled
-    # as missing, and the record is left as it is. Deleting the field through
-    # the accessor would call String#delete on a String value instead.
-    def record_value(record, accessor, exclude)
-      value = accessor.call(record)
-      accessor.delete(record) if exclude
-      value
-    rescue TypeError
-      nil
-    end
-
     def write(chunk)
       @writing_threads_mutex.synchronize { @writing_threads.add(Thread.current) }
       tag = chunk.metadata.tag

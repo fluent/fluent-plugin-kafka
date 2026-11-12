@@ -323,6 +323,21 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_equal [{payload: record, key: "mk", partition: 3}], produced
   end
 
+  def test_write_excludes_top_level_keys
+    conf = config + config_element('ROOT', '', {"exclude_message_key" => true, "exclude_partition" => true})
+    record = {"message_key" => "mk", "partition" => 3, "a" => "b"}
+
+    produced = write_records(conf, [record])
+
+    assert_equal [{payload: {"a" => "b"}, key: "mk", partition: 3}], produced
+  end
+
+  def test_write_skips_records_that_are_not_a_hash
+    produced = write_records(config, [[1, 2], 5, {"a" => "b"}])
+
+    assert_equal [{payload: {"a" => "b"}, key: nil, partition: nil}], produced
+  end
+
   def test_write_excludes_nested_keys
     record = {"kafka" => {"message_key" => "mk", "partition" => 3, "c" => "d"}, "a" => "b"}
     conf = nested_keys_config("exclude_message_key" => true, "exclude_partition" => true)
