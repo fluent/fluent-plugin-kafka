@@ -520,13 +520,10 @@ This plugin also supports ruby-kafka related parameters. See Buffered output plu
 ### rdkafka based output plugin
 
 This plugin uses `rdkafka` instead of `ruby-kafka` for kafka client.
-You need to install rdkafka gem.
+You need to install rdkafka gem 0.12.0 or later.
 
     # rdkafka is C extension library. Need to install development tools like ruby-devel, gcc and etc
-    # for v0.12 or later
     $ gem install rdkafka --no-document
-    # for v0.11 or earlier
-    $ gem install rdkafka -v 0.6.0 --no-document
 
 `rdkafka2` is for fluentd v1.0 or later.
 

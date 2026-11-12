@@ -12,7 +12,7 @@ begin
   elsif rdkafka_version >= Gem::Version.create('0.12.0')
     require_relative 'rdkafka_patch/0_12_0'
   else
-    require_relative 'rdkafka_patch/0_11_0'
+    raise Fluent::ConfigError, "rdkafka #{Rdkafka::VERSION} is not supported. Use rdkafka 0.12.0 or later."
   end
 rescue LoadError, NameError
   raise "unable to patch rdkafka."
