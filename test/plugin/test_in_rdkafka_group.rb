@@ -41,6 +41,20 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     assert_equal 'localhost:9092', d.instance.kafka_configs['bootstrap.servers']
   end
 
+  data("format text" => ["format text", Fluent::NotFoundPluginError],
+       "<parse> with @type text" => ["<parse>\n @type text\n</parse>", Fluent::NotFoundPluginError],
+       "no format and no <parse>" => ["", Fluent::ConfigError])
+  def test_configure_without_usable_format(data)
+    parser_conf, error = data
+    assert_raise(error) do
+      create_driver(%[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        #{parser_conf}
+      ])
+    end
+  end
+
   def test_multi_worker_support
     d = create_driver
     assert_true d.instance.multi_workers_ready?
@@ -427,17 +441,18 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   end
 
   class MessageEncodingTest < self
-    data("ltsv" => ["ltsv", "message:あ", "message:\xFF"],
-         "custom parser" => ["none", "あ", "\xFF"])
+    data("ltsv" => ["@type ltsv", "message:あ", "message:\xFF"],
+         "custom parser" => ["@type none", "あ", "\xFF"],
+         "text with the deprecated type parameter" => ["type text", "あ", "\xFF"])
     def test_marks_valid_utf8_as_utf8(data)
-      format, valid_value, invalid_value = data
+      parse_type, valid_value, invalid_value = data
       d = create_driver(%[
         topics #{TOPIC_NAME}
         kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
         kafka_message_key key
         add_headers true
         <parse>
-          @type #{format}
+          #{parse_type}
         </parse>
       ])
       router = RecordTimeTest::FakeRouter.new
@@ -454,6 +469,28 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
       assert_equal([{'message' => 'あ', 'key' => 'い', 'う' => 'え', 'か' => ['き', 'く']},
                     {'message' => "\xFF".b, 'key' => "\xFF".b, "\xFF".b => "\xFF".b}],
                    router.emitted.map { |_tag, _time, record| record })
+    end
+  end
+
+  class MessageKeyTest < self
+    data("format none" => ["format none", 'msg'],
+         "the deprecated type text in <parse>" => ["<parse>\n type text\n</parse>", 'msg'],
+         "<parse> with @type none" => ["<parse>\n @type none\n</parse>", 'message'])
+    def test_top_level_message_key(data)
+      parser_conf, expected_key = data
+      d = create_driver(%[
+        topics #{TOPIC_NAME}
+        kafka_configs {"bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+        message_key msg
+        #{parser_conf}
+      ])
+      router = RecordTimeTest::FakeRouter.new
+      stub(d.instance).router { router }
+      messages = [RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, 'hello', nil, 0, Time.now, {})]
+      d.instance.instance_variable_set(:@consumer, RecordTimeTest::FakeConsumer.new(d.instance, messages))
+      d.instance.run
+
+      assert_equal([{expected_key => 'hello'}], router.emitted.map { |_tag, _time, record| record })
     end
   end
 

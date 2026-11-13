@@ -159,8 +159,8 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
     <source>
       @type rdkafka_group
       topics <listening topics(separate with comma',')>
-      format <input text type (text|json|ltsv|msgpack)> :default => json
-      message_key <key (Optional, for text format only, default is message)>
+      format <input text type (json|ltsv|msgpack|none), required unless a <parse> section is given>
+      message_key <key (Optional, for format none only, default is message. With <parse> @type none, set it in the section)>
       kafka_message_key <key (Optional, If specified, set kafka's message key to this key)>
       add_headers <If true, add kafka's message headers to record>
       add_prefix <tag prefix (Optional)>
@@ -190,6 +190,8 @@ With the introduction of the rdkafka-ruby based input plugin we hope to support 
     </source>
 
 See also [rdkafka-ruby](https://github.com/appsignal/rdkafka-ruby) and [librdkafka](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for more detailed documentation about Kafka consumer options.
+
+Unlike `kafka_group`, this plugin has no `text` format. Use `format none` to put each message into the `message_key` field as a string.
 
 `utc` and `timezone` control record time parsing when `time_source record` (or the deprecated `use_record_time true`) and `time_format` are set. `timezone` takes precedence over `utc`. A time zone parsed with `%z` or `%Z` takes precedence over both. A literal `Z` in `time_format` is not a time zone directive.
 
