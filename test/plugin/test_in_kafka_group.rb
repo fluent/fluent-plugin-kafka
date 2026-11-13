@@ -357,6 +357,57 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       assert_equal(expected_parser_errors,
                    parser_errors.map { |log| log[/offset=\d+/] })
     end
+
+    # An output may change the tag in place, as HandleTagNameMixin#filter_record does.
+    def test_emits_tag_that_can_be_changed_in_place
+      d = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        add_prefix kafka
+        topics #{TOPIC_NAME}
+      ])
+      emitted = []
+      router = Object.new
+      router.define_singleton_method(:emit_stream) do |tag, _es|
+        frozen = tag.frozen?
+        tag.sub!(/\Akafka\./, '')
+        emitted << [tag, frozen]
+      end
+      stub(d.instance).router { router }
+
+      assert_nothing_raised {
+        d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, [tagged_message('app.a', 'record 1', 0)]))
+      }
+      assert_equal([['app.a', false]], emitted)
+    end
+
+    def test_retry_emits_tag_from_before_the_change
+      d = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        add_prefix kafka
+        retry_emit_limit 1
+        topics #{TOPIC_NAME}
+      ])
+      tags = []
+      router = Object.new
+      router.define_singleton_method(:emit_stream) do |tag, _es|
+        tags << tag.dup
+        tag = +tag
+        tag.sub!(/\Akafka\./, '')
+        raise Fluent::Plugin::Buffer::BufferOverflowError, "buffer space has too many data" if tags.size == 1
+      end
+      stub(d.instance).router { router }
+      stub(d.instance).sleep
+      d.instance.instance_variable_set(:@consumer, Object.new)
+
+      d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, [tagged_message('app.a', 'record 1', 0)]))
+      assert_equal(['kafka.app.a', 'kafka.app.a'], tags)
+    end
   end
 
   class ConsumeTest < self
