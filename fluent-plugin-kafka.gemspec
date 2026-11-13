@@ -14,7 +14,7 @@ Gem::Specification.new do |gem|
   gem.name          = "fluent-plugin-kafka"
   gem.require_paths = ["lib"]
   gem.version       = '0.19.9'
-  gem.required_ruby_version = ">= 2.1.0"
+  gem.required_ruby_version = ">= 3.2.0"
 
   gem.add_dependency "fluentd", [">= 0.10.58", "< 2"]
   gem.add_dependency 'ltsv'

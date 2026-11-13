@@ -23,7 +23,7 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 ## Requirements
 
-- Ruby 2.1 or later
+- Ruby 3.2 or later
 - Input plugins work with kafka v0.9 or later
 - Output plugins work with kafka v0.8 or later
 
