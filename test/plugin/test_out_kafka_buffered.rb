@@ -104,6 +104,21 @@ class KafkaBufferedOutputTest < Test::Unit::TestCase
                  produced.collect { |message| [message[:value], message[:topic]] }
   end
 
+  def test_write_fails_chunk_with_empty_default_topic
+    # default_topic without a value is an empty String
+    d = create_driver(BASE_CONFIG + %[
+      default_topic
+      brokers localhost:9092
+    ])
+    stub(d.instance).get_producer { DummyProducer.new }
+    metadata = Fluent::Plugin::Buffer::Metadata.new(nil, nil, {key: 'test'})
+    chunk = Fluent::Plugin::Buffer::MemoryChunk.new(metadata)
+    chunk.append([[event_time, {"a" => "b"}].to_msgpack])
+
+    assert_equal "", d.instance.default_topic
+    assert_raise(ArgumentError) { d.instance.write(chunk) }
+  end
+
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(BASE_CONFIG)
