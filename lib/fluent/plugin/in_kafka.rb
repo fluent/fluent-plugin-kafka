@@ -65,6 +65,7 @@ class Fluent::KafkaInput < Fluent::Input
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
+  include Fluent::KafkaPluginUtil::MessageEncoding
 
   BufferChunkOverflowError = if defined?(Fluent::Plugin::Buffer::BufferChunkOverflowError)
                                Fluent::Plugin::Buffer::BufferChunkOverflowError
@@ -165,7 +166,7 @@ class Fluent::KafkaInput < Fluent::Input
     when 'ltsv'
       require 'ltsv'
       Proc.new { |msg, te|
-        r = LTSV.parse(msg.value, {:symbolize_keys => false}).first
+        r = LTSV.parse(as_utf8(msg.value), {:symbolize_keys => false}).first
         add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
         r
       }
@@ -178,7 +179,7 @@ class Fluent::KafkaInput < Fluent::Input
       }
     when 'text'
       Proc.new { |msg, te|
-        r = {@message_key => msg.value}
+        r = {@message_key => as_utf8(msg.value)}
         add_offset_in_hash(r, te, msg.offset) if @add_offset_in_record
         r
       }
@@ -189,7 +190,7 @@ class Fluent::KafkaInput < Fluent::Input
       # keep_time_key is set, so hand over the time it parsed instead.
       consumes_record_time_key = @custom_parser.time_key == @record_time_key && !@custom_parser.keep_time_key
       Proc.new { |msg, te, &time_callback|
-        @custom_parser.parse(msg.value) {|time, record|
+        @custom_parser.parse(as_utf8(msg.value)) {|time, record|
           time_callback.call(time) if time_callback && consumes_record_time_key
           record
         }
@@ -276,6 +277,8 @@ class Fluent::KafkaInput < Fluent::Input
   end
 
   class TopicWatcher < Coolio::TimerWatcher
+    include Fluent::KafkaPluginUtil::MessageEncoding
+
     def initialize(topic_entry, kafka, interval, parser, add_prefix, add_suffix, offset_manager, router, kafka_message_key, time_source, record_time_key, time_parser, tag_source, record_tag_key, options={})
       @topic_entry = topic_entry
       @kafka = kafka
@@ -362,7 +365,7 @@ class Fluent::KafkaInput < Fluent::Input
             $log.fatal "BUG: invalid time_source: #{@time_source}"
           end
           if @kafka_message_key
-            record[@kafka_message_key] = msg.key
+            record[@kafka_message_key] = as_utf8(msg.key)
           end
           event_streams[tag] ||= Fluent::MultiEventStream.new
           event_streams[tag].add(record_time, record)

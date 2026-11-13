@@ -79,6 +79,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
   include Fluent::KafkaPluginUtil::AwsIamSettings
+  include Fluent::KafkaPluginUtil::MessageEncoding
 
   class ForShutdown < StandardError
   end
@@ -177,17 +178,17 @@ class Fluent::KafkaGroupInput < Fluent::Input
       end
     when 'ltsv'
       require 'ltsv'
-      Proc.new { |msg| LTSV.parse(msg.value, {:symbolize_keys => false}).first }
+      Proc.new { |msg| LTSV.parse(as_utf8(msg.value), {:symbolize_keys => false}).first }
     when 'msgpack'
       require 'msgpack'
       Proc.new { |msg| MessagePack.unpack(msg.value) }
     when 'text'
-      Proc.new { |msg| {@message_key => msg.value} }
+      Proc.new { |msg| {@message_key => as_utf8(msg.value)} }
     else
       @custom_parser = Fluent::Plugin.new_parser(conf['format'])
       @custom_parser.configure(conf)
       Proc.new { |msg, &time_callback|
-        @custom_parser.parse(msg.value) {|time, record|
+        @custom_parser.parse(as_utf8(msg.value)) {|time, record|
           time_callback.call(time) if time_callback
           record
         }
@@ -313,11 +314,11 @@ class Fluent::KafkaGroupInput < Fluent::Input
           log.fatal "BUG: invalid time_source: #{@time_source}"
         end
         if @kafka_message_key
-          record[@kafka_message_key] = msg.key
+          record[@kafka_message_key] = as_utf8(msg.key)
         end
         if @add_headers
           msg.headers.each_pair { |k, v|
-            record[k] = v
+            record[as_utf8(k)] = as_utf8(v)
           }
         end
         es[tag].add(record_time, record)
@@ -368,11 +369,11 @@ class Fluent::KafkaGroupInput < Fluent::Input
           log.fatal "BUG: invalid time_source: #{@time_source}"
         end
         if @kafka_message_key
-          record[@kafka_message_key] = msg.key
+          record[@kafka_message_key] = as_utf8(msg.key)
         end
         if @add_headers
           msg.headers.each_pair { |k, v|
-            record[k] = v
+            record[as_utf8(k)] = as_utf8(v)
           }
         end
         es.add(record_time, record)

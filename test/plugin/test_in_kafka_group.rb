@@ -90,6 +90,56 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     assert_equal Fluent::EventTime.new(Time.utc(2020, 11, 11, 7, 58, 58).to_i, 729162200), time
   end
 
+  class MessageEncodingTest < self
+    FakeMessage = Struct.new(:value, :key, :offset, :create_time, :headers)
+    FakeBatch = Struct.new(:topic, :partition, :messages)
+
+    def process(conf, messages, with_record_tag: false)
+      d = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        topics #{TOPIC_NAME}
+        kafka_message_key key
+        add_headers true
+        #{conf}
+      ])
+      emitted = []
+      stub(d.instance).emit_events { |tag, es| es.each { |_time, record| emitted << [tag, record] } }
+      batch = FakeBatch.new(TOPIC_NAME, 0, messages)
+      if with_record_tag
+        d.instance.process_batch_with_record_tag(batch)
+      else
+        d.instance.process_batch(batch)
+      end
+      emitted
+    end
+
+    data("text" => ["text", "あ", "\xFF"],
+         "ltsv" => ["ltsv", "message:あ", "message:\xFF"],
+         "custom parser" => ["none", "あ", "\xFF"])
+    def test_marks_valid_utf8_as_utf8(data)
+      format, valid_value, invalid_value = data
+      emitted = process("format #{format}",
+                        [FakeMessage.new(valid_value.b, 'い'.b, 0, Time.now, {'う'.b => 'え'.b}),
+                         FakeMessage.new(invalid_value.b, "\xFF".b, 1, Time.now, {"\xFF".b => "\xFF".b})])
+
+      assert_equal([[TOPIC_NAME, {'message' => 'あ', 'key' => 'い', 'う' => 'え'}],
+                    [TOPIC_NAME, {'message' => "\xFF".b, 'key' => "\xFF".b, "\xFF".b => "\xFF".b}]],
+                   emitted)
+    end
+
+    def test_marks_valid_utf8_key_and_headers_as_utf8_with_record_tag
+      emitted = process("format json\ntag_source record",
+                        [FakeMessage.new('{"tag":"app"}', 'い'.b, 0, Time.now, {'う'.b => 'え'.b}),
+                         FakeMessage.new('{"tag":"app"}', "\xFF".b, 1, Time.now, {"\xFF".b => "\xFF".b})],
+                        with_record_tag: true)
+
+      assert_equal([['app', {'tag' => 'app', 'key' => 'い', 'う' => 'え'}],
+                    ['app', {'tag' => 'app', 'key' => "\xFF".b, "\xFF".b => "\xFF".b}]],
+                   emitted)
+    end
+  end
+
   def test_emit_events_with_buffer_chunk_overflow
     d = create_driver
     es = Fluent::MultiEventStream.new
