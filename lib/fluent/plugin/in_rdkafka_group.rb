@@ -12,10 +12,10 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
   config_param :topics, :string,
                :desc => "Listening topics(separate with comma',')."
 
-  config_param :format, :string, :default => 'json',
-               :desc => "Supported format: (json|text|ltsv|msgpack)"
+  config_param :format, :string, :default => nil,
+               :desc => "Supported format: (json|ltsv|msgpack|none). Required unless a <parse> section is given."
   config_param :message_key, :string, :default => 'message',
-               :desc => "For 'text' format only."
+               :desc => "For 'format none' only."
   config_param :add_headers, :bool, :default => false,
                :desc => "Add kafka's message headers to event record"
   config_param :add_prefix, :string, :default => nil,
@@ -162,7 +162,8 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       require 'msgpack'
       Proc.new { |msg| MessagePack.unpack(msg.payload) }
     when 'text'
-      Proc.new { |msg| {@message_key => msg.payload} }
+      # Without a third-party text parser, only the deprecated `type text` in <parse> reaches here.
+      Proc.new { |msg| {@message_key => as_utf8(msg.payload)} }
     else
       @custom_parser = parser_create(usage: 'in-rdkafka-plugin', conf: parser_conf)
       Proc.new { |msg, &time_callback|
