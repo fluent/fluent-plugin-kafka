@@ -332,6 +332,32 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       }
       assert_equal([['app.a', false]], emitted)
     end
+
+    def test_retry_emits_tag_from_before_the_change
+      d = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        add_prefix kafka
+        retry_emit_limit 1
+        topics #{TOPIC_NAME}
+      ])
+      tags = []
+      router = Object.new
+      router.define_singleton_method(:emit_stream) do |tag, _es|
+        tags << tag.dup
+        tag = +tag
+        tag.sub!(/\Akafka\./, '')
+        raise Fluent::Plugin::Buffer::BufferOverflowError, "buffer space has too many data" if tags.size == 1
+      end
+      stub(d.instance).router { router }
+      stub(d.instance).sleep
+      d.instance.instance_variable_set(:@consumer, Object.new)
+
+      d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, [tagged_message('app.a', 'record 1', 0)]))
+      assert_equal(['kafka.app.a', 'kafka.app.a'], tags)
+    end
   end
 
   class ConsumeTest < self

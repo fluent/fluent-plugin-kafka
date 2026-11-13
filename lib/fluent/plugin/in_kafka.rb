@@ -376,7 +376,7 @@ class Fluent::KafkaInput < Fluent::Input
       event_streams.each { |tag, es|
         begin
           # Hash keys are frozen copies, and an output may change the tag in place
-          @router.emit_stream(tag&.dup, es)
+          @router.emit_stream(tag.dup, es)
         rescue BufferChunkOverflowError => e
           $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
         rescue ArgumentError => e

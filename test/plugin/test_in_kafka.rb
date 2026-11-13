@@ -180,16 +180,15 @@ class KafkaInputTest < Test::Unit::TestCase
       end
     end
 
-    data("tag_source record" => [:record, 'kafka.app.a'],
-         "tag_source topic" => [:topic, "kafka.#{TOPIC_NAME}"])
+    data("tag_source record" => [:record, 'app.a'],
+         "tag_source topic" => [:topic, TOPIC_NAME])
     def test_consume_emits_tag_that_can_be_changed_in_place(data)
-      tag_source, _ = data
+      tag_source, expected_tag = data
       router = InPlaceTagRouter.new
       assert_nothing_raised {
         create_topic_watcher([tagged_message('app.a', 'record 1', 0)], router, tag_source: tag_source, add_prefix: 'kafka').consume
       }
 
-      expected_tag = tag_source == :record ? 'app.a' : TOPIC_NAME
       assert_equal([[expected_tag, false]], router.emitted)
     end
 

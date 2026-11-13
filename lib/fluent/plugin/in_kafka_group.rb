@@ -329,8 +329,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     unless es.empty?
       es.each { |tag,es|
-        # Hash keys are frozen copies, and an output may change the tag in place
-        emit_events(tag&.dup, es)
+        emit_events(tag, es)
       }
     end
   end
@@ -413,7 +412,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def emit_events(tag, es)
     retries = 0
     begin
-      router.emit_stream(tag, es)
+      # Hash keys are frozen copies, and an output may change the tag in place.
+      # Copy it on every attempt, so a retry does not get the changed tag.
+      router.emit_stream(tag&.dup, es)
     rescue BufferChunkOverflowError => e
       log.warn "Skipped records larger than the buffer chunk limit size", :tag => tag, :error => e.to_s
     rescue BufferError
