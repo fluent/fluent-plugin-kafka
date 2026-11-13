@@ -331,12 +331,12 @@ class KafkaGroupInputTest < Test::Unit::TestCase
                                           [['app.a', ['record 1']],
                                            [nil, ['record 3']],
                                            ['', ['record 4']],
-                                           ['app.b', ['record 7']]],
+                                           ['app.b', ['record 6']]],
                                           []],
          "with prefix and suffix" => ["add_prefix prefix\nadd_suffix suffix",
                                       [['prefix.app.a.suffix', ['record 1']],
                                        ['prefix..suffix', ['record 4']],
-                                       ['prefix.app.b.suffix', ['record 7']]],
+                                       ['prefix.app.b.suffix', ['record 6']]],
                                       ['offset=2']])
     def test_skips_invalid_tag(data)
       extra_conf, expected_emitted, expected_parser_errors = data
@@ -345,17 +345,126 @@ class KafkaGroupInputTest < Test::Unit::TestCase
                          FakeMessage.new({'message' => 'record 3'}.to_json, nil, 2, Time.now, {}),
                          tagged_message('', 'record 4', 3),
                          tagged_message({'name' => 'app'}, 'record 5', 4),
-                         FakeMessage.new("{\"tag\":\"app.\xFF\",\"message\":\"record 6\"}".b, nil, 5, Time.now, {}),
-                         tagged_message('app.b', 'record 7', 6)],
+                         tagged_message('app.b', 'record 6', 5)],
                         extra_conf)
 
       assert_equal(expected_emitted, emitted)
       warnings = @driver.logs.select { |log| log.include?("skipped record with invalid tag in #{TOPIC_NAME}/0") }
-      assert_equal(['offset=1', 'offset=4', 'offset=5'],
+      assert_equal(['offset=1', 'offset=4'],
                    warnings.map { |log| log[/offset=\d+/] })
       parser_errors = @driver.logs.select { |log| log.include?("parser error in #{TOPIC_NAME}/0") }
       assert_equal(expected_parser_errors,
                    parser_errors.map { |log| log[/offset=\d+/] })
+    end
+
+    # Mimics Fluent::RootAgent#handle_emits_error
+    class FakeEmitErrorHandler
+      attr_writer :error_collector
+
+      def handle_emits_error(tag, es, error)
+        raise error unless @error_collector
+        @error_collector.emit_stream(tag, es)
+      end
+
+      def emit_error_event(tag, time, record, error)
+      end
+    end
+
+    class FakeOutput
+      attr_reader :emitted
+
+      def initialize(fail_tags: [])
+        @emitted = []
+        @fail_tags = fail_tags
+      end
+
+      def emit_events(tag, es)
+        raise ArgumentError, "output failed" if @fail_tags.include?(tag)
+        records = []
+        es.each { |_time, record| records << record['message'] }
+        @emitted << [tag, records]
+      end
+    end
+
+    def create_event_router(pattern, output, error_output: nil)
+      handler = FakeEmitErrorHandler.new
+      router = Fluent::EventRouter.new(output, handler)
+      router.add_rule(pattern, output)
+      if error_output
+        error_router = Fluent::EventRouter.new(error_output, handler)
+        error_router.add_rule('**', error_output)
+        handler.error_collector = error_router
+      end
+      router
+    end
+
+    def invalid_tag_messages
+      [
+        tagged_message('app.a', 'record 1', 0),
+        FakeMessage.new("{\"tag\":\"app.\xFF\",\"message\":\"record 2\"}".b, nil, 1, Time.now, {}),
+        tagged_message('app.b', 'record 3', 2),
+      ]
+    end
+
+    def process_with_router(router, extra_conf = '', messages: invalid_tag_messages)
+      d = @driver = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        topics #{TOPIC_NAME}
+        #{extra_conf}
+      ])
+      stub(d.instance).router { router }
+      d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, messages))
+    end
+
+    data("without prefix and suffix" => ['', ['app.a', 'app.b']],
+         "with prefix and suffix" => ["add_prefix prefix\nadd_suffix suffix", ['prefix.app.a.suffix', 'prefix.app.b.suffix']])
+    def test_skips_invalid_tag_when_router_cannot_match_it(data)
+      extra_conf, expected_tags = data
+      output = FakeOutput.new
+      router = create_event_router('{app,prefix.app}.**', output)
+      process_with_router(router, extra_conf)
+
+      assert_equal([[expected_tags[0], ['record 1']], [expected_tags[1], ['record 3']]], output.emitted)
+      warnings = @driver.logs.select { |log| log.include?("skipped records with invalid tag in #{TOPIC_NAME}/0") }
+      assert_equal(1, warnings.size)
+    end
+
+    def test_sends_invalid_tag_to_error_label_when_router_cannot_match_it
+      output = FakeOutput.new
+      error_output = FakeOutput.new
+      router = create_event_router('app.**', output, error_output: error_output)
+      process_with_router(router)
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], output.emitted)
+      assert_equal([["app.\xFF", ['record 2']]], error_output.emitted)
+      assert_false @driver.logs.any? { |log| log.include?("skipped record") }
+    end
+
+    def test_delivers_invalid_tag_when_router_matches_it_without_regexp
+      output = FakeOutput.new
+      router = create_event_router('**', output)
+      process_with_router(router)
+
+      assert_equal([['app.a', ['record 1']], ["app.\xFF", ['record 2']], ['app.b', ['record 3']]], output.emitted)
+      assert_false @driver.logs.any? { |log| log.include?("skipped record") }
+    end
+
+    def test_raises_when_output_raises_for_invalid_tag
+      output = FakeOutput.new(fail_tags: ["app.\xFF"])
+      router = create_event_router('**', output)
+
+      assert_raise(ArgumentError) { process_with_router(router) }
+    end
+
+    def test_raises_when_output_raises_for_missing_tag
+      output = FakeOutput.new(fail_tags: [nil])
+      router = create_event_router('**', output)
+      messages = [FakeMessage.new({'message' => 'record 1'}.to_json, nil, 0, Time.now, {})]
+
+      assert_raise(ArgumentError) { process_with_router(router, messages: messages) }
     end
   end
 

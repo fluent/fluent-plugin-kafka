@@ -285,7 +285,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
         parsed_time = nil
         record = @parser_proc.call(msg) { |time| parsed_time = time }
         tag = record[@record_tag_key]
-        unless tag.nil? || (tag.is_a?(String) && tag.valid_encoding?)
+        unless tag.nil? || tag.is_a?(String)
           log.warn "skipped record with invalid tag in #{batch.topic}/#{batch.partition}", :key => @record_tag_key, :value => tag, :offset => msg.offset
           next
         end
@@ -330,10 +330,25 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     unless es.empty?
       es.each { |tag,es|
-        emit_events(tag, es)
+        begin
+          emit_events(tag, es)
+        rescue ArgumentError => e
+          # A tag with invalid encoding raises ArgumentError when the router matches it against a pattern.
+          # Other ArgumentError, such as the one from an output, must still propagate to keep the offset.
+          raise unless tag.is_a?(String) && !tag.valid_encoding? && unmatchable_tag?(tag)
+          log.warn "skipped records with invalid tag in #{batch.topic}/#{batch.partition}", :tag => tag, :error => e.to_s
+        end
       }
     end
   end
+
+  def unmatchable_tag?(tag)
+    router.match?(tag)
+    false
+  rescue ArgumentError
+    true
+  end
+  private :unmatchable_tag?
 
   def process_batch(batch)
     es = Fluent::MultiEventStream.new
