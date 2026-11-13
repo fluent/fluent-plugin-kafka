@@ -96,10 +96,8 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
                  '0_14_0.rb'
                elsif version >= Gem::Version.create('0.13.0')
                  '0_13_0.rb'
-               elsif version >= Gem::Version.create('0.12.0')
-                 '0_12_0.rb'
                else
-                 '0_11_0.rb'
+                 '0_12_0.rb'
                end
 
     assert_equal expected, File.basename(Rdkafka::Producer.instance_method(:close).source_location.first)

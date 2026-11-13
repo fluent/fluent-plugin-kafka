@@ -189,10 +189,10 @@ class RdkafkaOutputTest < Test::Unit::TestCase
     assert_equal [nil], producer.handles.collect(&:waited)
   end
 
-  # The thread that polls the native producer: on the producer before
-  # rdkafka 0.12, on its client in 0.12 and on its native kafka since 0.13.
+  # The thread that polls the native producer: on its client in rdkafka 0.12
+  # and on its native kafka since 0.13.
   def polling_thread(producer)
-    [producer, producer.instance_variable_get(:@client), producer.instance_variable_get(:@native_kafka)].compact.
+    [producer.instance_variable_get(:@client), producer.instance_variable_get(:@native_kafka)].compact.
       map { |owner| owner.instance_variable_get(:@polling_thread) }.compact.first
   end
 
