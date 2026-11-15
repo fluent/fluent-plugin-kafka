@@ -165,6 +165,33 @@ class KafkaInputTest < Test::Unit::TestCase
       FakeMessage.new({'tag' => tag, 'message' => message}.to_json, nil, offset, Time.now)
     end
 
+    # An output may change the tag in place, as HandleTagNameMixin#filter_record does.
+    class InPlaceTagRouter
+      attr_reader :emitted
+
+      def initialize
+        @emitted = []
+      end
+
+      def emit_stream(tag, es)
+        frozen = tag.frozen?
+        tag.sub!(/\Akafka\./, '')
+        @emitted << [tag, frozen]
+      end
+    end
+
+    data("tag_source record" => [:record, 'app.a'],
+         "tag_source topic" => [:topic, TOPIC_NAME])
+    def test_consume_emits_tag_that_can_be_changed_in_place(data)
+      tag_source, expected_tag = data
+      router = InPlaceTagRouter.new
+      assert_nothing_raised {
+        create_topic_watcher([tagged_message('app.a', 'record 1', 0)], router, tag_source: tag_source, add_prefix: 'kafka').consume
+      }
+
+      assert_equal([[expected_tag, false]], router.emitted)
+    end
+
     def test_consume_with_tag_source_record_emits_stream_per_tag
       messages = [
         tagged_message('app.trusted', 'record 1', 0),
