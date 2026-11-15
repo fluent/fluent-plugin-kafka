@@ -125,10 +125,19 @@ module Fluent
           ssl_client_cert: read_ssl_file(@ssl_client_cert),
           ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
           ssl_client_cert_key_password: @ssl_client_cert_key_password,
-          ssl_client_cert_chain: read_ssl_file(@ssl_client_cert_chain),
+          ssl_client_cert_chain: ruby_kafka_ssl_client_cert_chain,
           ssl_ca_certs_from_system: @ssl_ca_certs_from_system,
           ssl_verify_hostname: @ssl_verify_hostname,
         }
+      end
+
+      # ruby-kafka splits the chain at each "-----END CERTIFICATE-----" line
+      # and parses every piece as a certificate, so it fails on anything after
+      # the last certificate, such as a blank line or a private key. OpenSSL
+      # reads such files, so drop it. OpenSSL also reads the old
+      # "X509 CERTIFICATE" label.
+      def ruby_kafka_ssl_client_cert_chain
+        read_ssl_file(@ssl_client_cert_chain)&.sub(/\A.*-----END (?:X509 )?CERTIFICATE-----\K.*\z/m, "\n")
       end
 
       def pickup_ssl_endpoint(node)
