@@ -334,7 +334,12 @@ DESC
           end
 
           record['tag'] = tag if @output_include_tag
-          topic = (@exclude_topic_key ? record.delete(@topic_key) : record[@topic_key]) || def_topic
+          topic = @exclude_topic_key ? record.delete(@topic_key) : record[@topic_key]
+          # ruby-kafka checks the topics only when the whole chunk is delivered
+          if topic && (!topic.is_a?(String) || topic.empty?)
+            raise ArgumentError, "topic must be a non-empty String, got #{topic.inspect}"
+          end
+          topic ||= def_topic
           partition_key = (@exclude_partition_key ? record.delete(@partition_key_key) : record[@partition_key_key]) || @default_partition_key
           partition = (@exclude_partition ? record.delete(@partition_key) : record[@partition_key]) || @default_partition
           message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
