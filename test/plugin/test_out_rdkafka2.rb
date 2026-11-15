@@ -69,6 +69,14 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
       @produced << {payload: payload, key: key, partition: partition}
       DummyDeliveryHandle.new(@delivery_error)
     end
+
+    def close(timeout)
+      @closed = true
+    end
+
+    def closed?
+      !!@closed
+    end
   end
 
   RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION = -190
@@ -120,6 +128,28 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     assert_not_nil closer.join(10)
     assert_false closer.value
     assert_false polling_thread.alive?
+  end
+
+  # Fluentd stops the flush threads in after_shutdown, so a flush thread can
+  # still create a producer after shutdown.
+  def test_close_closes_producer_created_after_shutdown
+    d = create_driver
+    producers = []
+    stub(d.instance.instance_variable_get(:@rdkafka)).producer { DummyProducer.new.tap { |producer| producers << producer } }
+
+    d.instance.start
+    d.instance.stop
+    d.instance.before_shutdown
+    d.instance.shutdown
+    Thread.new { d.instance.get_producer }.join
+    d.instance.after_shutdown
+    d.instance.close
+
+    assert_equal 1, producers.size
+    assert_true producers.first.closed?
+    assert_equal({}, d.instance.instance_variable_get(:@producers))
+  ensure
+    d.instance.terminate if d
   end
 
   def test_configure

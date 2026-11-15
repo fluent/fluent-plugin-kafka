@@ -134,6 +134,14 @@ class RdkafkaOutputTest < Test::Unit::TestCase
       @handles << DummyDeliveryHandle.new
       @handles.last
     end
+
+    def close(timeout)
+      @closed = true
+    end
+
+    def closed?
+      !!@closed
+    end
   end
 
   def write_records(records, params = {})
@@ -215,6 +223,28 @@ class RdkafkaOutputTest < Test::Unit::TestCase
     assert_true producer.closed? if producer.respond_to?(:closed?)
     assert_false polling_thread(producer).alive?
     assert_equal({}, d.instance.instance_variable_get(:@producers))
+  end
+
+  # Fluentd stops the flush threads in after_shutdown, so a flush thread can
+  # still create a producer after shutdown.
+  def test_close_closes_producer_created_after_shutdown
+    d = create_driver
+    producers = []
+    stub(d.instance.instance_variable_get(:@rdkafka)).producer { DummyProducer.new.tap { |producer| producers << producer } }
+
+    d.instance.start
+    d.instance.stop
+    d.instance.before_shutdown
+    d.instance.shutdown
+    Thread.new { d.instance.get_producer }.join
+    d.instance.after_shutdown
+    d.instance.close
+
+    assert_equal 1, producers.size
+    assert_true producers.first.closed?
+    assert_equal({}, d.instance.instance_variable_get(:@producers))
+  ensure
+    d.instance.terminate if d
   end
 
   # Returns the file that defines Rdkafka::Producer#close after requiring

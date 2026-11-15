@@ -169,9 +169,12 @@ DESC
     true
   end
 
-  def shutdown
-    super
+  # Fluentd stops the flush threads in after_shutdown, and they can still
+  # call write until then. So close the producers here, after the flush
+  # threads have stopped.
+  def close
     shutdown_producers
+    super
   end
 
   def shutdown_producers
