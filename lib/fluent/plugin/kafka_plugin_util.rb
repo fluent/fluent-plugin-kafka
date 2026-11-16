@@ -135,9 +135,11 @@ module Fluent
       # and parses every piece as a certificate, so it fails on anything after
       # the last certificate, such as a blank line or a private key. OpenSSL
       # reads such files, so drop it. OpenSSL also reads the old
-      # "X509 CERTIFICATE" label.
+      # "X509 CERTIFICATE" label. The chain is handled as bytes, because a file
+      # with text that is invalid in Encoding.default_external would make both
+      # this and ruby-kafka's split raise.
       def ruby_kafka_ssl_client_cert_chain
-        read_ssl_file(@ssl_client_cert_chain)&.sub(/\A.*-----END (?:X509 )?CERTIFICATE-----\K.*\z/m, "\n")
+        read_ssl_file(@ssl_client_cert_chain)&.b&.sub(/\A.*-----END (?:X509 )?CERTIFICATE-----\K.*\z/m, "\n")
       end
 
       def pickup_ssl_endpoint(node)

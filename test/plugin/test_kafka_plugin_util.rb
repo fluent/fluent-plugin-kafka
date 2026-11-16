@@ -87,6 +87,9 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
          "private key after the certificates" => ->(certs, key) { certs.map(&:to_pem).join + key.private_to_pem },
          "X509 CERTIFICATE label on the last certificate" => ->(certs, key) {
            certs[0].to_pem + certs[1].to_pem.gsub("CERTIFICATE", "X509 CERTIFICATE")
+         },
+         "non-UTF-8 text before the certificates" => ->(certs, key) {
+           "Bag Attributes\n    friendlyName: M\xFCller\n".b + certs.map(&:to_pem).join
          })
     def test_ruby_kafka_ssl_params_with_client_cert_chain(build_chain)
       key = OpenSSL::PKey::EC.generate('prime256v1')
