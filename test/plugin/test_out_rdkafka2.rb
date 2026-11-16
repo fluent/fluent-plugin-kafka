@@ -152,6 +152,23 @@ class Rdkafka2OutputTest < Test::Unit::TestCase
     d.instance.terminate if d
   end
 
+  # The wakeup from after_shutdown is lost when a flush thread is inside write,
+  # so the thread must not wait for the next flush or retry afterwards.
+  def test_next_flush_time_does_not_wait_after_flush_threads_are_asked_to_stop
+    d = create_driver
+    d.instance.start
+    assert_operator d.instance.next_flush_time, :>, Time.now
+    d.instance.stop
+    d.instance.before_shutdown
+    d.instance.shutdown
+    d.instance.after_shutdown
+
+    assert_operator d.instance.next_flush_time, :<=, Time.now
+  ensure
+    d.instance.close if d
+    d.instance.terminate if d
+  end
+
   def test_configure
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(base_config)

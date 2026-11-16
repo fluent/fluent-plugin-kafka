@@ -299,6 +299,14 @@ DESC
       super
     end
 
+    # Fluentd's flush thread waits until next_flush_time after a write, and the
+    # wakeup from after_shutdown is lost when the thread is inside write. Do not
+    # wait once the flush threads have been asked to stop.
+    def next_flush_time
+      return Time.now if @output_flush_threads_running == false
+      super
+    end
+
     def shutdown_producers
       if @share_producer
         close_producer(@shared_producer)

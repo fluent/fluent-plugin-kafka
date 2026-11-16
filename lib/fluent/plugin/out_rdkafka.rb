@@ -169,11 +169,25 @@ DESC
     true
   end
 
-  # Fluentd stops the flush threads in after_shutdown, and they can still
-  # call write until then. So close the producers here, after the flush
-  # threads have stopped.
+  def shutdown
+    super
+    shutdown_producers
+  end
+
+  # Fluentd v0.12 does not call close, so the producers are also closed in
+  # shutdown. Fluentd stops the flush threads in after_shutdown, and they can
+  # still call write until then. So close the producers a flush thread
+  # created in the meantime here, after the flush threads have stopped.
   def close
     shutdown_producers
+    super
+  end
+
+  # Fluentd's flush thread waits until next_flush_time after a write, and the
+  # wakeup from after_shutdown is lost when the thread is inside write. Do not
+  # wait once the flush threads have been asked to stop.
+  def next_flush_time
+    return Time.now if @output_flush_threads_running == false
     super
   end
 
