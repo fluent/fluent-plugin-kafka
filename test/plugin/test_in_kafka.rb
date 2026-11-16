@@ -417,6 +417,36 @@ class KafkaInputTest < Test::Unit::TestCase
       assert_equal(3, watcher.instance_variable_get(:@next_offset))
     end
 
+    data("apache2" => [%[
+           format apache2
+           time_format %d/%b/%Y:%H:%M:%S %z
+         ], '192.168.0.1 - - [28/Feb/2013:12:00:00 +0900] "GET / HTTP/1.1" 200 777 "-" "Opera/12.0"'],
+         "regexp with another time_key" => [%[
+           format regexp
+           expression /^(?<ts>\\S+) (?<message>.*)$/
+           time_key ts
+           time_format %Y-%m-%dT%H:%M:%S%z
+         ], '2013-02-28T12:00:00+0900 hello'])
+    def test_consume_with_time_source_record_and_parser_time_key_other_than_record_time_key(data)
+      parser_conf, value = data
+      input = create_driver(%[
+        @type kafka
+        brokers localhost:9092
+        time_source record
+        #{parser_conf}
+        topics #{TOPIC_NAME}
+      ]).instance
+      messages = [FakeMessage.new(value, nil, 0, Time.now)]
+      router = FakeRouter.new
+      watcher = create_topic_watcher(messages, router, tag_source: :topic, time_source: :record,
+                                     time_parser: input.instance_variable_get(:@time_parser),
+                                     parser: input.instance_variable_get(:@parser_proc))
+      watcher.consume
+
+      assert_equal([Fluent::EventTime.from_time(Time.utc(2013, 2, 28, 3, 0, 0))],
+                   router.emitted_times)
+    end
+
     data("text" => ["text", "あ", "\xFF"],
          "ltsv" => ["ltsv", "message:あ", "message:\xFF"],
          "custom parser" => ["none", "あ", "\xFF"])
