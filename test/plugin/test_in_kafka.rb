@@ -2,10 +2,12 @@ require 'helper'
 require 'fluent/test/driver/input'
 require 'fluent/test/helpers'
 require 'securerandom'
+require 'tmpdir'
 require 'json'
 
 class KafkaInputTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
+  include RubyKafkaSSLParamsTestHelper
 
   def setup
     Fluent::Test.setup
@@ -52,6 +54,21 @@ class KafkaInputTest < Test::Unit::TestCase
       ])
       time_parser = d.instance.instance_variable_get(:@time_parser)
       assert_equal Fluent::EventTime.from_time(expected), time_parser.parse('2020-11-11 07:58:58')
+    end
+  end
+
+  data(SASL_PARAMS)
+  def test_start_passes_ssl_params(sasl_params)
+    Dir.mktmpdir do |dir|
+      ssl_params, expected = ssl_params_with_files(dir)
+      d = create_driver(CONFIG + params_to_conf(ssl_params.merge(sasl_params)))
+      options = capture_kafka_new_options {
+        assert_raise(KafkaNewCalled) {
+          d.instance.start
+        }
+      }
+
+      assert_equal(expected, options.slice(*expected.keys))
     end
   end
 

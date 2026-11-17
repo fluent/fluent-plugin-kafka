@@ -3,9 +3,11 @@ require 'fluent/test/helpers'
 require 'fluent/test/driver/input'
 require 'fluent/test/driver/output'
 require 'securerandom'
+require 'tmpdir'
 
 class Kafka2OutputTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
+  include RubyKafkaSSLParamsTestHelper
 
   def setup
     Fluent::Test.setup
@@ -90,6 +92,21 @@ class Kafka2OutputTest < Test::Unit::TestCase
     assert_nothing_raised(Fluent::ConfigError) {
       create_driver(conf)
     }
+  end
+
+  data(SASL_PARAMS.merge(AWS_MSK_IAM_PARAMS))
+  def test_refresh_client_passes_ssl_params(sasl_params)
+    Dir.mktmpdir do |dir|
+      ssl_params, expected = ssl_params_with_files(dir)
+      d = create_driver(config + config_element('ROOT', '', ssl_params.merge(sasl_params), []))
+      options = capture_kafka_new_options {
+        assert_raise(KafkaNewCalled) {
+          d.instance.refresh_client
+        }
+      }
+
+      assert_equal(expected, options.slice(*expected.keys))
+    end
   end
 
   data("sha256" => "sha256",

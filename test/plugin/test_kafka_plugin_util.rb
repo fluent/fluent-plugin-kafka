@@ -1,5 +1,7 @@
 require 'helper'
 require 'fluent/plugin/kafka_plugin_util'
+require 'openssl'
+require 'tmpdir'
 
 class KafkaPluginUtilTest < Test::Unit::TestCase
 
@@ -66,6 +68,48 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
         path
       end
       assert_equal(["a","b"], read_ssl_file(["a","b"]))
+    end
+
+    def create_certificate(common_name, key)
+      cert = OpenSSL::X509::Certificate.new
+      cert.version = 2
+      cert.serial = 1
+      cert.subject = cert.issuer = OpenSSL::X509::Name.parse("/CN=#{common_name}")
+      cert.public_key = key
+      cert.not_before = Time.now
+      cert.not_after = Time.now + 3600
+      cert.sign(key, OpenSSL::Digest.new('SHA256'))
+      cert
+    end
+
+    data("only certificates" => ->(certs, key) { certs.map(&:to_pem).join },
+         "blank line at the end" => ->(certs, key) { certs.map(&:to_pem).join + "\n" },
+         "private key after the certificates" => ->(certs, key) { certs.map(&:to_pem).join + key.private_to_pem },
+         "X509 CERTIFICATE label on the last certificate" => ->(certs, key) {
+           certs[0].to_pem + certs[1].to_pem.gsub("CERTIFICATE", "X509 CERTIFICATE")
+         },
+         "non-UTF-8 text before the certificates" => ->(certs, key) {
+           "Bag Attributes\n    friendlyName: M\xFCller\n".b + certs.map(&:to_pem).join
+         })
+    def test_ruby_kafka_ssl_params_with_client_cert_chain(build_chain)
+      key = OpenSSL::PKey::EC.generate('prime256v1')
+      client_cert = create_certificate('client', key)
+      chain = [create_certificate('intermediate1', key), create_certificate('intermediate2', key)]
+
+      Dir.mktmpdir do |dir|
+        @ssl_client_cert = File.join(dir, 'client_cert.pem')
+        @ssl_client_cert_key = File.join(dir, 'client_cert_key.pem')
+        @ssl_client_cert_chain = File.join(dir, 'client_cert_chain.pem')
+        @ssl_verify_hostname = true
+        File.write(@ssl_client_cert, client_cert.to_pem)
+        File.write(@ssl_client_cert_key, key.private_to_pem)
+        File.write(@ssl_client_cert_chain, build_chain.call(chain, key))
+
+        kafka = Kafka.new(['localhost:9092'], **ruby_kafka_ssl_params)
+        ssl_context = kafka.instance_variable_get(:@connection_builder).instance_variable_get(:@ssl_context)
+
+        assert_equal(chain.map(&:to_der), ssl_context.extra_chain_cert.map(&:to_der))
+      end
     end
 
     data("valid UTF-8" => ["あ".b, "あ"],

@@ -1,7 +1,10 @@
 require 'helper'
 require 'fluent/output'
+require 'tmpdir'
 
 class KafkaOutputTest < Test::Unit::TestCase
+  include RubyKafkaSSLParamsTestHelper
+
   def setup
     Fluent::Test.setup
   end
@@ -50,6 +53,20 @@ class KafkaOutputTest < Test::Unit::TestCase
     d = create_driver(CONFIG + %[partitioner_hash_function #{hash_type}])
     assert_nothing_raised do
       d.instance.refresh_client
+    end
+  end
+
+  data(SASL_PARAMS)
+  def test_refresh_client_passes_ssl_params(sasl_params)
+    Dir.mktmpdir do |dir|
+      ssl_params, expected = ssl_params_with_files(dir)
+      d = create_driver(CONFIG + params_to_conf(ssl_params.merge(sasl_params)))
+      # refresh_client logs the error instead of raising it
+      options = capture_kafka_new_options {
+        d.instance.refresh_client
+      }
+
+      assert_equal(expected, options.slice(*expected.keys))
     end
   end
 
