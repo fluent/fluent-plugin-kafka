@@ -369,6 +369,10 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
       else
         raise RuntimeError, "Exceeds retry_emit_limit"
       end
+    rescue => e
+      # Fetching these records again would fail in the same way and block the partition,
+      # for example when the output cannot format a record.
+      log.warn "Skipped records that could not be emitted", :tag => tag, :error => e.to_s
     end
   end
 end

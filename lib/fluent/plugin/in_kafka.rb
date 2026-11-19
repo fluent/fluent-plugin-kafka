@@ -67,6 +67,12 @@ class Fluent::KafkaInput < Fluent::Input
   include Fluent::KafkaPluginUtil::SaslSettings
   include Fluent::KafkaPluginUtil::MessageEncoding
 
+  BufferError = if defined?(Fluent::Plugin::Buffer::BufferOverflowError)
+                  Fluent::Plugin::Buffer::BufferOverflowError
+                else
+                  Fluent::BufferQueueLimitError
+                end
+
   BufferChunkOverflowError = if defined?(Fluent::Plugin::Buffer::BufferChunkOverflowError)
                                Fluent::Plugin::Buffer::BufferChunkOverflowError
                              else
@@ -374,11 +380,13 @@ class Fluent::KafkaInput < Fluent::Input
           @router.emit_stream(tag.dup, es)
         rescue BufferChunkOverflowError => e
           $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
-        rescue ArgumentError => e
-          # A tag with invalid encoding raises ArgumentError when the router matches it against a pattern.
-          # Other ArgumentError, such as the one from an output, must still propagate to keep the offset.
-          raise unless !tag.valid_encoding? && unmatchable_tag?(tag)
-          $log.warn "skipped records with invalid tag in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
+        rescue BufferError
+          # The buffer may have space again later. Keep the offset to fetch these records again.
+          raise
+        rescue => e
+          # Fetching these records again would fail in the same way and block the partition,
+          # for example when the output cannot format a record or the tag has invalid encoding.
+          $log.warn "Skipped records that could not be emitted in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
         end
       }
 
@@ -386,15 +394,6 @@ class Fluent::KafkaInput < Fluent::Input
         @offset_manager.save_offset(offset)
       end
       @next_offset = offset
-    end
-
-    private
-
-    def unmatchable_tag?(tag)
-      @router.match?(tag)
-      false
-    rescue ArgumentError
-      true
     end
   end
 

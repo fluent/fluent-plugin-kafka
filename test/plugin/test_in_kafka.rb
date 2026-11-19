@@ -131,13 +131,14 @@ class KafkaInputTest < Test::Unit::TestCase
     class FakeOutput
       attr_reader :emitted
 
-      def initialize(fail_tag: nil)
+      def initialize(fail_tag: nil, error: ArgumentError)
         @emitted = []
         @fail_tag = fail_tag
+        @error = error
       end
 
       def emit_events(tag, es)
-        raise ArgumentError, "output failed" if tag == @fail_tag
+        raise @error, "output failed" if tag == @fail_tag
         records = []
         es.each { |_time, record| records << record['message'] }
         @emitted << [tag, records]
@@ -308,12 +309,43 @@ class KafkaInputTest < Test::Unit::TestCase
       assert_equal(3, watcher.instance_variable_get(:@next_offset))
     end
 
-    def test_consume_keeps_offset_when_output_raises_for_invalid_tag
+    def test_consume_skips_invalid_tag_when_output_raises_for_it
       output = FakeOutput.new(fail_tag: "app.\xFF")
       router = create_event_router('**', output)
       watcher = create_topic_watcher(invalid_tag_messages, router)
+      watcher.consume
 
-      assert_raise(ArgumentError) { watcher.consume }
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], output.emitted)
+      assert_equal(3, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def failing_output_messages
+      [
+        tagged_message('app.a', 'record 1', 0),
+        tagged_message('app.bad', 'record 2', 1),
+        tagged_message('app.b', 'record 3', 2),
+      ]
+    end
+
+    data("format error" => JSON::GeneratorError,
+         "ArgumentError" => ArgumentError,
+         "RuntimeError" => RuntimeError)
+    def test_consume_skips_records_that_fail_to_emit(error)
+      output = FakeOutput.new(fail_tag: 'app.bad', error: error)
+      router = create_event_router('**', output)
+      watcher = create_topic_watcher(failing_output_messages, router)
+      watcher.consume
+
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], output.emitted)
+      assert_equal(3, watcher.instance_variable_get(:@next_offset))
+    end
+
+    def test_consume_keeps_offset_when_buffer_is_full
+      output = FakeOutput.new(fail_tag: 'app.bad', error: Fluent::Plugin::Buffer::BufferOverflowError)
+      router = create_event_router('**', output)
+      watcher = create_topic_watcher(failing_output_messages, router)
+
+      assert_raise(Fluent::Plugin::Buffer::BufferOverflowError) { watcher.consume }
       assert_equal(0, watcher.instance_variable_get(:@next_offset))
     end
 
