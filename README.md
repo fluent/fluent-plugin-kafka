@@ -39,8 +39,11 @@ If you want to use zookeeper related parameters, you also need to install zookee
 - ssl_client_cert_key_password
 - ssl_client_cert_chain
 - ssl_ca_certs_from_system
+- ssl_verify_hostname
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
+
+`ssl_verify_hostname` (default: `true`) checks that the certificate of each broker matches the host name used to connect to it. Set it to `false` to connect to brokers whose certificates don't list that host name, for example when you connect by IP address. The certificates are still verified against the CA certificates. The rdkafka based plugins set `ssl.endpoint.identification.algorithm` to `https` or `none` from this parameter.
 
 #### SASL authentication
 
@@ -48,8 +51,10 @@ Set path to SSL related files. See [Encryption and Authentication using SSL](htt
 
 - principal
 - keytab
+- service_name
 
 Set principal and path to keytab for SASL/GSSAPI authentication.
+`service_name` is the Kerberos service name of the brokers, and is passed as `sasl.kerberos.service.name`. Only the rdkafka based plugins (`rdkafka`, `rdkafka2` and `rdkafka_group`) use it. librdkafka uses `kafka` if it is not set.
 See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
 
 ##### with Plain/SCRAM
