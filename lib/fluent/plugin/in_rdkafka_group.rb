@@ -370,9 +370,9 @@ class Fluent::Plugin::RdKafkaGroupInput < Fluent::Plugin::Input
         raise RuntimeError, "Exceeds retry_emit_limit"
       end
     rescue *Fluent::KafkaPluginUtil::EmitErrors::UNRECOVERABLE_ERRORS => e
-      # Fetching these records again would fail in the same way and block the partition,
-      # for example when the output cannot format a record.
-      # Other errors, such as an output that is down, may go away. Keep the offset for them.
+      # The offsets are already stored and committed on close, so these records are not fetched again either.
+      # Skipping saves closing the consumer and waiting retry_wait_seconds before the next poll.
+      # Other errors, such as an output that is down, may go away. Let them restart the consumer for them.
       log.warn "Skipped records that could not be emitted from #{source}", :tag => tag, :error => e
     end
   end
