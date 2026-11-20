@@ -67,12 +67,6 @@ class Fluent::KafkaInput < Fluent::Input
   include Fluent::KafkaPluginUtil::SaslSettings
   include Fluent::KafkaPluginUtil::MessageEncoding
 
-  BufferError = if defined?(Fluent::Plugin::Buffer::BufferOverflowError)
-                  Fluent::Plugin::Buffer::BufferOverflowError
-                else
-                  Fluent::BufferQueueLimitError
-                end
-
   BufferChunkOverflowError = if defined?(Fluent::Plugin::Buffer::BufferChunkOverflowError)
                                Fluent::Plugin::Buffer::BufferChunkOverflowError
                              else
@@ -380,13 +374,11 @@ class Fluent::KafkaInput < Fluent::Input
           @router.emit_stream(tag.dup, es)
         rescue BufferChunkOverflowError => e
           $log.warn "Skipped records larger than the buffer chunk limit size in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
-        rescue BufferError
-          # The buffer may have space again later. Keep the offset to fetch these records again.
-          raise
-        rescue => e
+        rescue *Fluent::KafkaPluginUtil::EmitErrors::UNRECOVERABLE_ERRORS => e
           # Fetching these records again would fail in the same way and block the partition,
           # for example when the output cannot format a record or the tag has invalid encoding.
-          $log.warn "Skipped records that could not be emitted in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e.to_s
+          # Other errors, such as a full buffer or an output that is down, may go away. Keep the offset for them.
+          $log.warn "Skipped records that could not be emitted in #{@topic_entry.topic}/#{@topic_entry.partition}", :tag => tag, :error => e
         end
       }
 

@@ -323,7 +323,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     unless es.empty?
       es.each { |tag,es|
-        emit_events(tag, es)
+        emit_events(tag, es, "#{batch.topic}/#{batch.partition}")
       }
     end
   end
@@ -377,7 +377,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     }
 
     unless es.empty?
-      emit_events(tag, es)
+      emit_events(tag, es, "#{batch.topic}/#{batch.partition}")
     end
   end
 
@@ -403,7 +403,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
     log.error_backtrace
   end
 
-  def emit_events(tag, es)
+  def emit_events(tag, es, source)
     retries = 0
     begin
       # Hash keys are frozen copies, and an output may change the tag in place.
@@ -426,10 +426,11 @@ class Fluent::KafkaGroupInput < Fluent::Input
       else
         raise RuntimeError, "Exceeds retry_emit_limit"
       end
-    rescue => e
+    rescue *Fluent::KafkaPluginUtil::EmitErrors::UNRECOVERABLE_ERRORS => e
       # Fetching these records again would fail in the same way and block the partition,
       # for example when the output cannot format a record.
-      log.warn "Skipped records that could not be emitted", :tag => tag, :error => e.to_s
+      # Other errors, such as an output that is down, may go away. Keep the offset for them.
+      log.warn "Skipped records that could not be emitted from #{source}", :tag => tag, :error => e
     end
   end
 end

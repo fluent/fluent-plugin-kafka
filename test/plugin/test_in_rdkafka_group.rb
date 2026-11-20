@@ -293,14 +293,14 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     stub(d.instance).router { router }
 
     assert_nothing_raised do
-      d.instance.emit_events("test", es)
+      d.instance.emit_events("test", es, "topic/0")
     end
     assert_true d.logs.any? { |log| log.include?("Skipped records larger than the buffer chunk limit size") && log.include?("too large") }
   end
 
   data("format error" => JSON::GeneratorError,
        "ArgumentError" => ArgumentError,
-       "RuntimeError" => RuntimeError)
+       "TypeError" => TypeError)
   def test_emit_events_skips_records_that_fail_to_emit(error)
     d = create_driver
     es = Fluent::MultiEventStream.new
@@ -309,9 +309,23 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     stub(d.instance).router { router }
 
     assert_nothing_raised do
-      d.instance.emit_events("test", es)
+      d.instance.emit_events("test", es, "topic/0")
     end
-    assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted") && log.include?("cannot format") }
+    assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted from topic/0") && log.include?("cannot format") }
+  end
+
+  data("Errno::ENOSPC" => Errno::ENOSPC,
+       "RuntimeError" => RuntimeError)
+  def test_emit_events_raises_errors_that_may_go_away(error)
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise error, "output is down" }
+    stub(d.instance).router { router }
+
+    assert_raise(error) do
+      d.instance.emit_events("test", es, "topic/0")
+    end
   end
 
   def test_emit_events_raises_when_buffer_stays_full
@@ -324,7 +338,7 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     stub(d.instance).sleep
 
     assert_raise_message("Exceeds retry_emit_limit") do
-      d.instance.emit_events("test", es)
+      d.instance.emit_events("test", es, "topic/0")
     end
     assert_false d.logs.any? { |log| log.include?("Skipped records that could not be emitted") }
   end
@@ -337,7 +351,7 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     stub(d.instance).router { router }
 
     assert_raise(Fluent::Plugin::RdKafkaGroupInput::ForShutdown) do
-      d.instance.emit_events("test", es)
+      d.instance.emit_events("test", es, "topic/0")
     end
   end
 
@@ -744,7 +758,7 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
 
       assert_false reconnected
       assert_equal(%w[b c], router.emitted.map { |_, _, record| record['message'] })
-      assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted") && log.include?("cannot format") }
+      assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted from #{TOPIC_NAME}") && log.include?("cannot format") }
     end
   end
 

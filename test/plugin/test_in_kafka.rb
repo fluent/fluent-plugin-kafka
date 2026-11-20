@@ -329,7 +329,7 @@ class KafkaInputTest < Test::Unit::TestCase
 
     data("format error" => JSON::GeneratorError,
          "ArgumentError" => ArgumentError,
-         "RuntimeError" => RuntimeError)
+         "TypeError" => TypeError)
     def test_consume_skips_records_that_fail_to_emit(error)
       output = FakeOutput.new(fail_tag: 'app.bad', error: error)
       router = create_event_router('**', output)
@@ -340,12 +340,16 @@ class KafkaInputTest < Test::Unit::TestCase
       assert_equal(3, watcher.instance_variable_get(:@next_offset))
     end
 
-    def test_consume_keeps_offset_when_buffer_is_full
-      output = FakeOutput.new(fail_tag: 'app.bad', error: Fluent::Plugin::Buffer::BufferOverflowError)
+    data("buffer is full" => Fluent::Plugin::Buffer::BufferOverflowError,
+         "Kafka::ConnectionError" => Kafka::ConnectionError,
+         "Errno::ENOSPC" => Errno::ENOSPC,
+         "RuntimeError" => RuntimeError)
+    def test_consume_keeps_offset_for_errors_that_may_go_away(error)
+      output = FakeOutput.new(fail_tag: 'app.bad', error: error)
       router = create_event_router('**', output)
       watcher = create_topic_watcher(failing_output_messages, router)
 
-      assert_raise(Fluent::Plugin::Buffer::BufferOverflowError) { watcher.consume }
+      assert_raise(error) { watcher.consume }
       assert_equal(0, watcher.instance_variable_get(:@next_offset))
     end
 

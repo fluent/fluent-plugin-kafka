@@ -1,5 +1,23 @@
+require 'json'
+
+begin
+  require 'fluent/plugin/output'
+rescue LoadError
+  # Fluentd before v0.14 has no Fluent::Plugin::Output
+end
+
 module Fluent
   module KafkaPluginUtil
+    module EmitErrors
+      # Errors that Fluentd does not retry when an output fails to flush them.
+      # Fetching the records again fails in the same way, so the inputs skip them.
+      # Fluentd's own list is merged in, because it differs between versions.
+      UNRECOVERABLE_ERRORS = (
+        [ArgumentError, TypeError, NoMethodError, JSON::GeneratorError] |
+        (defined?(Fluent::Plugin::Output::UNRECOVERABLE_ERRORS) ? Fluent::Plugin::Output::UNRECOVERABLE_ERRORS : [])
+      ).freeze
+    end
+
     module PartitionSettings
       # -1 is the unassigned partition; the Kafka protocol takes the index as int32
       PARTITION_RANGE = -1..(2**31 - 1)
