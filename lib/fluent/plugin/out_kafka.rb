@@ -256,6 +256,7 @@ DESC
           log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
           producer.deliver_messages
           log.info "Recovered from BufferOverflow successfully`"
+          producer.produce(record_buf, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
         end
       end
 

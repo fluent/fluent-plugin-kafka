@@ -46,6 +46,43 @@ class KafkaOutputTest < Test::Unit::TestCase
     d = create_driver
   end
 
+  class BufferOverflowProducer
+    attr_reader :delivered
+
+    def initialize
+      @buffer = []
+      @delivered = []
+    end
+
+    def produce(value, **opts)
+      raise Kafka::BufferOverflow, "Cannot produce to test, max buffer size (1 messages) reached" unless @buffer.empty?
+      @buffer << value
+    end
+
+    def deliver_messages
+      @delivered.concat(@buffer)
+      @buffer.clear
+    end
+
+    def shutdown
+    end
+  end
+
+  def test_emit_keeps_the_record_that_hit_buffer_overflow
+    d = create_driver
+    producer = BufferOverflowProducer.new
+    kafka = Object.new
+    kafka.define_singleton_method(:producer) { |**opts| producer }
+    d.instance.instance_variable_set(:@kafka, kafka)
+
+    es = Fluent::MultiEventStream.new
+    es.add(0, {"message" => "first"})
+    es.add(0, {"message" => "second"})
+    d.instance.emit("test", es, Fluent::NullOutputChain.instance)
+
+    assert_equal ['{"message":"first"}', '{"message":"second"}'], producer.delivered
+  end
+
   data("crc32" => "crc32",
       "murmur2" => "murmur2")
   def test_partitioner_hash_function(data)
