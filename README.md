@@ -43,7 +43,7 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
 
-`ssl_verify_hostname` (default: `true`) checks that the certificate of each broker matches the host name used to connect to it. Set it to `false` to connect to brokers whose certificates don't list that host name, for example when you connect by IP address. The certificates are still verified against the CA certificates. The rdkafka based plugins set `ssl.endpoint.identification.algorithm` to `https` or `none` from this parameter.
+`ssl_verify_hostname` (default: `true`) checks that the certificate of each broker matches the host name used to connect to it. Set it to `false` to connect to brokers whose certificates don't list that host name, for example when you connect by IP address. The certificates are still verified against the CA certificates. This parameter does not enable SSL by itself. It takes effect only when SSL is enabled with `ssl_ca_cert`, `ssl_ca_certs_from_system` or `ssl_client_cert`. In that case, the rdkafka based plugins set `ssl.endpoint.identification.algorithm` to `https` or `none` from it. A value set for that key in `rdkafka_options` or `kafka_configs` takes precedence. If you enable SSL only in `rdkafka_options` or `kafka_configs`, this parameter is not used. Set `ssl.endpoint.identification.algorithm` there. Otherwise librdkafka uses its own default, which is `none` before librdkafka 2.0.0.
 
 #### SASL authentication
 
@@ -54,7 +54,9 @@ Set path to SSL related files. See [Encryption and Authentication using SSL](htt
 - service_name
 
 Set principal and path to keytab for SASL/GSSAPI authentication.
-`service_name` is the Kerberos service name of the brokers, and is passed as `sasl.kerberos.service.name`. Only the rdkafka based plugins (`rdkafka`, `rdkafka2` and `rdkafka_group`) use it. librdkafka uses `kafka` if it is not set.
+
+`service_name` is the Kerberos service name of the brokers, and is passed as `sasl.kerberos.service.name` when `principal` is set. Only the rdkafka based plugins (`rdkafka`, `rdkafka2` and `rdkafka_group`) use it. If `service_name` is not set, librdkafka uses `kafka`.
+
 See [Authentication using SASL](https://github.com/zendesk/ruby-kafka#authentication-using-sasl) for more details.
 
 ##### with Plain/SCRAM
