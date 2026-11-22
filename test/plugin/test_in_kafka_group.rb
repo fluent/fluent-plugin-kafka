@@ -165,9 +165,67 @@ class KafkaGroupInputTest < Test::Unit::TestCase
     stub(d.instance).router { router }
 
     assert_nothing_raised do
-      d.instance.emit_events("test", es)
+      d.instance.emit_events("test", es, "topic/0")
     end
     assert_true d.logs.any? { |log| log.include?("Skipped records larger than the buffer chunk limit size") && log.include?("too large") }
+  end
+
+  data("format error" => JSON::GeneratorError,
+       "ArgumentError" => ArgumentError,
+       "TypeError" => TypeError)
+  def test_emit_events_skips_records_that_fail_to_emit(error)
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise error, "cannot format" }
+    stub(d.instance).router { router }
+
+    assert_nothing_raised do
+      d.instance.emit_events("test", es, "topic/0")
+    end
+    assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted from topic/0") && log.include?("cannot format") }
+  end
+
+  data("Kafka::ConnectionError" => Kafka::ConnectionError,
+       "Errno::ENOSPC" => Errno::ENOSPC,
+       "RuntimeError" => RuntimeError)
+  def test_emit_events_raises_errors_that_may_go_away(error)
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise error, "output is down" }
+    stub(d.instance).router { router }
+
+    assert_raise(error) do
+      d.instance.emit_events("test", es, "topic/0")
+    end
+  end
+
+  def test_emit_events_raises_when_buffer_stays_full
+    d = create_driver(CONFIG + "retry_emit_limit 1\n")
+    d.instance.instance_variable_set(:@consumer, Object.new)
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).twice { raise Fluent::KafkaGroupInput::BufferError, "buffer space has too many data" }
+    stub(d.instance).router { router }
+    stub(d.instance).sleep
+
+    assert_raise_message("Exceeds retry_emit_limit") do
+      d.instance.emit_events("test", es, "topic/0")
+    end
+    assert_false d.logs.any? { |log| log.include?("Skipped records that could not be emitted") }
+  end
+
+  def test_emit_events_stops_retrying_on_shutdown
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise Fluent::KafkaGroupInput::BufferError, "buffer space has too many data" }
+    stub(d.instance).router { router }
+
+    assert_raise(Fluent::KafkaGroupInput::ForShutdown) do
+      d.instance.emit_events("test", es, "topic/0")
+    end
   end
 
   class RecordTimeTest < self
@@ -325,6 +383,14 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       end
     end
 
+    # Like an output that cannot format a record, fails on the tag app.bad
+    class FailingRouter < FakeRouter
+      def emit_stream(tag, es)
+        raise JSON::GeneratorError, "cannot format" if tag == 'app.bad'
+        super
+      end
+    end
+
     def tagged_message(tag, message, offset)
       FakeMessage.new({'tag' => tag, 'message' => message}.to_json, nil, offset, Time.now, {})
     end
@@ -373,6 +439,26 @@ class KafkaGroupInputTest < Test::Unit::TestCase
       parser_errors = @driver.logs.select { |log| log.include?("parser error in #{TOPIC_NAME}/0") }
       assert_equal(expected_parser_errors,
                    parser_errors.map { |log| log[/offset=\d+/] })
+    end
+
+    def test_skips_tag_that_fails_to_emit_and_emits_other_tags
+      d = create_driver(%[
+        brokers localhost:9092
+        consumer_group fluentd
+        format json
+        tag_source record
+        topics #{TOPIC_NAME}
+      ])
+      router = FailingRouter.new
+      stub(d.instance).router { router }
+
+      assert_nothing_raised {
+        d.instance.process_batch_with_record_tag(FakeBatch.new(TOPIC_NAME, 0, [tagged_message('app.a', 'record 1', 0),
+                                                                               tagged_message('app.bad', 'record 2', 1),
+                                                                               tagged_message('app.b', 'record 3', 2)]))
+      }
+      assert_equal([['app.a', ['record 1']], ['app.b', ['record 3']]], router.emitted)
+      assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted") && log.include?("app.bad") }
     end
 
     # An output may change the tag in place, as HandleTagNameMixin#filter_record does.

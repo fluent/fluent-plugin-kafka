@@ -293,9 +293,66 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
     stub(d.instance).router { router }
 
     assert_nothing_raised do
-      d.instance.emit_events("test", es)
+      d.instance.emit_events("test", es, "topic/0")
     end
     assert_true d.logs.any? { |log| log.include?("Skipped records larger than the buffer chunk limit size") && log.include?("too large") }
+  end
+
+  data("format error" => JSON::GeneratorError,
+       "ArgumentError" => ArgumentError,
+       "TypeError" => TypeError)
+  def test_emit_events_skips_records_that_fail_to_emit(error)
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise error, "cannot format" }
+    stub(d.instance).router { router }
+
+    assert_nothing_raised do
+      d.instance.emit_events("test", es, "topic/0")
+    end
+    assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted from topic/0") && log.include?("cannot format") }
+  end
+
+  data("Errno::ENOSPC" => Errno::ENOSPC,
+       "RuntimeError" => RuntimeError)
+  def test_emit_events_raises_errors_that_may_go_away(error)
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise error, "output is down" }
+    stub(d.instance).router { router }
+
+    assert_raise(error) do
+      d.instance.emit_events("test", es, "topic/0")
+    end
+  end
+
+  def test_emit_events_raises_when_buffer_stays_full
+    d = create_driver(CONFIG + "retry_emit_limit 1\n")
+    d.instance.instance_variable_set(:@consumer, Object.new)
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).twice { raise Fluent::Plugin::RdKafkaGroupInput::BufferError, "buffer space has too many data" }
+    stub(d.instance).router { router }
+    stub(d.instance).sleep
+
+    assert_raise_message("Exceeds retry_emit_limit") do
+      d.instance.emit_events("test", es, "topic/0")
+    end
+    assert_false d.logs.any? { |log| log.include?("Skipped records that could not be emitted") }
+  end
+
+  def test_emit_events_stops_retrying_on_shutdown
+    d = create_driver
+    es = Fluent::MultiEventStream.new
+    router = Object.new
+    mock(router).emit_stream("test", es).once { raise Fluent::Plugin::RdKafkaGroupInput::BufferError, "buffer space has too many data" }
+    stub(d.instance).router { router }
+
+    assert_raise(Fluent::Plugin::RdKafkaGroupInput::ForShutdown) do
+      d.instance.emit_events("test", es, "topic/0")
+    end
   end
 
   class RecordTimeTest < self
@@ -671,6 +728,37 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
 
       assert_false reconnected
       assert_equal(%w[a b c], router.emitted.map { |_, _, record| record['message'] })
+    end
+  end
+
+  class EmitErrorTest < self
+    # Like an output that cannot format a record, fails on the batch with "bad"
+    class FailingRouter < RecordTimeTest::FakeRouter
+      def emit_stream(tag, es)
+        raise JSON::GeneratorError, "cannot format" if es.any? { |_time, record| record['message'] == 'bad' }
+        super
+      end
+    end
+
+    def test_emit_error_keeps_consumer_and_following_records
+      d = create_driver(CONFIG + "max_batch_size 2\n")
+      router = FailingRouter.new
+      stub(d.instance).router { router }
+      reconnected = false
+      stub(d.instance).reconnect_consumer {
+        reconnected = true
+        d.instance.instance_variable_set(:@consumer, nil)
+      }
+      messages = %w[a bad b c].each_with_index.map { |payload, i|
+        RecordTimeTest::FakeMessage.new(TOPIC_NAME, 0, payload, nil, i, Time.now, {})
+      }
+      d.instance.instance_variable_set(:@consumer, RecordTimeTest::FakeConsumer.new(d.instance, messages))
+
+      d.instance.run
+
+      assert_false reconnected
+      assert_equal(%w[b c], router.emitted.map { |_, _, record| record['message'] })
+      assert_true d.logs.any? { |log| log.include?("Skipped records that could not be emitted from #{TOPIC_NAME}") && log.include?("cannot format") }
     end
   end
 
