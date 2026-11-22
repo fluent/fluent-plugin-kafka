@@ -37,11 +37,9 @@ class RdkafkaOutputTest < Test::Unit::TestCase
   end
 
   def test_attr_output_data_type_separates_fields_with_tab
-    d = create_driver(base_config("output_data_type" => "attr:message,level"))
+    producer = write_records([{"message" => "hello", "level" => "info"}], "output_data_type" => "attr:message,level")
 
-    formatted = d.instance.instance_variable_get(:@formatter_proc).call("tag", 0, {"message" => "hello", "level" => "info"})
-
-    assert_equal "hello\tinfo", formatted
+    assert_equal ["hello\tinfo"], producer.produced.collect { |message| message[:payload] }
   end
 
   def test_configure_ssl_ca_cert
