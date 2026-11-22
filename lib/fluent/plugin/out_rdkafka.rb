@@ -232,7 +232,7 @@ DESC
       Proc.new { |tag, time, record|
         @custom_attributes.map { |attr|
           record[attr].nil? ? '' : record[attr].to_s
-        }.join(@f_separator)
+        }.join("\t")
       }
     else
       @formatter = Fluent::Plugin.new_formatter(@output_data_type)

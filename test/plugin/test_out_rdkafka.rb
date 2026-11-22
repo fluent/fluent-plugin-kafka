@@ -36,6 +36,12 @@ class RdkafkaOutputTest < Test::Unit::TestCase
     assert_equal 'localhost:9092', d.instance.brokers
   end
 
+  def test_attr_output_data_type_separates_fields_with_tab
+    producer = write_records([{"message" => "hello", "level" => "info"}], "output_data_type" => "attr:message,level")
+
+    assert_equal ["hello\tinfo"], producer.produced.collect { |message| message[:payload] }
+  end
+
   def test_configure_ssl_ca_cert
     d = create_driver(base_config("ssl_ca_cert" => "/path/to/ca_cert.pem"))
 
