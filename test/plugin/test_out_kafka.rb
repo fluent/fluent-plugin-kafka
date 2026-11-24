@@ -49,13 +49,15 @@ class KafkaOutputTest < Test::Unit::TestCase
   class BufferOverflowProducer
     attr_reader :delivered
 
-    def initialize
+    def initialize(max_bytesize: nil)
       @buffer = []
       @delivered = []
+      @max_bytesize = max_bytesize
     end
 
     def produce(value, **opts)
       raise Kafka::BufferOverflow, "Cannot produce to test, max buffer size (1 messages) reached" unless @buffer.empty?
+      raise Kafka::BufferOverflow, "Cannot produce to test, max buffer bytesize reached" if @max_bytesize && value.bytesize >= @max_bytesize
       @buffer << value
     end
 
@@ -81,6 +83,24 @@ class KafkaOutputTest < Test::Unit::TestCase
     d.instance.emit("test", es, Fluent::NullOutputChain.instance)
 
     assert_equal ['{"message":"first"}', '{"message":"second"}'], producer.delivered
+  end
+
+  def test_emit_skips_the_record_that_does_not_fit_in_the_empty_buffer
+    d = create_driver
+    producer = BufferOverflowProducer.new(max_bytesize: 100)
+    kafka = Object.new
+    kafka.define_singleton_method(:producer) { |**opts| producer }
+    d.instance.instance_variable_set(:@kafka, kafka)
+
+    es = Fluent::MultiEventStream.new
+    es.add(0, {"m" => "a"})
+    es.add(0, {"m" => "b" * 200})
+    es.add(0, {"m" => "c"})
+    assert_nothing_raised do
+      d.instance.emit("test", es, Fluent::NullOutputChain.instance)
+    end
+
+    assert_equal ['{"m":"a"}', '{"m":"c"}'], producer.delivered
   end
 
   data("crc32" => "crc32",
