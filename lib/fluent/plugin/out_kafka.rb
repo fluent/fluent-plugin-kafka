@@ -256,6 +256,15 @@ DESC
           log.info "Trying to deliver the messages to prevent the buffer from overflowing again."
           producer.deliver_messages
           log.info "Recovered from BufferOverflow successfully`"
+          begin
+            producer.produce(record_buf, topic: topic, key: message_key, partition: partition, partition_key: partition_key)
+          rescue Kafka::BufferOverflow => e
+            log.warn "record does not fit in the empty producer buffer. Skip event:", :time => time, :record_size => record_buf_bytes, :error => e
+            log.debug "Skipped event:", :record => record
+          else
+            # Send it now, so that the next record starts a new batch as before.
+            producer.deliver_messages
+          end
         end
       end
 
