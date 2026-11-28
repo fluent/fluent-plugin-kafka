@@ -328,6 +328,7 @@ class KafkaInputTest < Test::Unit::TestCase
     end
 
     data("format error" => JSON::GeneratorError,
+         "nesting error" => JSON::NestingError,
          "ArgumentError" => ArgumentError,
          "TypeError" => TypeError)
     def test_consume_skips_records_that_fail_to_emit(error)

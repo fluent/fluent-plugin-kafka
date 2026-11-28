@@ -299,6 +299,7 @@ class RdkafkaGroupInputTest < Test::Unit::TestCase
   end
 
   data("format error" => JSON::GeneratorError,
+       "nesting error" => JSON::NestingError,
        "ArgumentError" => ArgumentError,
        "TypeError" => TypeError)
   def test_emit_events_skips_records_that_fail_to_emit(error)
