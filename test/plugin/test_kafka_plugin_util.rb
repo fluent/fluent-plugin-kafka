@@ -10,6 +10,7 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
     include Fluent::KafkaPluginUtil::SSLSettings
     include Fluent::KafkaPluginUtil::PartitionSettings
     include Fluent::KafkaPluginUtil::MessageEncoding
+    include RubyKafkaSSLParamsTestHelper
 
     def config_param
     end
@@ -70,46 +71,76 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
       assert_equal(["a","b"], read_ssl_file(["a","b"]))
     end
 
-    def create_certificate(common_name, key)
-      cert = OpenSSL::X509::Certificate.new
-      cert.version = 2
-      cert.serial = 1
-      cert.subject = cert.issuer = OpenSSL::X509::Name.parse("/CN=#{common_name}")
-      cert.public_key = key
-      cert.not_before = Time.now
-      cert.not_after = Time.now + 3600
-      cert.sign(key, OpenSSL::Digest.new('SHA256'))
-      cert
-    end
-
     data("only certificates" => ->(certs, key) { certs.map(&:to_pem).join },
          "blank line at the end" => ->(certs, key) { certs.map(&:to_pem).join + "\n" },
          "private key after the certificates" => ->(certs, key) { certs.map(&:to_pem).join + key.private_to_pem },
+         "private key before the certificates" => ->(certs, key) { key.private_to_pem + certs.map(&:to_pem).join },
+         "no newline at the end" => ->(certs, key) { certs.map(&:to_pem).join.chomp },
+         "X509 CERTIFICATE label on the first certificate" => ->(certs, key) {
+           certs[0].to_pem.gsub("CERTIFICATE", "X509 CERTIFICATE") + certs[1].to_pem
+         },
          "X509 CERTIFICATE label on the last certificate" => ->(certs, key) {
            certs[0].to_pem + certs[1].to_pem.gsub("CERTIFICATE", "X509 CERTIFICATE")
+         },
+         "CRLF line endings" => ->(certs, key) { certs.map(&:to_pem).join.gsub("\n", "\r\n") },
+         "CRLF line endings and private key after the certificates" => ->(certs, key) {
+           (certs.map(&:to_pem).join + key.private_to_pem).gsub("\n", "\r\n")
          },
          "non-UTF-8 text before the certificates" => ->(certs, key) {
            "Bag Attributes\n    friendlyName: M\xFCller\n".b + certs.map(&:to_pem).join
          })
     def test_ruby_kafka_ssl_params_with_client_cert_chain(build_chain)
       key = OpenSSL::PKey::EC.generate('prime256v1')
-      client_cert = create_certificate('client', key)
       chain = [create_certificate('intermediate1', key), create_certificate('intermediate2', key)]
 
       Dir.mktmpdir do |dir|
-        @ssl_client_cert = File.join(dir, 'client_cert.pem')
-        @ssl_client_cert_key = File.join(dir, 'client_cert_key.pem')
-        @ssl_client_cert_chain = File.join(dir, 'client_cert_chain.pem')
-        @ssl_verify_hostname = true
-        File.write(@ssl_client_cert, client_cert.to_pem)
-        File.write(@ssl_client_cert_key, key.private_to_pem)
-        File.write(@ssl_client_cert_chain, build_chain.call(chain, key))
-
-        kafka = Kafka.new(['localhost:9092'], **ruby_kafka_ssl_params)
-        ssl_context = kafka.instance_variable_get(:@connection_builder).instance_variable_get(:@ssl_context)
+        ssl_context = build_ruby_kafka_ssl_context(dir, key, build_chain.call(chain, key))
 
         assert_equal(chain.map(&:to_der), ssl_context.extra_chain_cert.map(&:to_der))
       end
+    end
+
+    def test_ruby_kafka_ssl_params_with_empty_client_cert_chain
+      key = OpenSSL::PKey::EC.generate('prime256v1')
+
+      Dir.mktmpdir do |dir|
+        ssl_context = build_ruby_kafka_ssl_context(dir, key, "")
+
+        assert_equal([], ssl_context.extra_chain_cert)
+      end
+    end
+
+    data("first certificate" => [0],
+         "last certificate" => [1],
+         "all certificates" => [0, 1])
+    def test_ruby_kafka_ssl_params_rejects_trusted_certificate_in_chain(trusted)
+      key = OpenSSL::PKey::EC.generate('prime256v1')
+      chain = [create_certificate('intermediate1', key), create_certificate('intermediate2', key)]
+      chain_pem = chain.each_with_index.map { |cert, i|
+        pem = cert.to_pem
+        trusted.include?(i) ? pem.gsub("CERTIFICATE", "TRUSTED CERTIFICATE") : pem
+      }.join
+
+      Dir.mktmpdir do |dir|
+        error = assert_raise(Fluent::ConfigError) do
+          build_ruby_kafka_ssl_context(dir, key, chain_pem)
+        end
+        assert_match(/TRUSTED CERTIFICATE label/, error.message)
+      end
+    end
+
+    # Passes ruby_kafka_ssl_params to ruby-kafka and returns the SSL context it builds
+    def build_ruby_kafka_ssl_context(dir, key, chain)
+      @ssl_client_cert = File.join(dir, 'client_cert.pem')
+      @ssl_client_cert_key = File.join(dir, 'client_cert_key.pem')
+      @ssl_client_cert_chain = File.join(dir, 'client_cert_chain.pem')
+      @ssl_verify_hostname = true
+      File.write(@ssl_client_cert, create_certificate('client', key).to_pem)
+      File.write(@ssl_client_cert_key, key.private_to_pem)
+      File.binwrite(@ssl_client_cert_chain, chain)
+
+      kafka = Kafka.new(['localhost:9092'], **ruby_kafka_ssl_params)
+      kafka.instance_variable_get(:@connection_builder).instance_variable_get(:@ssl_context)
     end
 
     data("valid UTF-8" => ["あ".b, "あ"],

@@ -1,4 +1,5 @@
 require 'json'
+require 'openssl'
 
 begin
   require 'fluent/plugin/output'
@@ -149,15 +150,27 @@ module Fluent
         }
       end
 
-      # ruby-kafka splits the chain at each "-----END CERTIFICATE-----" line
-      # and parses every piece as a certificate, so it fails on anything after
-      # the last certificate, such as a blank line or a private key. OpenSSL
-      # reads such files, so drop it. OpenSSL also reads the old
-      # "X509 CERTIFICATE" label. The chain is handled as bytes, because a file
-      # with text that is invalid in Encoding.default_external would make both
-      # this and ruby-kafka's split raise.
+      # ruby-kafka splits the chain at each "\n-----END CERTIFICATE-----\n" and
+      # reads only the first certificate of each piece. So it drops certificates
+      # from files that OpenSSL reads, such as a file with CRLF line endings, or
+      # with the old "X509 CERTIFICATE" label on a certificate that is not the
+      # last one. Read the certificates with OpenSSL, and pass them in the PEM
+      # format that ruby-kafka splits correctly. OpenSSL skips anything else in
+      # the file, such as blank lines or a private key. The chain is handled as
+      # bytes, because text that is invalid in Encoding.default_external would
+      # make the match below raise.
       def ruby_kafka_ssl_client_cert_chain
-        read_ssl_file(@ssl_client_cert_chain)&.b&.sub(/\A.*-----END (?:X509 )?CERTIFICATE-----\K.*\z/m, "\n")
+        chain = read_ssl_file(@ssl_client_cert_chain)&.b
+        # An empty file adds no certificate, as before
+        return chain if chain.nil? || chain.empty?
+
+        # OpenSSL skips a certificate with this label in a chain, so it would be
+        # dropped without an error.
+        if chain.match?(/^-----BEGIN TRUSTED CERTIFICATE-----/)
+          raise Fluent::ConfigError, "ssl_client_cert_chain has a certificate with the TRUSTED CERTIFICATE label, which is not sent. Please convert it to the CERTIFICATE label, for example with 'openssl x509'."
+        end
+
+        OpenSSL::X509::Certificate.load(chain).map(&:to_pem).join
       end
 
       def pickup_ssl_endpoint(node)
