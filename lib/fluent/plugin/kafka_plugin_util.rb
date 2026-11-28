@@ -12,8 +12,10 @@ module Fluent
       # Errors that Fluentd does not retry when an output fails to flush them.
       # Fetching the records again fails in the same way, so the inputs skip them.
       # Fluentd's own list is merged in, because it differs between versions.
+      # JSON.generate raises JSON::NestingError for a record that is nested
+      # too deeply. It is a JSON::ParserError, not a JSON::GeneratorError.
       UNRECOVERABLE_ERRORS = (
-        [ArgumentError, TypeError, NoMethodError, JSON::GeneratorError] |
+        [ArgumentError, TypeError, NoMethodError, JSON::GeneratorError, JSON::NestingError] |
         (defined?(Fluent::Plugin::Output::UNRECOVERABLE_ERRORS) ? Fluent::Plugin::Output::UNRECOVERABLE_ERRORS : [])
       ).freeze
     end

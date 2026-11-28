@@ -130,4 +130,12 @@ class KafkaPluginUtilTest < Test::Unit::TestCase
       assert_equal(Encoding::ASCII_8BIT, str.encoding)
     end
 
+    # The default format of out_file writes each record with JSON.generate
+    def test_unrecoverable_errors_include_error_for_deeply_nested_record
+      record = (1..101).inject("value") { |value, _| {"nested" => value} }
+      assert_raise(*Fluent::KafkaPluginUtil::EmitErrors::UNRECOVERABLE_ERRORS) do
+        JSON.generate(record)
+      end
+    end
+
 end
