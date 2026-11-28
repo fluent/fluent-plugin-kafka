@@ -43,6 +43,8 @@ If you want to use zookeeper related parameters, you also need to install zookee
 
 Set path to SSL related files. See [Encryption and Authentication using SSL](https://github.com/zendesk/ruby-kafka#encryption-and-authentication-using-ssl) for more detail.
 
+`ssl_client_cert_chain` is a PEM file with the certificates to send with `ssl_client_cert`, such as intermediate CA certificates. Only the ruby-kafka based plugins (`kafka`, `kafka_group`, `kafka_buffered` and `kafka2`) use it. The file can have LF or CRLF line endings, and anything other than certificates, such as a private key, is ignored. A certificate with the `TRUSTED CERTIFICATE` label is not supported, and the plugin fails to create the Kafka client with such a file. Convert it to the `CERTIFICATE` label, for example with `openssl x509 -in trusted.pem -out cert.pem`.
+
 `ssl_verify_hostname` (default: `true`) checks that the certificate of each broker matches the host name used to connect to it. Set it to `false` to connect to brokers whose certificates don't list that host name, for example when you connect by IP address. The certificates are still verified against the CA certificates. This parameter does not enable SSL by itself. It takes effect only when SSL is enabled with `ssl_ca_cert`, `ssl_ca_certs_from_system` or `ssl_client_cert`. In that case, the rdkafka based plugins set `ssl.endpoint.identification.algorithm` to `https` or `none` from it. A value set for that key in `rdkafka_options` or `kafka_configs` takes precedence. If you enable SSL only in `rdkafka_options` or `kafka_configs`, this parameter is not used. Set `ssl.endpoint.identification.algorithm` there. Otherwise librdkafka uses its own default, which is `none` before librdkafka 2.0.0.
 
 #### SASL authentication
